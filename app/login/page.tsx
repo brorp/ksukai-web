@@ -1,0 +1,176 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowRight, Lock, Mail, ShieldCheck } from "lucide-react";
+import { useForm } from "react-hook-form";
+
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { loginSchema, type LoginFormData } from "@/lib/schemas";
+import { useAuthStore } from "@/lib/store/auth";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const login = useAuthStore((state) => state.login);
+  const isLoading = useAuthStore((state) => state.isLoading);
+
+  const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (data: LoginFormData) => {
+    setError("");
+    const result = await login(data.email, data.password);
+
+    if (!result.success) {
+      setError(result.message ?? "Email atau password salah.");
+      return;
+    }
+
+    const user = useAuthStore.getState().user;
+    if (user?.role === "admin") {
+      router.push("/admin/dashboard");
+      return;
+    }
+    router.push("/apoteker/dashboard");
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#F4F8FF] p-4 relative overflow-hidden">
+      <div className="absolute top-[-12%] left-[-8%] w-[34%] h-[34%] bg-sky-100 rounded-full blur-3xl opacity-70" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[42%] h-[42%] bg-cyan-100 rounded-full blur-3xl opacity-60" />
+
+      <div className="w-full max-w-[460px] z-10">
+        <div className="flex flex-col items-center mb-8 text-center">
+          <div className="bg-sky-600 p-3 rounded-2xl shadow-xl shadow-sky-200 mb-4">
+            <ShieldCheck className="text-white h-8 w-8" />
+          </div>
+          <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
+            CBT <span className="text-sky-600">Apoteker</span>
+          </h1>
+          <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-[0.3em] mt-1">
+            Secure Login Portal
+          </p>
+        </div>
+
+        <Card className="shadow-[0_24px_60px_rgba(2,132,199,0.14)] border-slate-200/70 rounded-[2rem] overflow-hidden bg-white/95 backdrop-blur-sm">
+          <CardHeader className="pt-9 pb-2 text-center">
+            <CardTitle className="text-xl font-semibold text-slate-800">
+              Masuk ke Dashboard
+            </CardTitle>
+            <CardDescription className="font-medium text-slate-500">
+              Gunakan email terdaftar untuk melanjutkan ujian.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="p-8 pt-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                {error && (
+                  <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold px-4 py-3 rounded-xl">
+                    {error}
+                  </div>
+                )}
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1.5">
+                      <FormLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">
+                        Email
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input
+                            placeholder="nama@email.com"
+                            className="pl-11 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus-visible:ring-sky-600 focus-visible:border-sky-600 transition-all"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-[10px] font-bold" />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1.5">
+                      <FormLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">
+                        Password
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input
+                            type="password"
+                            placeholder="Masukkan password"
+                            className="pl-11 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus-visible:ring-sky-600 focus-visible:border-sky-600 transition-all"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-[10px] font-bold" />
+                    </FormItem>
+                  )}
+                />
+
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold h-12 rounded-xl shadow-lg shadow-sky-100 group transition-all"
+                >
+                  {isLoading ? "Memproses..." : "Masuk Sekarang"}
+                  <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </form>
+            </Form>
+
+            <div className="mt-8 text-center">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">
+                Belum memiliki akun?
+              </p>
+              <Link
+                href="/register"
+                className="text-sky-600 hover:text-sky-700 text-sm font-semibold transition-colors"
+              >
+                Daftar Akun Baru
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        <p className="text-center mt-7 text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+          © 2026 CBT Apoteker
+        </p>
+      </div>
+    </div>
+  );
+}
