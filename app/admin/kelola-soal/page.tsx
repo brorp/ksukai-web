@@ -231,43 +231,49 @@ export default function AdminKelolaSoalPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <select
-              className="h-10 border border-slate-200 rounded-md px-3 text-sm bg-white"
-              value={questionDraft.package_id}
-              onChange={(event) =>
-                setQuestionDraft((prev) => ({
-                  ...prev,
-                  package_id: Number(event.target.value),
-                }))
-              }
-            >
-              <option value={0}>Pilih kategori soal</option>
-              {packages.map((pkg) => (
-                <option key={pkg.id} value={pkg.id}>
-                  {pkg.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="h-10 border border-slate-200 rounded-md px-3 text-sm bg-white"
-              value={editingQuestionId ?? ""}
-              onChange={(event) => {
-                const value = Number(event.target.value);
-                if (!value) {
-                  resetQuestionForm();
-                  return;
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Kategori Soal</label>
+              <select
+                className="h-10 w-full border border-slate-200 rounded-md px-3 text-sm bg-white"
+                value={questionDraft.package_id}
+                onChange={(event) =>
+                  setQuestionDraft((prev) => ({
+                    ...prev,
+                    package_id: Number(event.target.value),
+                  }))
                 }
-                handleEditQuestion(value);
-              }}
-            >
-              <option value="">Pilih soal untuk diedit (opsional)</option>
-              {questions.map((question) => (
-                <option key={question.id} value={question.id}>
-                  #{question.id} - {question.question_text.slice(0, 80)}
-                </option>
-              ))}
-            </select>
+              >
+                <option value={0}>Pilih kategori soal</option>
+                {packages.map((pkg) => (
+                  <option key={pkg.id} value={pkg.id}>
+                    {pkg.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Pilih Soal</label>
+              <select
+                className="h-10 w-full border border-slate-200 rounded-md px-3 text-sm bg-white"
+                value={editingQuestionId ?? ""}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  if (!value) {
+                    resetQuestionForm();
+                    return;
+                  }
+                  handleEditQuestion(value);
+                }}
+              >
+                <option value="">Pilih soal untuk diedit (opsional)</option>
+                {questions.map((question) => (
+                  <option key={question.id} value={question.id}>
+                    #{question.id} - {question.question_text.slice(0, 80)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <Input
@@ -381,8 +387,8 @@ export default function AdminKelolaSoalPage() {
         <CardHeader>
           <CardTitle>Import `.docx` dan Select Batch</CardTitle>
           <CardDescription>
-            Upload template Word dengan kolom `No`, `Soal`, dan `Jawaban`, lalu pilih ID soal
-            untuk batch aktif berikutnya.
+            Pilih kategori/package terlebih dahulu, lalu upload template Word agar seluruh soal
+            hasil import otomatis masuk ke kategori tersebut.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -402,24 +408,31 @@ export default function AdminKelolaSoalPage() {
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
-              <select
-                className="h-10 border border-slate-200 rounded-md px-3 text-sm bg-white"
-                value={importPackageId}
-                onChange={(event) => setImportPackageId(Number(event.target.value))}
-              >
-                <option value={0}>Pilih kategori import</option>
-                {packages.map((pkg) => (
-                  <option key={pkg.id} value={pkg.id}>
-                    {pkg.name}
-                  </option>
-                ))}
-              </select>
-              <Input
-                key={importFileInputKey}
-                type="file"
-                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
-              />
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Kategori Import</label>
+                <select
+                  className="h-10 w-full border border-slate-200 rounded-md px-3 text-sm bg-white"
+                  value={importPackageId}
+                  onChange={(event) => setImportPackageId(Number(event.target.value))}
+                >
+                  <option value={0}>Pilih kategori import</option>
+                  {packages.map((pkg) => (
+                    <option key={pkg.id} value={pkg.id}>
+                      {pkg.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">File Template `.docx`</label>
+                <Input
+                  key={importFileInputKey}
+                  type="file"
+                  accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  disabled={importPackageId <= 0}
+                  onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
+                />
+              </div>
             </div>
             <Button
               variant="outline"
@@ -429,6 +442,11 @@ export default function AdminKelolaSoalPage() {
               {actionLoading ? "Mengimpor..." : "Import Bank Soal"}
             </Button>
           </div>
+
+          <p className="text-sm text-slate-600">
+            Semua soal yang dibaca dari file `.docx` akan otomatis memakai kategori yang dipilih
+            di form import ini.
+          </p>
 
           <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm">
             <Checkbox
