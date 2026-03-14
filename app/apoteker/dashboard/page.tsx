@@ -56,6 +56,11 @@ export default function ApotekerDashboard() {
     return user.examPurpose.toUpperCase();
   }, [user?.examPurpose]);
 
+  const quickStartPackage = useMemo(
+    () => packages.find((item) => item.price === 0 || user?.isPremium) ?? null,
+    [packages, user?.isPremium],
+  );
+
   const handleCreateTransaction = async (packageId: number) => {
     if (!token) return;
 
@@ -158,106 +163,146 @@ export default function ApotekerDashboard() {
             Simulasi Ujian CBT
           </CardTitle>
           <CardDescription className="text-sky-100">
-            Durasi ujian 200 menit + grace period 1 menit. Soal diacak per peserta.
+            Pilih paket di bawah. Jumlah soal dan durasi akan mengikuti paket yang dipilih.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <p className="text-sky-100 text-sm">
-              Anda dapat mulai ujian jika akun premium sudah aktif.
+              Paket gratis bisa langsung dimulai. Paket berbayar akan aktif setelah akun premium.
             </p>
           </div>
-          <Link href="/apoteker/test">
-            <Button
-              disabled={!user?.isPremium}
-              className="bg-white text-sky-700 hover:bg-sky-50 font-bold"
-            >
+          {quickStartPackage ? (
+            <Link href={`/apoteker/test?packageId=${quickStartPackage.id}`} className="block">
+              <Button className="bg-white text-sky-700 hover:bg-sky-50 font-bold">
+                <Play size={16} className="mr-2 fill-current" />
+                Mulai {quickStartPackage.name}
+              </Button>
+            </Link>
+          ) : (
+            <Button disabled className="bg-white text-sky-700 font-bold">
               <Play size={16} className="mr-2 fill-current" />
-              Mulai Ujian
+              Paket Belum Tersedia
             </Button>
-          </Link>
+          )}
         </CardContent>
       </Card>
 
-      {!user?.isPremium && (
-        <Card className="border border-amber-200 bg-amber-50/40">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-700">
-              <WalletCards className="h-5 w-5" />
-              Aktivasi Premium
-            </CardTitle>
-            <CardDescription>
-              Pilih paket, buat transaksi, lalu selesaikan pembayaran.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loadingPackages ? (
-              <p className="text-sm text-slate-500">Memuat daftar paket...</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {packages.map((pkg) => (
+      <Card className="border border-amber-200 bg-amber-50/40">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-amber-700">
+            <WalletCards className="h-5 w-5" />
+            Pilih Paket Ujian
+          </CardTitle>
+          <CardDescription>
+            Paket gratis bisa langsung dimulai. Untuk paket berbayar, buat transaksi lalu
+            aktifkan premium.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loadingPackages ? (
+            <p className="text-sm text-slate-500">Memuat daftar paket...</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {packages.map((pkg) => {
+                const canStartPackage = pkg.price === 0 || user?.isPremium;
+
+                return (
                   <Card key={pkg.id} className="border border-slate-200 bg-white">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-lg">{pkg.name}</CardTitle>
-                      <CardDescription>{pkg.description}</CardDescription>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <CardTitle className="text-lg">{pkg.name}</CardTitle>
+                          <CardDescription>{pkg.description}</CardDescription>
+                        </div>
+                        <span
+                          className={cn(
+                            "rounded-full px-3 py-1 text-xs font-semibold",
+                            pkg.price === 0
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-sky-100 text-sky-700",
+                          )}
+                        >
+                          {pkg.question_count} soal
+                        </span>
+                      </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <p className="text-sm text-slate-500">{pkg.features}</p>
                       <p className="text-xl font-bold text-slate-900">
-                        Rp {Number(pkg.price).toLocaleString("id-ID")}
+                        {pkg.price === 0
+                          ? "Gratis"
+                          : `Rp ${Number(pkg.price).toLocaleString("id-ID")}`}
                       </p>
-                      <Button
-                        className="w-full bg-sky-600 hover:bg-sky-700"
-                        disabled={selectedPackageId === pkg.id}
-                        onClick={() => handleCreateTransaction(pkg.id)}
-                      >
-                        {selectedPackageId === pkg.id
-                          ? "Membuat Transaksi..."
-                          : "Pilih Paket"}
-                      </Button>
+                      {canStartPackage ? (
+                        <Link
+                          href={`/apoteker/test?packageId=${pkg.id}`}
+                          className="block"
+                        >
+                          <Button className="w-full bg-emerald-600 hover:bg-emerald-700">
+                            <Play size={16} className="mr-2 fill-current" />
+                            Mulai Paket
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button
+                          className="w-full bg-sky-600 hover:bg-sky-700"
+                          disabled={selectedPackageId === pkg.id}
+                          onClick={() => handleCreateTransaction(pkg.id)}
+                        >
+                          {selectedPackageId === pkg.id
+                            ? "Membuat Transaksi..."
+                            : "Aktivasi Paket"}
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
+          )}
 
-            {latestTransaction && (
-              <Card className="border border-slate-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    Transaksi #{latestTransaction.id}
-                  </CardTitle>
-                  <CardDescription>Status: {latestTransaction.status}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <a
-                    href={latestTransaction.payment_gateway_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-sky-700 underline break-all"
-                  >
-                    {latestTransaction.payment_gateway_url}
-                  </a>
+          {latestTransaction && (
+            <Card className="border border-slate-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  Transaksi #{latestTransaction.id}
+                </CardTitle>
+                <CardDescription>
+                  Status: {latestTransaction.status}
+                  {latestTransaction.package_name
+                    ? ` • ${latestTransaction.package_name}`
+                    : ""}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <a
+                  href={latestTransaction.payment_gateway_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-sky-700 underline break-all"
+                >
+                  {latestTransaction.payment_gateway_url}
+                </a>
 
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    disabled={simulatingPayment}
-                    onClick={handleSimulatePayment}
-                  >
-                    <RefreshCw
-                      size={14}
-                      className={cn("mr-2", simulatingPayment && "animate-spin")}
-                    />
-                    Simulasikan Pembayaran Sukses
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={simulatingPayment}
+                  onClick={handleSimulatePayment}
+                >
+                  <RefreshCw
+                    size={14}
+                    className={cn("mr-2", simulatingPayment && "animate-spin")}
+                  />
+                  Simulasikan Pembayaran Sukses
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

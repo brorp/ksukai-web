@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Calculator, ChevronLeft, Clock, LayoutGrid, X } from "lucide-react";
 
 import TestQuestion from "@/components/apoteker/test-question";
@@ -19,9 +19,11 @@ import { cn } from "@/lib/utils";
 
 export default function TestPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const packageId = Number(searchParams.get("packageId") ?? 0);
 
   const [mounted, setMounted] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
@@ -31,6 +33,7 @@ export default function TestPage() {
   const [isLoadingSession, setIsLoadingSession] = useState(true);
   const [error, setError] = useState("");
   const [syncError, setSyncError] = useState("");
+  const [packageName, setPackageName] = useState("");
 
   const {
     sessionId,
@@ -62,8 +65,15 @@ export default function TestPage() {
     const loadSession = async () => {
       setIsLoadingSession(true);
       setError("");
+
+      if (!Number.isInteger(packageId) || packageId <= 0) {
+        setError("Pilih paket ujian dari dashboard terlebih dahulu.");
+        setIsLoadingSession(false);
+        return;
+      }
+
       try {
-        const response = await examApi.start(token);
+        const response = await examApi.start(token, packageId);
         const questions: Question[] = response.questions
           .sort((a, b) => a.order - b.order)
           .map((item) => ({
@@ -73,6 +83,7 @@ export default function TestPage() {
             options: item.options,
           }));
 
+        setPackageName(response.packageName);
         initializeSession({
           sessionId: response.sessionId,
           startTime: response.startTime,
@@ -92,7 +103,7 @@ export default function TestPage() {
     };
 
     void loadSession();
-  }, [mounted, token, isAuthenticated, user?.role, initializeSession]);
+  }, [mounted, token, isAuthenticated, user?.role, packageId, initializeSession]);
 
   const handleSubmitTest = useCallback(async () => {
     if (!token || isSubmitting) return;
@@ -211,6 +222,7 @@ export default function TestPage() {
             <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-slate-400">
               Sesi #{sessionId}
             </p>
+            <p className="text-xs font-medium text-sky-700">{packageName || "Paket Ujian"}</p>
             <p className="text-xs text-slate-500">
               Jawab: {summary.answered} • Ragu: {summary.doubtful} • Kosong:{" "}
               {summary.empty}

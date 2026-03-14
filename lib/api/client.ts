@@ -183,12 +183,14 @@ export interface ExamPackage {
   description: string;
   price: number;
   features: string;
+  question_count: number;
 }
 
 export interface Transaction {
   id: number;
   user_id: number;
   package_id: number;
+  package_name?: string | null;
   status: "pending" | "success" | "failed";
   payment_gateway_url: string;
   created_at?: string;
@@ -240,6 +242,9 @@ export interface ExamQuestionPublic {
 
 export interface ExamStartResponse {
   sessionId: number;
+  packageId: number;
+  packageName: string;
+  questionCount: number;
   startTime: string;
   durationMinutes: number;
   gracePeriodMinutes: number;
@@ -249,6 +254,12 @@ export interface ExamStartResponse {
 interface ExamStartRaw {
   sessionId?: number;
   session_id?: number;
+  packageId?: number;
+  package_id?: number;
+  packageName?: string;
+  package_name?: string;
+  questionCount?: number;
+  question_count?: number;
   startTime?: string;
   start_time?: string;
   durationMinutes?: number;
@@ -267,6 +278,14 @@ interface ExamStartRaw {
 
 const normalizeExamStart = (raw: ExamStartRaw): ExamStartResponse => ({
   sessionId: Number(raw.sessionId ?? raw.session_id ?? 0),
+  packageId: Number(raw.packageId ?? raw.package_id ?? 0),
+  packageName: String(raw.packageName ?? raw.package_name ?? ""),
+  questionCount: Number(
+    raw.questionCount ??
+      raw.question_count ??
+      raw.questions?.length ??
+      0,
+  ),
   startTime: String(raw.startTime ?? raw.start_time ?? new Date().toISOString()),
   durationMinutes: Number(raw.durationMinutes ?? raw.duration_minutes ?? 200),
   gracePeriodMinutes: Number(
@@ -283,6 +302,8 @@ const normalizeExamStart = (raw: ExamStartRaw): ExamStartResponse => ({
 
 export interface SubmitExamResponse {
   sessionId: number;
+  package_id?: number | null;
+  package_name?: string | null;
   score?: number;
   status?: string;
   totalQuestions?: number;
@@ -302,6 +323,8 @@ export interface ExamResultQuestion {
 
 export interface ExamResultResponse {
   sessionId: number;
+  package_id?: number | null;
+  package_name?: string | null;
   status: string;
   score: number;
   totalQuestions: number;
@@ -312,10 +335,14 @@ export interface ExamResultResponse {
 }
 
 export const examApi = {
-  start: async (token: string): Promise<ExamStartResponse> => {
+  start: async (token: string, packageId: number): Promise<ExamStartResponse> => {
     const raw = await request<ExamStartRaw>("/exam/start", {
       method: "POST",
       token,
+      body: {
+        package_id: packageId,
+        packageId,
+      },
     });
     return normalizeExamStart(raw);
   },
@@ -377,6 +404,7 @@ export interface ActivityLog {
 }
 
 export interface AdminQuestionPayload {
+  package_id: number;
   question_text: string;
   option_a: string;
   option_b: string;
@@ -390,6 +418,8 @@ export interface AdminQuestionPayload {
 
 export interface AdminQuestion extends AdminQuestionPayload {
   id: number;
+  package_name: string | null;
+  package_question_count: number | null;
 }
 
 export const adminApi = {
@@ -408,6 +438,8 @@ export const adminApi = {
 
   activityLogs: async (token: string): Promise<ActivityLog[]> =>
     request("/admin/activity-logs", { token }),
+
+  packages: async (): Promise<ExamPackage[]> => request("/packages"),
 
   questions: async (token: string): Promise<AdminQuestion[]> =>
     request("/admin/questions", { token }),
@@ -443,16 +475,21 @@ export const adminApi = {
   importQuestions: async (
     token: string,
     file: File,
-    options?: { isActive?: boolean },
+    options?: { packageId?: number; isActive?: boolean },
   ): Promise<{
     message?: string;
     imported_count?: number;
+    package_id?: number;
+    package_name?: string;
     is_active?: boolean;
     file_name?: string;
     question_ids?: number[];
   }> => {
     const formData = new FormData();
     formData.append("file", file);
+    if (typeof options?.packageId === "number" && options.packageId > 0) {
+      formData.append("package_id", String(options.packageId));
+    }
     if (typeof options?.isActive === "boolean") {
       formData.append("is_active", String(options.isActive));
     }

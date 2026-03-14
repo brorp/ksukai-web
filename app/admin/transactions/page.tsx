@@ -62,9 +62,9 @@ export default function AdminTransactionsPage() {
             rows={rows.map((item) => [
               String(item.id),
               String(item.user_id),
-              String(item.package_id),
+              item.package_name ?? String(item.package_id),
               item.status,
-              item.payment_gateway_url,
+              item.payment_gateway_url || "-",
             ])}
             emptyText="Belum ada data transaksi."
           />

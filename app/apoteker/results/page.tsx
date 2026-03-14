@@ -97,9 +97,9 @@ export default function ResultsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex gap-3">
-            <Link href="/apoteker/test">
+            <Link href="/apoteker/dashboard">
               <Button className="bg-sky-600 hover:bg-sky-700">
-                <RefreshCw size={16} className="mr-2" /> Mulai Ujian
+                <RefreshCw size={16} className="mr-2" /> Pilih Paket Ujian
               </Button>
             </Link>
             <Link href="/apoteker/dashboard">
@@ -129,13 +129,15 @@ export default function ResultsPage() {
             Hasil Ujian
           </h1>
           <p className="text-slate-500">
-            Session #{result.sessionId} • Status: {result.status}
+            Session #{result.sessionId}
+            {result.package_name ? ` • ${result.package_name}` : ""}
+            {" • "}Status: {result.status}
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href="/apoteker/test">
+          <Link href="/apoteker/dashboard">
             <Button className="bg-sky-600 hover:bg-sky-700">
-              <RefreshCw size={16} className="mr-2" /> Ujian Baru
+              <RefreshCw size={16} className="mr-2" /> Pilih Paket Baru
             </Button>
           </Link>
           <Link href="/apoteker/dashboard">

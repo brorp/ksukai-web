@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -28,16 +27,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   adminApi,
   type AdminQuestion,
   type AdminQuestionPayload,
+  type ExamPackage,
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import type { OptionKey } from "@/lib/types";
 
-const emptyQuestionDraft: AdminQuestionPayload = {
+const createEmptyQuestionDraft = (packageId = 0): AdminQuestionPayload => ({
+  package_id: packageId,
   question_text: "",
   option_a: "",
   option_b: "",
@@ -47,7 +49,7 @@ const emptyQuestionDraft: AdminQuestionPayload = {
   correct_answer: "a",
   explanation: "",
   is_active: false,
-};
+});
 
 const truncateText = (value: string, maxLength: number): string => {
   if (value.length <= maxLength) return value;
@@ -55,6 +57,7 @@ const truncateText = (value: string, maxLength: number): string => {
 };
 
 const toDraft = (question: AdminQuestion): AdminQuestionPayload => ({
+  package_id: question.package_id ?? 0,
   question_text: question.question_text,
   option_a: question.option_a,
   option_b: question.option_b,
@@ -75,20 +78,26 @@ export default function AdminBankSoalPage() {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<AdminQuestion[]>([]);
+  const [packages, setPackages] = useState<ExamPackage[]>([]);
   const [previewQuestion, setPreviewQuestion] = useState<AdminQuestion | null>(null);
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
   const [questionDraft, setQuestionDraft] =
-    useState<AdminQuestionPayload>(emptyQuestionDraft);
+    useState<AdminQuestionPayload>(createEmptyQuestionDraft());
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminQuestion | null>(null);
+  const [inlineActionId, setInlineActionId] = useState<number | null>(null);
 
   const loadData = async () => {
     if (!token) return;
     setLoading(true);
     setError("");
     try {
-      const response = await adminApi.questions(token);
-      setRows(response);
+      const [questionRows, packageRows] = await Promise.all([
+        adminApi.questions(token),
+        adminApi.packages(),
+      ]);
+      setRows(questionRows);
+      setPackages(packageRows);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -117,6 +126,7 @@ export default function AdminBankSoalPage() {
         item.option_c,
         item.option_d,
         item.option_e,
+        item.package_name ?? "",
       ];
 
       return haystacks.some((value) => value.toLowerCase().includes(query));
@@ -125,7 +135,7 @@ export default function AdminBankSoalPage() {
 
   const resetForm = () => {
     setEditingQuestionId(null);
-    setQuestionDraft(emptyQuestionDraft);
+    setQuestionDraft(createEmptyQuestionDraft(packages[0]?.id ?? 0));
   };
 
   const handleCreate = () => {
@@ -139,8 +149,47 @@ export default function AdminBankSoalPage() {
     setFormOpen(true);
   };
 
+  const handleInlineUpdate = async (
+    questionId: number,
+    payload: Partial<AdminQuestionPayload>,
+    successMessage: string,
+  ) => {
+    if (!token) return;
+
+    setInlineActionId(questionId);
+    setError("");
+    setMessage("");
+
+    try {
+      const updated = await adminApi.updateQuestion(token, questionId, payload);
+      setRows((prev) =>
+        prev.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      if (previewQuestion?.id === updated.id) {
+        setPreviewQuestion(updated);
+      }
+      if (editingQuestionId === updated.id) {
+        setQuestionDraft(toDraft(updated));
+      }
+      setMessage(successMessage);
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Gagal memperbarui soal.",
+      );
+    } finally {
+      setInlineActionId(null);
+    }
+  };
+
   const handleSave = async () => {
     if (!token) return;
+
+    if (!Number.isInteger(questionDraft.package_id) || questionDraft.package_id <= 0) {
+      setError("Kategori soal wajib dipilih.");
+      return;
+    }
 
     const hasEmptyField = [
       questionDraft.question_text,
@@ -254,7 +303,7 @@ export default function AdminBankSoalPage() {
         <CardContent className="p-6">
           <SimpleTable
             loading={loading}
-            headers={["ID", "Pertanyaan", "Pembahasan", "Kunci", "Aktif", "Aksi"]}
+            headers={["ID", "Pertanyaan", "Kategori", "Pembahasan", "Kunci", "Status", "Aksi"]}
             rows={filteredRows.map((item) => [
               String(item.id),
               <div key={`question-${item.id}`} className="space-y-1">
@@ -263,6 +312,35 @@ export default function AdminBankSoalPage() {
                 </p>
                 <p className="text-xs text-slate-500">
                   Opsi: A, B, C, D, E
+                </p>
+              </div>,
+              <div key={`package-${item.id}`} className="min-w-56 space-y-2">
+                <select
+                  className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                  value={item.package_id ?? ""}
+                  disabled={inlineActionId === item.id || packages.length === 0}
+                  onChange={(event) => {
+                    const nextPackageId = Number(event.target.value);
+                    if (!nextPackageId || nextPackageId === item.package_id) {
+                      return;
+                    }
+
+                    void handleInlineUpdate(
+                      item.id,
+                      { package_id: nextPackageId },
+                      `Kategori soal #${item.id} berhasil diperbarui.`,
+                    );
+                  }}
+                >
+                  <option value="">Pilih kategori</option>
+                  {packages.map((pkg) => (
+                    <option key={pkg.id} value={pkg.id}>
+                      {pkg.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500">
+                  {item.package_name ?? "Belum ada kategori"}
                 </p>
               </div>,
               <div key={`explanation-${item.id}`} className="space-y-1">
@@ -276,15 +354,33 @@ export default function AdminBankSoalPage() {
                 </button>
               </div>,
               item.correct_answer.toUpperCase(),
-              <span
-                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  item.is_active
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                {item.is_active ? "Aktif" : "Nonaktif"}
-              </span>,
+              <div key={`active-${item.id}`} className="min-w-36 space-y-2">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={item.is_active}
+                    disabled={inlineActionId === item.id}
+                    onCheckedChange={(checked) =>
+                      void handleInlineUpdate(
+                        item.id,
+                        { is_active: checked },
+                        `Soal #${item.id} ${checked ? "diaktifkan" : "dinonaktifkan"}.`,
+                      )
+                    }
+                  />
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      item.is_active
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {item.is_active ? "Aktif" : "Nonaktif"}
+                  </span>
+                </div>
+                {inlineActionId === item.id && (
+                  <p className="text-xs text-slate-500">Menyimpan perubahan...</p>
+                )}
+              </div>,
               <div key={`actions-${item.id}`} className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
@@ -338,6 +434,27 @@ export default function AdminBankSoalPage() {
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Kategori Soal</label>
+              <select
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                value={questionDraft.package_id}
+                onChange={(event) =>
+                  setQuestionDraft((prev) => ({
+                    ...prev,
+                    package_id: Number(event.target.value),
+                  }))
+                }
+              >
+                <option value={0}>Pilih kategori soal</option>
+                {packages.map((pkg) => (
+                  <option key={pkg.id} value={pkg.id}>
+                    {pkg.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Pertanyaan</label>
               <Textarea
@@ -415,18 +532,18 @@ export default function AdminBankSoalPage() {
               </div>
 
               <div className="flex items-end">
-                <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
-                  <Checkbox
+                <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+                  <Switch
                     checked={questionDraft.is_active}
                     onCheckedChange={(checked) =>
                       setQuestionDraft((prev) => ({
                         ...prev,
-                        is_active: Boolean(checked),
+                        is_active: checked,
                       }))
                     }
                   />
-                  Aktifkan soal ini
-                </label>
+                  <span>{questionDraft.is_active ? "Soal aktif" : "Soal nonaktif"}</span>
+                </div>
               </div>
             </div>
 
@@ -483,6 +600,25 @@ export default function AdminBankSoalPage() {
 
           {previewQuestion && (
             <div className="space-y-5">
+              <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Kategori
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-slate-800">
+                    {previewQuestion.package_name ?? "Belum ada kategori"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Status
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-slate-800">
+                    {previewQuestion.is_active ? "Aktif" : "Nonaktif"}
+                  </p>
+                </div>
+              </section>
+
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
                   Pertanyaan

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Lock, Mail, ShieldCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -60,23 +61,31 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F4F8FF] p-4 relative overflow-hidden">
-      <div className="absolute top-[-12%] left-[-8%] w-[34%] h-[34%] bg-sky-100 rounded-full blur-3xl opacity-70" />
+      <div className="absolute top-[-12%] left-[-8%] w-[34%] h-[34%] bg-[#0085D1]/10 rounded-full blur-3xl opacity-70" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[42%] h-[42%] bg-cyan-100 rounded-full blur-3xl opacity-60" />
 
       <div className="w-full max-w-[460px] z-10">
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="bg-sky-600 p-3 rounded-2xl shadow-xl shadow-sky-200 mb-4">
-            <ShieldCheck className="text-white h-8 w-8" />
+          <div className="mb-4">
+            {/* Replace src with your actual logo path, e.g., src="/logo.png" */}
+            <Image
+              src="/Logo KS UKAI.png"
+              alt="KS UKAI Logo"
+              width={320}
+              height={96}
+              priority
+              className="h-48 w-auto object-contain"
+            />
           </div>
           <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
-            CBT <span className="text-sky-600">Apoteker</span>
+            KS <span className="text-[#0085D1]">UKAI</span>
           </h1>
           <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-[0.3em] mt-1">
-            Secure Login Portal
+            Portal Kumpulan Soal UKAI
           </p>
         </div>
 
-        <Card className="shadow-[0_24px_60px_rgba(2,132,199,0.14)] border-slate-200/70 rounded-[2rem] overflow-hidden bg-white/95 backdrop-blur-sm">
+        <Card className="shadow-[0_24px_60px_rgba(0,133,209,0.14)] border-slate-200/70 rounded-[2rem] overflow-hidden bg-white/95 backdrop-blur-sm">
           <CardHeader className="pt-9 pb-2 text-center">
             <CardTitle className="text-xl font-semibold text-slate-800">
               Masuk ke Dashboard
@@ -108,7 +117,7 @@ export default function LoginPage() {
                           <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                           <Input
                             placeholder="nama@email.com"
-                            className="pl-11 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus-visible:ring-sky-600 focus-visible:border-sky-600 transition-all"
+                            className="pl-11 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus-visible:ring-[#0085D1] focus-visible:border-[#0085D1] transition-all"
                             {...field}
                           />
                         </div>
@@ -132,7 +141,7 @@ export default function LoginPage() {
                           <Input
                             type="password"
                             placeholder="Masukkan password"
-                            className="pl-11 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus-visible:ring-sky-600 focus-visible:border-sky-600 transition-all"
+                            className="pl-11 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus-visible:ring-[#0085D1] focus-visible:border-[#0085D1] transition-all"
                             {...field}
                           />
                         </div>
@@ -145,7 +154,7 @@ export default function LoginPage() {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold h-12 rounded-xl shadow-lg shadow-sky-100 group transition-all"
+                  className="w-full bg-[#0085D1] hover:bg-[#0070B0] text-white font-semibold h-12 rounded-xl shadow-lg shadow-[#0085D1]/20 group transition-all"
                 >
                   {isLoading ? "Memproses..." : "Masuk Sekarang"}
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -159,7 +168,7 @@ export default function LoginPage() {
               </p>
               <Link
                 href="/register"
-                className="text-sky-600 hover:text-sky-700 text-sm font-semibold transition-colors"
+                className="text-[#0085D1] hover:text-[#0070B0] text-sm font-semibold transition-colors"
               >
                 Daftar Akun Baru
               </Link>

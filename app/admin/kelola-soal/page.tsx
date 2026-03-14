@@ -8,11 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { adminApi, type AdminQuestion, type AdminQuestionPayload } from "@/lib/api/client";
+import { Switch } from "@/components/ui/switch";
+import {
+  adminApi,
+  type AdminQuestion,
+  type AdminQuestionPayload,
+  type ExamPackage,
+} from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import type { OptionKey } from "@/lib/types";
 
-const defaultQuestionDraft: AdminQuestionPayload = {
+const createDefaultQuestionDraft = (packageId = 0): AdminQuestionPayload => ({
+  package_id: packageId,
   question_text: "",
   option_a: "",
   option_b: "",
@@ -22,7 +29,7 @@ const defaultQuestionDraft: AdminQuestionPayload = {
   correct_answer: "a",
   explanation: "",
   is_active: false,
-};
+});
 
 export default function AdminKelolaSoalPage() {
   const token = useAuthStore((state) => state.token);
@@ -31,21 +38,33 @@ export default function AdminKelolaSoalPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [questions, setQuestions] = useState<AdminQuestion[]>([]);
+  const [packages, setPackages] = useState<ExamPackage[]>([]);
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
   const [questionDraft, setQuestionDraft] =
-    useState<AdminQuestionPayload>(defaultQuestionDraft);
+    useState<AdminQuestionPayload>(createDefaultQuestionDraft());
   const [batchInput, setBatchInput] = useState("");
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importFileInputKey, setImportFileInputKey] = useState(0);
   const [importAsActive, setImportAsActive] = useState(false);
+  const [importPackageId, setImportPackageId] = useState(0);
 
   const loadData = async () => {
     if (!token) return;
     setLoading(true);
     setError("");
     try {
-      const response = await adminApi.questions(token);
-      setQuestions(response);
+      const [questionRows, packageRows] = await Promise.all([
+        adminApi.questions(token),
+        adminApi.packages(),
+      ]);
+      setQuestions(questionRows);
+      setPackages(packageRows);
+      setQuestionDraft((prev) =>
+        prev.package_id > 0
+          ? prev
+          : createDefaultQuestionDraft(packageRows[0]?.id ?? 0),
+      );
+      setImportPackageId((prev) => prev || packageRows[0]?.id || 0);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -63,7 +82,7 @@ export default function AdminKelolaSoalPage() {
 
   const resetQuestionForm = () => {
     setEditingQuestionId(null);
-    setQuestionDraft(defaultQuestionDraft);
+    setQuestionDraft(createDefaultQuestionDraft(packages[0]?.id ?? 0));
   };
 
   const handleEditQuestion = (questionId: number) => {
@@ -72,6 +91,7 @@ export default function AdminKelolaSoalPage() {
 
     setEditingQuestionId(selected.id);
     setQuestionDraft({
+      package_id: selected.package_id ?? packages[0]?.id ?? 0,
       question_text: selected.question_text,
       option_a: selected.option_a,
       option_b: selected.option_b,
@@ -86,6 +106,12 @@ export default function AdminKelolaSoalPage() {
 
   const handleSaveQuestion = async () => {
     if (!token) return;
+
+    if (!Number.isInteger(questionDraft.package_id) || questionDraft.package_id <= 0) {
+      setError("Kategori soal wajib dipilih.");
+      return;
+    }
+
     setActionLoading(true);
     setError("");
     setMessage("");
@@ -113,11 +139,16 @@ export default function AdminKelolaSoalPage() {
 
   const handleImportQuestions = async () => {
     if (!token || !importFile) return;
+    if (!Number.isInteger(importPackageId) || importPackageId <= 0) {
+      setError("Pilih kategori package untuk hasil import.");
+      return;
+    }
     setActionLoading(true);
     setError("");
     setMessage("");
     try {
       const result = await adminApi.importQuestions(token, importFile, {
+        packageId: importPackageId,
         isActive: importAsActive,
       });
       const importedCountText =
@@ -199,7 +230,25 @@ export default function AdminKelolaSoalPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <select
+              className="h-10 border border-slate-200 rounded-md px-3 text-sm bg-white"
+              value={questionDraft.package_id}
+              onChange={(event) =>
+                setQuestionDraft((prev) => ({
+                  ...prev,
+                  package_id: Number(event.target.value),
+                }))
+              }
+            >
+              <option value={0}>Pilih kategori soal</option>
+              {packages.map((pkg) => (
+                <option key={pkg.id} value={pkg.id}>
+                  {pkg.name}
+                </option>
+              ))}
+            </select>
+
             <select
               className="h-10 border border-slate-200 rounded-md px-3 text-sm bg-white"
               value={editingQuestionId ?? ""}
@@ -286,19 +335,18 @@ export default function AdminKelolaSoalPage() {
                 </option>
               ))}
             </select>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input
-                type="checkbox"
+            <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+              <Switch
                 checked={questionDraft.is_active}
-                onChange={(event) =>
+                onCheckedChange={(checked) =>
                   setQuestionDraft((prev) => ({
                     ...prev,
-                    is_active: event.target.checked,
+                    is_active: checked,
                   }))
                 }
               />
-              Aktifkan soal
-            </label>
+              <span>{questionDraft.is_active ? "Soal aktif" : "Soal nonaktif"}</span>
+            </div>
           </div>
 
           <Input
@@ -353,16 +401,30 @@ export default function AdminKelolaSoalPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-            <Input
-              key={importFileInputKey}
-              type="file"
-              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
-            />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+              <select
+                className="h-10 border border-slate-200 rounded-md px-3 text-sm bg-white"
+                value={importPackageId}
+                onChange={(event) => setImportPackageId(Number(event.target.value))}
+              >
+                <option value={0}>Pilih kategori import</option>
+                {packages.map((pkg) => (
+                  <option key={pkg.id} value={pkg.id}>
+                    {pkg.name}
+                  </option>
+                ))}
+              </select>
+              <Input
+                key={importFileInputKey}
+                type="file"
+                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
+              />
+            </div>
             <Button
               variant="outline"
               onClick={() => void handleImportQuestions()}
-              disabled={!importFile || actionLoading}
+              disabled={!importFile || actionLoading || importPackageId <= 0}
             >
               {actionLoading ? "Mengimpor..." : "Import Bank Soal"}
             </Button>
