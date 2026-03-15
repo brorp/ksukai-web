@@ -12,8 +12,6 @@ export default function ProfilePage({
 }: {
   searchParams: { email?: string };
 }) {
-  const userEmail = "";
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F4F8FF] p-4 relative overflow-hidden">
       {/* Background Ornaments agar konsisten dengan Register & OTP */}

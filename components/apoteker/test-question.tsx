@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, HelpCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  HelpCircle,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useTestStore } from "@/lib/store/test";
@@ -45,9 +50,16 @@ export default function TestQuestion({
   }, []);
 
   const handleSelectAnswer = async (option: OptionKey) => {
-    const status: QuestionFlagStatus = isDoubtful ? "doubtful" : "answered";
-    setAnswer(question.id, option, status);
-    await onPersistAnswer(question.id, option, status);
+    const isClearing = selectedAnswer === option;
+    const nextOption = isClearing ? null : option;
+    const status: QuestionFlagStatus = isClearing
+      ? "empty"
+      : isDoubtful
+        ? "doubtful"
+        : "answered";
+
+    setAnswer(question.id, nextOption, status);
+    await onPersistAnswer(question.id, nextOption, status);
   };
 
   const handleToggleDoubtful = async () => {
@@ -76,6 +88,7 @@ export default function TestQuestion({
           </div>
 
           <Button
+            disabled={!selectedAnswer}
             variant="outline"
             size="sm"
             onClick={handleToggleDoubtful}
@@ -105,7 +118,7 @@ export default function TestQuestion({
               key={option}
               onClick={() => handleSelectAnswer(option)}
               className={cn(
-                "group relative w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left",
+                "group cursor-pointer relative w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left",
                 isActive
                   ? isDoubtful
                     ? "border-amber-400 bg-amber-50/50 ring-2 ring-amber-200"
@@ -115,7 +128,7 @@ export default function TestQuestion({
             >
               <div
                 className={cn(
-                  "flex items-center justify-center w-10 h-10 rounded-lg font-semibold text-sm transition-colors flex-shrink-0",
+                  "flex items-center justify-center w-10 h-10 rounded-lg font-semibold text-sm transition-colors shrink-0",
                   isActive
                     ? isDoubtful
                       ? "bg-amber-500 text-white"
@@ -138,11 +151,15 @@ export default function TestQuestion({
               {isActive && (
                 <div
                   className={cn(
-                    "flex-shrink-0",
+                    "shrink-0",
                     isDoubtful ? "text-amber-600" : "text-blue-600",
                   )}
                 >
-                  {isDoubtful ? <HelpCircle size={20} /> : <CheckCircle2 size={20} />}
+                  {isDoubtful ? (
+                    <HelpCircle size={20} />
+                  ) : (
+                    <CheckCircle2 size={20} />
+                  )}
                 </div>
               )}
             </button>

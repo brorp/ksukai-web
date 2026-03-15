@@ -9,7 +9,16 @@ import LabValuesModal from "@/components/apoteker/lab-values-modal";
 import TestTimer from "@/components/apoteker/test-timer";
 import QuestionNumberGrid from "@/components/apoteker/question-number-grid";
 import ScientificCalculator from "@/components/apoteker/simple-calculator";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { examApi } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
@@ -103,7 +112,14 @@ export default function TestPage() {
     };
 
     void loadSession();
-  }, [mounted, token, isAuthenticated, user?.role, packageId, initializeSession]);
+  }, [
+    mounted,
+    token,
+    isAuthenticated,
+    user?.role,
+    packageId,
+    initializeSession,
+  ]);
 
   const handleSubmitTest = useCallback(async () => {
     if (!token || isSubmitting) return;
@@ -130,7 +146,14 @@ export default function TestPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [token, isSubmitting, sessionId, setSubmittedSessionId, resetTest, router]);
+  }, [
+    token,
+    isSubmitting,
+    sessionId,
+    setSubmittedSessionId,
+    resetTest,
+    router,
+  ]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -167,9 +190,16 @@ export default function TestPage() {
 
   const currentQuestion = shuffledQuestions[currentQuestionIndex];
   const answersArray = getAnswersArray();
-  const answeredCount = answersArray.filter((a) => a.status === "answered").length;
-  const doubtfulCount = answersArray.filter((a) => a.status === "doubtful").length;
-  const emptyCount = Math.max(shuffledQuestions.length - answersArray.length, 0);
+  const answeredCount = answersArray.filter(
+    (a) => a.status === "answered",
+  ).length;
+  const doubtfulCount = answersArray.filter(
+    (a) => a.status === "doubtful",
+  ).length;
+  const emptyCount = Math.max(
+    shuffledQuestions.length - answersArray.length,
+    0,
+  );
 
   const summary = useMemo(
     () => ({
@@ -193,9 +223,13 @@ export default function TestPage() {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white px-4">
         <div className="max-w-md text-center space-y-4">
-          <h2 className="text-xl font-bold text-slate-900">Sesi Ujian Gagal Dimuat</h2>
+          <h2 className="text-xl font-bold text-slate-900">
+            Sesi Ujian Gagal Dimuat
+          </h2>
           <p className="text-slate-600">{error}</p>
-          <Button onClick={() => router.push("/apoteker/dashboard")}>Kembali ke Dashboard</Button>
+          <Button onClick={() => router.push("/apoteker/dashboard")}>
+            Kembali ke Dashboard
+          </Button>
         </div>
       </div>
     );
@@ -222,7 +256,9 @@ export default function TestPage() {
             <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-slate-400">
               Sesi #{sessionId}
             </p>
-            <p className="text-xs font-medium text-sky-700">{packageName || "Paket Ujian"}</p>
+            <p className="text-xs font-medium text-sky-700">
+              {packageName || "Paket Ujian"}
+            </p>
             <p className="text-xs text-slate-500">
               Jawab: {summary.answered} • Ragu: {summary.doubtful} • Kosong:{" "}
               {summary.empty}
@@ -292,7 +328,9 @@ export default function TestPage() {
                 }}
                 onPrevious={() => setCurrentQuestion(currentQuestionIndex - 1)}
                 isFirstQuestion={currentQuestionIndex === 0}
-                isLastQuestion={currentQuestionIndex === shuffledQuestions.length - 1}
+                isLastQuestion={
+                  currentQuestionIndex === shuffledQuestions.length - 1
+                }
                 questionNumber={currentQuestionIndex + 1}
               />
             </div>
@@ -339,18 +377,54 @@ export default function TestPage() {
       </div>
 
       <AlertDialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
-        <AlertDialogContent className="bg-white">
+        <AlertDialogContent className="bg-white max-w-100 rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Selesaikan Ujian?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Anda telah menjawab {summary.answered} soal. Sisa kosong {summary.empty} soal.
+            <AlertDialogTitle className="text-xl font-bold text-slate-900 text-center">
+              Selesaikan Ujian?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="pt-4">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
+                    Dijawab
+                  </p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    {summary.answered}
+                  </p>
+                </div>
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
+                    Ragu
+                  </p>
+                  <p className="text-2xl font-bold text-amber-700">
+                    {summary.doubtful}
+                  </p>
+                </div>
+                <div className="p-3 bg-red-50 rounded-xl border border-red-100">
+                  <p className="text-xs font-semibold text-red-500 uppercase tracking-wider">
+                    Kosong
+                  </p>
+                  <p className="text-2xl font-bold text-red-700">
+                    {summary.empty}
+                  </p>
+                </div>
+              </div>
+
+              {summary.empty > 0 && (
+                <p className="mt-4 text-sm text-red-500 text-center font-medium bg-red-50 py-2 rounded-lg">
+                  ⚠️ Masih ada {summary.empty} soal yang belum diisi!
+                </p>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+
+          <AlertDialogFooter className="mt-6 flex gap-2 sm:gap-0">
+            <AlertDialogCancel className="flex-1 mr-2 border-2 font-bold hover:bg-slate-50">
+              Batal
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void handleSubmitTest()}
-              className="bg-emerald-600 text-white"
+              className="flex-1 bg-emerald-600 ml-2 text-white font-bold hover:bg-emerald-700 shadow-md shadow-emerald-200"
             >
               Ya, Kirim
             </AlertDialogAction>
@@ -363,7 +437,8 @@ export default function TestPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Konfirmasi Keluar</AlertDialogTitle>
             <AlertDialogDescription>
-              Keluar halaman tidak akan menghapus sesi. Anda dapat lanjut dari menu ujian.
+              Keluar halaman tidak akan menghapus sesi. Anda dapat lanjut dari
+              menu ujian.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

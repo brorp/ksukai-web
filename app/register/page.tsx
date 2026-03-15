@@ -26,21 +26,14 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import GoogleAuthButton from "@/components/google-auth-button";
-import { PasswordField } from "@/components/password-field";
+import { authApi } from "@/lib/api/client";
 
-const simpleRegisterSchema = z
-  .object({
-    email: z
-      .string()
-      .min(1, "Email wajib diisi")
-      .email({ message: "Email tidak valid" }),
-    password: z.string().min(6, { message: "Password minimal 6 karakter" }),
-    confirmPassword: z.string().min(1, "Konfirmasi password wajib diisi"),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Password tidak cocok",
-    path: ["confirmPassword"],
-  });
+const simpleRegisterSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email wajib diisi")
+    .email({ message: "Email tidak valid" }),
+});
 
 type SimpleRegisterData = z.infer<typeof simpleRegisterSchema>;
 
@@ -48,15 +41,11 @@ export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const form = useForm<SimpleRegisterData>({
     resolver: zodResolver(simpleRegisterSchema),
     defaultValues: {
       email: "",
-      password: "",
-      confirmPassword: "",
     },
   });
 
@@ -65,10 +54,11 @@ export default function RegisterPage() {
     setError("");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await authApi.reqEmailOtp(data.email);
+
       router.push(`/verify?email=${encodeURIComponent(data.email)}`);
     } catch (err) {
-      setError("Terjadi kesalahan saat mengirim OTP.");
+      setError("Terjadi kesalahan saat mengirim OTP. Silakan coba lagi.");
     } finally {
       setIsLoading(false);
     }
@@ -102,8 +92,7 @@ export default function RegisterPage() {
         <Card className="shadow-[0_24px_60px_rgba(0,133,209,0.14)] border-slate-200/70 rounded-4xl overflow-hidden bg-white/95 backdrop-blur-sm">
           <CardHeader className="pt-9 pb-2 text-center">
             <CardDescription className="font-medium text-slate-500 text-xs px-6">
-              Daftar dengan Google tanpa verifikasi OTP, atau gunakan email
-              manual.
+              Gunakan email untuk mendapatkan kode verifikasi (OTP).
             </CardDescription>
           </CardHeader>
 
@@ -126,7 +115,7 @@ export default function RegisterPage() {
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-5"
+                className="space-y-6"
               >
                 {error && (
                   <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold px-4 py-3 rounded-xl">
@@ -140,7 +129,7 @@ export default function RegisterPage() {
                   render={({ field }) => (
                     <FormItem className="space-y-1.5">
                       <FormLabel className="text-xs font-semibold text-slate-500 uppercase ml-1">
-                        Email
+                        Alamat Email
                       </FormLabel>
                       <FormControl>
                         <div className="relative">
@@ -155,20 +144,6 @@ export default function RegisterPage() {
                       <FormMessage className="text-[10px] font-bold text-rose-500" />
                     </FormItem>
                   )}
-                />
-
-                <PasswordField
-                  control={form.control}
-                  name="password"
-                  label="Password"
-                  placeholder="Buat password"
-                />
-
-                <PasswordField
-                  control={form.control}
-                  name="confirmPassword"
-                  label="Konfirmasi Password"
-                  placeholder="Ulangi password"
                 />
 
                 <Button

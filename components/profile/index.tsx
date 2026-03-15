@@ -14,6 +14,7 @@ import {
   ClipboardList,
   MapPin,
   ArrowRight,
+  Lock,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,15 +29,22 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/lib/store/auth";
 
-const profileSchema = z.object({
-  name: z.string().min(3, "Nama minimal 3 karakter"),
-  education: z.string().min(1, "Pendidikan wajib diisi"),
-  schoolOrigin: z.string().min(1, "Asal institusi wajib diisi"),
-  examPurpose: z.enum(["ukai", "cpns", "pppk", "other"]),
-  address: z.string().min(5, "Alamat minimal 5 karakter"),
-  phone: z.string().min(10, "No. HP tidak valid"),
-  targetScore: z.number().min(0).max(100),
-});
+const profileSchema = z
+  .object({
+    name: z.string().min(3, "Nama minimal 3 karakter"),
+    education: z.string().min(1, "Pendidikan wajib diisi"),
+    schoolOrigin: z.string().min(1, "Asal institusi wajib diisi"),
+    examPurpose: z.enum(["ukai", "cpns", "pppk", "other"]),
+    address: z.string().min(5, "Alamat minimal 5 karakter"),
+    phone: z.string().min(10, "No. HP tidak valid"),
+    targetScore: z.number().min(0).max(100),
+    password: z.string().min(6, "Password minimal 6 karakter"),
+    confirmPassword: z.string().min(1, "Konfirmasi password wajib diisi"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Password tidak cocok",
+    path: ["confirmPassword"],
+  });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
@@ -68,12 +76,13 @@ export default function RegisterProfileForm({
       address: "",
       phone: "",
       targetScore: 75,
+      password: "",
+      confirmPassword: "",
     },
   });
 
   const onSubmit = async (data: ProfileFormData) => {
     setError("");
-    // Panggil fungsi register/update profile di sini menggunakan data + email
     console.log("Submitting profile for:", email, data);
     router.push("/apoteker/dashboard");
   };
@@ -209,6 +218,48 @@ export default function RegisterProfileForm({
                     className="rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white h-11"
                     {...field}
                     onChange={(e) => field.onChange(Number(e.target.value))}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2 text-slate-700 font-semibold">
+                  <Lock className="w-4 h-4 text-sky-600" /> Password
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    type="password"
+                    placeholder="Minimal 6 karakter"
+                    {...field}
+                    className="rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white h-11"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2 text-slate-700 font-semibold">
+                  <Lock className="w-4 h-4 text-sky-600" /> Konfirmasi Password
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    type="password"
+                    placeholder="Ulangi password"
+                    {...field}
+                    className="rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white h-11"
                   />
                 </FormControl>
                 <FormMessage />

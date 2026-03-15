@@ -52,7 +52,9 @@ export default function RootLayout({
       <body
         className={`${poppins.className} antialiased bg-white text-slate-900`}
       >
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider refetchOnWindowFocus={false} refetchInterval={5 * 60}>
+          {children}
+        </SessionProvider>
         <Analytics />
       </body>
     </html>
