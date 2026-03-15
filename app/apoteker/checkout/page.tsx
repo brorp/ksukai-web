@@ -12,7 +12,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-import MidtransSnapLauncher from "@/components/apoteker/midtrans-snap-embed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,14 +19,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   transactionApi,
   type ExamPackage,
-  type PaymentProviderConfig,
   type Transaction,
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
 
 const PAYMENT_OPTIONS = [
-  ["gopay", "Gopay (QRIS)", "Pembayaran via flow GoPay Midtrans."],
+  ["gopay", "Gopay (QRIS)", "Pembayaran via flow GoPay."],
   ["bank_transfer", "Virtual Account", "Pembayaran via virtual account bank yang tersedia."],
 ] as const;
 
@@ -39,6 +37,32 @@ const formatCurrency = (value: number | undefined) =>
   typeof value === "number" ? `Rp ${Number(value).toLocaleString("id-ID")}` : "-";
 const formatDate = (value?: string | null) =>
   value ? new Date(value).toLocaleString("id-ID") : "-";
+
+const formatPaymentStatusDetail = (value?: string | null) => {
+  switch (value?.toLowerCase()) {
+    case "settlement":
+      return "Lunas";
+    case "pending":
+      return "Menunggu Pembayaran";
+    case "capture":
+      return "Pembayaran Diproses";
+    case "challenge":
+      return "Perlu Review";
+    case "cancel":
+      return "Dibatalkan";
+    case "deny":
+      return "Ditolak";
+    case "expire":
+      return "Expired";
+    case "refund":
+    case "partial_refund":
+      return "Refund";
+    case "failure":
+      return "Gagal";
+    default:
+      return value ? value.replace(/_/g, " ") : "-";
+  }
+};
 
 const formatPaymentMethod = (value?: string | null) => {
   switch (value) {
@@ -94,16 +118,12 @@ export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const token = useAuthStore((state) => state.token);
   const [packages, setPackages] = useState<ExamPackage[]>([]);
-  const [paymentConfig, setPaymentConfig] = useState<PaymentProviderConfig | null>(null);
   const [currentTransaction, setCurrentTransaction] = useState<Transaction | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("gopay");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [snapOpen, setSnapOpen] = useState(false);
-  const [snapReady, setSnapReady] = useState(false);
-  const [snapLaunchKey, setSnapLaunchKey] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -118,12 +138,8 @@ export default function CheckoutPage() {
       setLoading(true);
       setError("");
       try {
-        const [packageList, config] = await Promise.all([
-          transactionApi.getPackages(),
-          transactionApi.getPaymentConfig(),
-        ]);
+        const packageList = await transactionApi.getPackages();
         setPackages(packageList);
-        setPaymentConfig(config);
 
         const packageId = Number(packageIdQuery ?? 0);
         if (Number.isInteger(packageId) && packageId > 0) {
@@ -190,7 +206,18 @@ export default function CheckoutPage() {
     return packages.find((item) => item.id === selectedPackageId) ?? null;
   }, [currentTransaction, packages, selectedPackageId]);
 
-  const handleCreateOrder = async () => {
+  const redirectToPaymentPage = (transaction: Transaction) => {
+    const paymentPageUrl = transaction.payment_page_url ?? transaction.payment_gateway_url;
+
+    if (paymentPageUrl) {
+      window.location.href = paymentPageUrl;
+      return;
+    }
+
+    setError("Halaman pembayaran belum tersedia untuk order ini. Silakan coba lagi.");
+  };
+
+  const handleCheckoutAction = async () => {
     if (!token || !selectedPackageId) return;
     setCreating(true);
     setError("");
@@ -205,12 +232,12 @@ export default function CheckoutPage() {
         paymentMethod: selectedPaymentMethod,
       });
       setCurrentTransaction(created);
-      setSnapOpen(false);
       setMessage(
         isPaymentMethodChanged
-          ? "Metode pembayaran diperbarui. Klik Lakukan Pembayaran untuk membuka popup Midtrans."
-          : "Order berhasil dibuat. Klik Lakukan Pembayaran untuk membuka popup Midtrans.",
+          ? "Metode pembayaran diperbarui. Mengalihkan ke halaman pembayaran..."
+          : "Order berhasil dibuat. Mengalihkan ke halaman pembayaran...",
       );
+      redirectToPaymentPage(created);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Gagal membuat order pembayaran.");
     } finally {
@@ -233,15 +260,6 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleOpenPayment = () => {
-    if (!canPay) return;
-
-    setError("");
-    setMessage("Membuka popup pembayaran Midtrans...");
-    setSnapOpen(true);
-    setSnapLaunchKey((current) => current + 1);
-  };
-
   const normalizedCurrentPaymentMethod =
     currentTransaction?.payment_method && ALLOWED_PAYMENT_METHODS.has(currentTransaction.payment_method)
       ? currentTransaction.payment_method
@@ -250,9 +268,7 @@ export default function CheckoutPage() {
   const canPay =
     !!currentTransaction &&
     PENDING_STATUSES.has(currentTransaction.status) &&
-    !!currentTransaction.snap_token;
-
-  const canOpenCurrentPayment = canPay && normalizedCurrentPaymentMethod === selectedPaymentMethod;
+    !!(currentTransaction.payment_page_url ?? currentTransaction.payment_gateway_url);
 
   const shouldShowOrderAction =
     !currentTransaction ||
@@ -262,11 +278,13 @@ export default function CheckoutPage() {
 
   const orderActionLabel =
     !currentTransaction
-      ? "Buat Order Pembayaran"
+      ? "Lanjut ke Pembayaran"
       : PENDING_STATUSES.has(currentTransaction.status) &&
           normalizedCurrentPaymentMethod !== selectedPaymentMethod
         ? "Ganti Metode Pembayaran"
         : "Buat Order Pembayaran Baru";
+
+  const canContinueExistingPayment = canPay && normalizedCurrentPaymentMethod === selectedPaymentMethod;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -279,7 +297,7 @@ export default function CheckoutPage() {
             </Link>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Checkout Paket</h1>
-          <p className="text-slate-500">Ringkasan order dan pembayaran Midtrans di website Anda sendiri.</p>
+          <p className="text-slate-500">Ringkasan order dan langkah pembayaran paket Anda.</p>
         </div>
         {currentTransaction?.order_code ? (
           <Badge variant="outline" className="rounded-full px-4 py-2 text-sm font-semibold">
@@ -333,7 +351,7 @@ export default function CheckoutPage() {
             <Card className="border border-slate-200">
               <CardHeader>
                 <CardTitle>Metode Pembayaran</CardTitle>
-                <CardDescription>Pilih metode yang ingin difokuskan saat membuka Snap checkout.</CardDescription>
+                <CardDescription>Pilih metode pembayaran yang ingin Anda gunakan.</CardDescription>
               </CardHeader>
               <CardContent>
                 <RadioGroup value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
@@ -352,14 +370,14 @@ export default function CheckoutPage() {
 
             {shouldShowOrderAction ? (
               <div className="space-y-3">
-                <Button className="w-full bg-sky-600 hover:bg-sky-700" disabled={creating} onClick={handleCreateOrder}>
+                <Button className="w-full bg-sky-600 hover:bg-sky-700" disabled={creating} onClick={handleCheckoutAction}>
                   {creating ? <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />Memproses Order...</> : <><CreditCard className="mr-2 h-4 w-4" />{orderActionLabel}</>}
                 </Button>
                 {currentTransaction &&
                 PENDING_STATUSES.has(currentTransaction.status) &&
                 normalizedCurrentPaymentMethod !== selectedPaymentMethod ? (
                   <p className="text-sm text-slate-500">
-                    Klik tombol di atas untuk mengganti metode pembayaran order yang masih pending.
+                    Klik tombol di atas untuk membuat ulang halaman pembayaran dengan metode yang baru.
                   </p>
                 ) : null}
               </div>
@@ -381,17 +399,17 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <InfoBox label="Total Order" value={formatCurrency(currentTransaction?.gross_amount ?? selectedPackage.price)} />
                   <InfoBox label="Metode" value={formatPaymentMethod(currentTransaction?.payment_method ?? selectedPaymentMethod)} />
-                  <InfoBox label="Payment Type" value={currentTransaction?.payment_type ?? "-"} />
-                  <InfoBox label="Status Provider" value={currentTransaction?.midtrans_transaction_status ?? "-"} />
+                  <InfoBox label="Tipe Pembayaran" value={currentTransaction?.payment_type ?? "-"} />
+                  <InfoBox label="Status Pembayaran" value={formatPaymentStatusDetail(currentTransaction?.payment_status_detail) || getStatusLabel(currentTransaction?.status)} />
                   <InfoBox label="Dibuat" value={formatDate(currentTransaction?.created_at)} />
                   <InfoBox label="Paid At" value={formatDate(currentTransaction?.paid_at)} />
                 </div>
                 {currentTransaction ? (
                   <div className="flex flex-wrap gap-3">
-                    {canOpenCurrentPayment ? (
-                      <Button className="bg-sky-600 hover:bg-sky-700" disabled={!snapReady} onClick={handleOpenPayment}>
+                    {canContinueExistingPayment ? (
+                      <Button className="bg-sky-600 hover:bg-sky-700" onClick={() => redirectToPaymentPage(currentTransaction)}>
                         <CreditCard className="mr-2 h-4 w-4" />
-                        {snapReady ? "Lakukan Pembayaran" : "Menyiapkan Midtrans..."}
+                        Lanjutkan Pembayaran
                       </Button>
                     ) : null}
                     <Button variant="outline" disabled={syncing} onClick={handleSyncStatus}>
@@ -419,32 +437,6 @@ export default function CheckoutPage() {
                 ) : null}
               </CardContent>
             </Card>
-
-            {canPay && paymentConfig ? (
-              <MidtransSnapLauncher
-                clientKey={paymentConfig.client_key}
-                snapScriptUrl={paymentConfig.snap_script_url}
-                snapToken={currentTransaction.snap_token ?? ""}
-                launchKey={snapLaunchKey}
-                onReadyChange={setSnapReady}
-                onSuccess={() => {
-                  setMessage("Midtrans mengembalikan status sukses. Menyinkronkan order...");
-                  void handleSyncStatus();
-                }}
-                onPending={() => {
-                  setMessage("Pembayaran masih pending. Anda bisa sinkronkan status kapan saja.");
-                  void handleSyncStatus();
-                }}
-                onError={() => {
-                  setSnapOpen(false);
-                  setError("Midtrans gagal membuka popup pembayaran. Coba lagi beberapa saat.");
-                }}
-                onClose={() => {
-                  setSnapOpen(false);
-                  setMessage("Popup pembayaran ditutup. Order Anda tetap tersimpan dan bisa dilanjutkan kapan saja.");
-                }}
-              />
-            ) : null}
           </div>
         </div>
       )}

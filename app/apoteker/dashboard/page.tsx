@@ -116,7 +116,7 @@ export default function ApotekerDashboard() {
             Paket Ujian CBT
           </CardTitle>
           <CardDescription className="text-sky-100">
-            Paket gratis bisa langsung dimulai. Paket berbayar dibeli lewat checkout Midtrans di website ini.
+            Paket gratis bisa langsung dimulai. Paket berbayar dibeli lewat checkout yang aman di website ini.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

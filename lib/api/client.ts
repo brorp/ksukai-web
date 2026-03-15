@@ -238,6 +238,8 @@ export interface Transaction {
   currency?: string;
   payment_method?: string | null;
   payment_type?: string | null;
+  payment_status_detail?: string | null;
+  payment_page_url?: string | null;
   midtrans_transaction_id?: string | null;
   midtrans_order_id?: string | null;
   midtrans_transaction_status?: string | null;
@@ -287,8 +289,10 @@ export interface PurchaseRecord {
     | "challenge";
   payment_method?: string | null;
   payment_type?: string | null;
+  payment_status_detail?: string | null;
   midtrans_transaction_status?: string | null;
   access_status: "active" | "inactive" | "expired";
+  payment_page_url?: string | null;
   payment_gateway_url: string;
   snap_redirect_url?: string | null;
   gross_amount?: number;
