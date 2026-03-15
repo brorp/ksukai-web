@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, Lock, Mail, ShieldCheck } from "lucide-react";
+import { ArrowRight, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -27,10 +27,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { loginSchema, type LoginFormData } from "@/lib/schemas";
 import { useAuthStore } from "@/lib/store/auth";
+import GoogleAuthButton from "@/components/google-auth-button";
+import { PasswordField } from "@/components/password-field";
 
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const login = useAuthStore((state) => state.login);
   const isLoading = useAuthStore((state) => state.isLoading);
   const authNotice = useAuthStore((state) => state.authNotice);
@@ -55,9 +58,9 @@ export default function LoginPage() {
     const user = useAuthStore.getState().user;
     if (user?.role === "admin") {
       router.push("/admin/dashboard");
-      return;
+    } else {
+      router.push("/apoteker/dashboard");
     }
-    router.push("/apoteker/dashboard");
   };
 
   return (
@@ -65,10 +68,9 @@ export default function LoginPage() {
       <div className="absolute top-[-12%] left-[-8%] w-[34%] h-[34%] bg-[#0085D1]/10 rounded-full blur-3xl opacity-70" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[42%] h-[42%] bg-cyan-100 rounded-full blur-3xl opacity-60" />
 
-      <div className="w-full max-w-[460px] z-10">
+      <div className="w-full max-w-115 z-10">
         <div className="flex flex-col items-center mb-8 text-center">
           <div className="mb-4">
-            {/* Replace src with your actual logo path, e.g., src="/logo.png" */}
             <Image
               src="/Logo KS UKAI.png"
               alt="KS UKAI Logo"
@@ -86,20 +88,23 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <Card className="shadow-[0_24px_60px_rgba(0,133,209,0.14)] border-slate-200/70 rounded-[2rem] overflow-hidden bg-white/95 backdrop-blur-sm">
+        <Card className="shadow-[0_24px_60px_rgba(0,133,209,0.14)] border-slate-200/70 rounded-4xl overflow-hidden bg-white/95 backdrop-blur-sm">
           <CardHeader className="pt-9 pb-2 text-center">
             <CardTitle className="text-xl font-semibold text-slate-800">
               Masuk ke Dashboard
             </CardTitle>
             <CardDescription className="font-medium text-slate-500">
-              Gunakan email terdaftar untuk melanjutkan ujian.
+              Gunakan akun Anda untuk melanjutkan ujian.
             </CardDescription>
           </CardHeader>
 
           <CardContent className="p-8 pt-6">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                {(error || authNotice) && (
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-5"
+              >
+                {error && (
                   <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold px-4 py-3 rounded-xl">
                     {error || authNotice}
                   </div>
@@ -123,33 +128,16 @@ export default function LoginPage() {
                           />
                         </div>
                       </FormControl>
-                      <FormMessage className="text-[10px] font-bold" />
+                      <FormMessage className="text-[10px] font-bold text-rose-500" />
                     </FormItem>
                   )}
                 />
 
-                <FormField
+                <PasswordField
                   control={form.control}
                   name="password"
-                  render={({ field }) => (
-                    <FormItem className="space-y-1.5">
-                      <FormLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">
-                        Password
-                      </FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <Input
-                            type="password"
-                            placeholder="Masukkan password"
-                            className="pl-11 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus-visible:ring-[#0085D1] focus-visible:border-[#0085D1] transition-all"
-                            {...field}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-[10px] font-bold" />
-                    </FormItem>
-                  )}
+                  label="Password"
+                  placeholder="Masukkan Password"
                 />
 
                 <Button
@@ -162,6 +150,19 @@ export default function LoginPage() {
                 </Button>
               </form>
             </Form>
+
+            <div className="relative my-8">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-100" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-3 text-slate-400 font-bold tracking-widest">
+                  Atau
+                </span>
+              </div>
+            </div>
+
+            <GoogleAuthButton />
 
             <div className="mt-8 text-center">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">
@@ -178,7 +179,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="text-center mt-7 text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-          © 2026 CBT Apoteker
+          © 2026 KS UKAI - CBT Apoteker
         </p>
       </div>
     </div>

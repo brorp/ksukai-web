@@ -142,20 +142,25 @@ const normalizeUser = (raw: unknown): User => {
     email: String(source.email ?? "-"),
     education: String(source.education ?? "-"),
     schoolOrigin: String(source.school_origin ?? source.schoolOrigin ?? "-"),
-    examPurpose: normalizeExamPurpose(source.exam_purpose ?? source.examPurpose),
+    examPurpose: normalizeExamPurpose(
+      source.exam_purpose ?? source.examPurpose,
+    ),
     address: String(source.address ?? "-"),
     phone: String(source.phone ?? "-"),
     targetScore: Number(source.target_score ?? source.targetScore ?? 0),
     isPremium: Boolean(source.is_premium ?? source.isPremium),
     accountStatus:
-      source.account_status === "inactive" || source.accountStatus === "inactive"
+      source.account_status === "inactive" ||
+      source.accountStatus === "inactive"
         ? "inactive"
         : "active",
     statusNote: String(source.status_note ?? source.statusNote ?? "") || null,
   };
 };
 
-const parseAuthResponse = (raw: AuthResponse): { token: string; user?: User } => {
+const parseAuthResponse = (
+  raw: AuthResponse,
+): { token: string; user?: User } => {
   const token =
     raw.token ?? raw.accessToken ?? raw.data?.token ?? raw.data?.accessToken;
 
@@ -175,7 +180,9 @@ export const authApi = {
     });
   },
 
-  login: async (payload: LoginPayload): Promise<{ token: string; user?: User }> => {
+  login: async (
+    payload: LoginPayload,
+  ): Promise<{ token: string; user?: User }> => {
     const raw = await request<AuthResponse>("/auth/login", {
       method: "POST",
       body: payload,
@@ -196,6 +203,12 @@ export const authApi = {
         : raw;
     return normalizeUser(payload);
   },
+
+  reqEmailOtp: async (email: string): Promise<AdminQuestion> =>
+    request("/email-otp/send", {
+      method: "POST",
+      body: { email },
+    }),
 };
 
 export interface ExamPackage {
@@ -313,7 +326,9 @@ export interface PaymentProviderConfig {
 
 export const transactionApi = {
   getPackages: async (): Promise<ExamPackage[]> => {
-    const raw = await request<ExamPackage[] | { data: ExamPackage[] }>("/packages");
+    const raw = await request<ExamPackage[] | { data: ExamPackage[] }>(
+      "/packages",
+    );
     return Array.isArray(raw) ? raw : raw.data;
   },
 
@@ -346,10 +361,18 @@ export const transactionApi = {
   detail: async (token: string, transactionId: number): Promise<Transaction> =>
     request(`/transactions/${transactionId}`, { token }),
 
-  detailByOrderCode: async (token: string, orderCode: string): Promise<Transaction> =>
-    request(`/transactions/by-order/${encodeURIComponent(orderCode)}`, { token }),
+  detailByOrderCode: async (
+    token: string,
+    orderCode: string,
+  ): Promise<Transaction> =>
+    request(`/transactions/by-order/${encodeURIComponent(orderCode)}`, {
+      token,
+    }),
 
-  syncStatus: async (token: string, transactionId: number): Promise<Transaction> =>
+  syncStatus: async (
+    token: string,
+    transactionId: number,
+  ): Promise<Transaction> =>
     request(`/transactions/${transactionId}/sync`, {
       method: "POST",
       token,
@@ -410,12 +433,11 @@ const normalizeExamStart = (raw: ExamStartRaw): ExamStartResponse => ({
   packageName: String(raw.packageName ?? raw.package_name ?? ""),
   attemptNumber: Number(raw.attempt_number ?? 1),
   questionCount: Number(
-    raw.questionCount ??
-      raw.question_count ??
-      raw.questions?.length ??
-      0,
+    raw.questionCount ?? raw.question_count ?? raw.questions?.length ?? 0,
   ),
-  startTime: String(raw.startTime ?? raw.start_time ?? new Date().toISOString()),
+  startTime: String(
+    raw.startTime ?? raw.start_time ?? new Date().toISOString(),
+  ),
   durationMinutes: Number(raw.durationMinutes ?? raw.duration_minutes ?? 200),
   gracePeriodMinutes: Number(
     raw.gracePeriodMinutes ?? raw.grace_period_minutes ?? 1,
@@ -424,7 +446,9 @@ const normalizeExamStart = (raw: ExamStartRaw): ExamStartResponse => ({
     raw.questions?.map((question) => ({
       questionId: Number(question.questionId ?? question.question_id ?? 0),
       order: Number(question.order),
-      questionText: String(question.questionText ?? question.question_text ?? ""),
+      questionText: String(
+        question.questionText ?? question.question_text ?? "",
+      ),
       options: question.options,
     })) ?? [],
 });
@@ -478,7 +502,10 @@ export interface ExamSessionSummary {
 }
 
 export const examApi = {
-  start: async (token: string, packageId: number): Promise<ExamStartResponse> => {
+  start: async (
+    token: string,
+    packageId: number,
+  ): Promise<ExamStartResponse> => {
     const raw = await request<ExamStartRaw>("/exam/start", {
       method: "POST",
       token,
@@ -526,7 +553,10 @@ export const examApi = {
   sessions: async (token: string): Promise<ExamSessionSummary[]> =>
     request("/exam/sessions", { token }),
 
-  result: async (token: string, sessionId: number): Promise<ExamResultResponse> =>
+  result: async (
+    token: string,
+    sessionId: number,
+  ): Promise<ExamResultResponse> =>
     request(`/exam/result/${sessionId}`, { token }),
 
   reportQuestion: async (
@@ -695,9 +725,8 @@ export const adminApi = {
       token,
     }),
 
-  examResults: async (
-    token: string,
-  ): Promise<Array<Record<string, unknown>>> => request("/admin/exam-results", { token }),
+  examResults: async (token: string): Promise<Array<Record<string, unknown>>> =>
+    request("/admin/exam-results", { token }),
 
   activityLogs: async (token: string): Promise<ActivityLog[]> =>
     request("/admin/activity-logs", { token }),
@@ -854,7 +883,8 @@ export const adminApi = {
   questionReportDetail: async (
     token: string,
     id: number,
-  ): Promise<QuestionReportDetail> => request(`/admin/question-reports/${id}`, { token }),
+  ): Promise<QuestionReportDetail> =>
+    request(`/admin/question-reports/${id}`, { token }),
 
   replyQuestionReport: async (
     token: string,

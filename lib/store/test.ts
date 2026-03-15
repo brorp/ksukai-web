@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import type { OptionKey, Question, QuestionFlagStatus, TestAnswer } from "@/lib/types";
+import type {
+  OptionKey,
+  Question,
+  QuestionFlagStatus,
+  TestAnswer,
+} from "@/lib/types";
 
 interface ExamSessionSnapshot {
   sessionId: number;
@@ -60,7 +65,9 @@ export const useTestStore = create<TestStore>()(
       setAnswer: (questionId, answer, status) => {
         const { answers, shuffledQuestions } = get();
         const index = shuffledQuestions.findIndex((q) => q.id === questionId);
-        const answerIndex = answers.findIndex((item) => item.questionId === questionId);
+        const answerIndex = answers.findIndex(
+          (item) => item.questionId === questionId,
+        );
 
         const payload: TestAnswer = {
           questionId,
@@ -91,7 +98,8 @@ export const useTestStore = create<TestStore>()(
           return;
         }
 
-        const nextStatus = existing.status === "doubtful" ? "answered" : "doubtful";
+        const nextStatus =
+          existing.status === "doubtful" ? "answered" : "doubtful";
         get().setAnswer(questionId, existing.answer, nextStatus);
       },
 
@@ -131,7 +139,8 @@ export const useTestStore = create<TestStore>()(
         return Math.max(0, allowedSeconds - elapsed);
       },
 
-      setSubmittedSessionId: (sessionId) => set({ submittedSessionId: sessionId }),
+      setSubmittedSessionId: (sessionId) =>
+        set({ submittedSessionId: sessionId }),
 
       resetTest: () =>
         set({
