@@ -12,7 +12,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-import MidtransSnapEmbed from "@/components/apoteker/midtrans-snap-embed";
+import MidtransSnapLauncher from "@/components/apoteker/midtrans-snap-embed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,15 +27,12 @@ import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
 
 const PAYMENT_OPTIONS = [
-  ["all", "Pilih di Checkout", "Tampilkan semua metode pembayaran yang didukung Midtrans."],
-  ["qris", "QRIS", "Pembayaran QRIS melalui flow Midtrans."],
-  ["gopay", "GoPay", "Langsung ke flow GoPay di Snap."],
-  ["shopeepay", "ShopeePay", "Langsung ke flow ShopeePay di Snap."],
-  ["bank_transfer", "Transfer Bank", "Virtual account atau transfer bank yang tersedia."],
-  ["credit_card", "Kartu Kredit", "Secure card payment via Midtrans Snap."],
-  ["alfamart", "Alfamart", "Bayar offline di gerai Alfamart."],
-  ["indomaret", "Indomaret", "Bayar offline di gerai Indomaret."],
+  ["qris", "QRIS Dinamis", "Pembayaran QRIS dinamis melalui Midtrans."],
+  ["gopay", "GoPay", "Pembayaran via aplikasi GoPay di flow Snap."],
+  ["bank_transfer", "Virtual Account Bank", "Pembayaran via virtual account bank yang tersedia."],
 ] as const;
+
+const ALLOWED_PAYMENT_METHODS = new Set<string>(PAYMENT_OPTIONS.map(([value]) => value));
 
 const PENDING_STATUSES = new Set(["created", "pending", "challenge"]);
 
@@ -88,11 +85,13 @@ export default function CheckoutPage() {
   const [paymentConfig, setPaymentConfig] = useState<PaymentProviderConfig | null>(null);
   const [currentTransaction, setCurrentTransaction] = useState<Transaction | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("all");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("qris");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [snapOpen, setSnapOpen] = useState(false);
+  const [snapReady, setSnapReady] = useState(false);
+  const [snapLaunchKey, setSnapLaunchKey] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -130,7 +129,11 @@ export default function CheckoutPage() {
         if (detail) {
           setCurrentTransaction(detail);
           setSelectedPackageId(detail.package_id);
-          setSelectedPaymentMethod(detail.payment_method ?? "all");
+          setSelectedPaymentMethod(
+            detail.payment_method && ALLOWED_PAYMENT_METHODS.has(detail.payment_method)
+              ? detail.payment_method
+              : "qris",
+          );
         }
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "Gagal memuat checkout paket.");
@@ -186,8 +189,8 @@ export default function CheckoutPage() {
         paymentMethod: selectedPaymentMethod,
       });
       setCurrentTransaction(created);
-      setSnapOpen(true);
-      setMessage("Order berhasil dibuat. Lanjutkan pembayaran di bawah.");
+      setSnapOpen(false);
+      setMessage("Order berhasil dibuat. Klik Bayar Sekarang untuk membuka popup pembayaran.");
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Gagal membuat order pembayaran.");
     } finally {
@@ -208,6 +211,15 @@ export default function CheckoutPage() {
     } finally {
       setSyncing(false);
     }
+  };
+
+  const handleOpenPayment = () => {
+    if (!canPay) return;
+
+    setError("");
+    setMessage("Membuka popup pembayaran Midtrans...");
+    setSnapOpen(true);
+    setSnapLaunchKey((current) => current + 1);
   };
 
   const canPay =
@@ -327,9 +339,9 @@ export default function CheckoutPage() {
                 {currentTransaction ? (
                   <div className="flex flex-wrap gap-3">
                     {canPay ? (
-                      <Button className="bg-sky-600 hover:bg-sky-700" onClick={() => setSnapOpen(true)}>
+                      <Button className="bg-sky-600 hover:bg-sky-700" disabled={!snapReady} onClick={handleOpenPayment}>
                         <CreditCard className="mr-2 h-4 w-4" />
-                        Bayar Sekarang
+                        {snapReady ? "Bayar Sekarang" : "Menyiapkan Midtrans..."}
                       </Button>
                     ) : null}
                     <Button variant="outline" disabled={syncing} onClick={handleSyncStatus}>
@@ -362,36 +374,56 @@ export default function CheckoutPage() {
               <Card className="border border-slate-200">
                 <CardHeader>
                   <CardTitle>Panel Pembayaran</CardTitle>
-                  <CardDescription>UI checkout Midtrans di-embed langsung di halaman ini.</CardDescription>
+                  <CardDescription>Checkout dibuka via Snap popup yang lebih stabil, tetap dari halaman website Anda.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {!snapOpen ? (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
-                      Klik <strong>Bayar Sekarang</strong> untuk membuka panel pembayaran.
+                  <MidtransSnapLauncher
+                    clientKey={paymentConfig.client_key}
+                    snapScriptUrl={paymentConfig.snap_script_url}
+                    snapToken={currentTransaction.snap_token ?? ""}
+                    launchKey={snapLaunchKey}
+                    onReadyChange={setSnapReady}
+                    onSuccess={() => {
+                      setMessage("Midtrans mengembalikan status sukses. Menyinkronkan order...");
+                      void handleSyncStatus();
+                    }}
+                    onPending={() => {
+                      setMessage("Pembayaran masih pending. Anda bisa sinkronkan status kapan saja.");
+                      void handleSyncStatus();
+                    }}
+                    onError={() => {
+                      setSnapOpen(false);
+                      setError("Midtrans gagal membuka popup pembayaran. Coba lagi atau gunakan fallback redirect.");
+                    }}
+                    onClose={() => {
+                      setSnapOpen(false);
+                      setMessage("Popup pembayaran ditutup. Order Anda tetap tersimpan dan bisa dilanjutkan kapan saja.");
+                    }}
+                  />
+
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-6 text-sm text-slate-600">
+                    <p className="font-semibold text-slate-900">{snapOpen ? "Popup pembayaran sedang dibuka" : "Pembayaran belum dibuka"}</p>
+                    <p className="mt-2">
+                      Klik <strong>Bayar Sekarang</strong> untuk membuka checkout Midtrans. Jika popup gagal tampil, gunakan tombol fallback di bawah.
+                    </p>
+                    {!snapReady ? (
+                      <p className="mt-3 inline-flex items-center gap-2 text-sky-700">
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                        Menyiapkan Snap Midtrans...
+                      </p>
+                    ) : null}
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <Button className="bg-sky-600 hover:bg-sky-700" disabled={!snapReady} onClick={handleOpenPayment}>
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        {snapReady ? "Bayar Sekarang" : "Menyiapkan Midtrans..."}
+                      </Button>
+                      {currentTransaction.snap_redirect_url ? (
+                        <a href={currentTransaction.snap_redirect_url} rel="noreferrer" target="_blank">
+                          <Button variant="outline">Buka Halaman Midtrans</Button>
+                        </a>
+                      ) : null}
                     </div>
-                  ) : (
-                    <MidtransSnapEmbed
-                      active={snapOpen}
-                      clientKey={paymentConfig.client_key}
-                      snapScriptUrl={paymentConfig.snap_script_url}
-                      snapToken={currentTransaction.snap_token ?? ""}
-                      onSuccess={() => {
-                        setMessage("Midtrans mengembalikan status sukses. Menyinkronkan order...");
-                        void handleSyncStatus();
-                      }}
-                      onPending={() => {
-                        setMessage("Pembayaran masih pending. Anda bisa sinkronkan status kapan saja.");
-                        void handleSyncStatus();
-                      }}
-                      onError={() => {
-                        setError("Midtrans mengembalikan error pada proses pembayaran.");
-                        void handleSyncStatus();
-                      }}
-                      onClose={() => {
-                        setMessage("Panel pembayaran ditutup. Order Anda tetap tersimpan.");
-                      }}
-                    />
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             ) : null}

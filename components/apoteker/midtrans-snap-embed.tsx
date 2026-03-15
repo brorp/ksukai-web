@@ -1,109 +1,153 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 declare global {
   interface Window {
     snap?: {
-      embed: (
+      pay: (
         snapToken: string,
-        options: {
-          embedId: string;
+        options?: {
           onSuccess?: (result: unknown) => void;
           onPending?: (result: unknown) => void;
           onError?: (result: unknown) => void;
           onClose?: () => void;
         },
       ) => void;
+      hide?: () => void;
     };
   }
 }
 
-type MidtransSnapEmbedProps = {
+type MidtransSnapLauncherProps = {
   clientKey: string;
   snapScriptUrl: string;
   snapToken: string;
-  active: boolean;
+  launchKey: number;
   onSuccess?: (result: unknown) => void;
   onPending?: (result: unknown) => void;
   onError?: (result: unknown) => void;
   onClose?: () => void;
+  onReadyChange?: (ready: boolean) => void;
 };
 
 const SNAP_SCRIPT_SELECTOR = "script[data-midtrans-snap-script='true']";
 
-export default function MidtransSnapEmbed({
+export default function MidtransSnapLauncher({
   clientKey,
   snapScriptUrl,
   snapToken,
-  active,
+  launchKey,
   onSuccess,
   onPending,
   onError,
   onClose,
-}: MidtransSnapEmbedProps) {
-  const rawId = useId();
-  const embedId = useMemo(
-    () => `midtrans-snap-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`,
-    [rawId],
-  );
+  onReadyChange,
+}: MidtransSnapLauncherProps) {
   const [ready, setReady] = useState(false);
-  const embeddedTokenRef = useRef<string | null>(null);
+  const launchedRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const setScriptReady = () => setReady(true);
+    const setScriptFailed = () => setReady(false);
+
+    const existing = document.querySelector<HTMLScriptElement>(SNAP_SCRIPT_SELECTOR);
+    const needsReplacement =
+      !!existing &&
+      (existing.src !== snapScriptUrl || existing.getAttribute("data-client-key") !== clientKey);
+
+    if (needsReplacement) {
+      existing?.remove();
+      try {
+        delete window.snap;
+      } catch {
+        window.snap = undefined;
+      }
+    }
+
     if (window.snap) {
       setReady(true);
       return;
     }
 
-    const existing = document.querySelector<HTMLScriptElement>(SNAP_SCRIPT_SELECTOR);
-    if (existing) {
-      const markReady = () => setReady(true);
-      existing.addEventListener("load", markReady);
-      return () => existing.removeEventListener("load", markReady);
+    const reusableScript = needsReplacement
+      ? null
+      : document.querySelector<HTMLScriptElement>(SNAP_SCRIPT_SELECTOR);
+
+    if (reusableScript) {
+      reusableScript.addEventListener("load", setScriptReady);
+      reusableScript.addEventListener("error", setScriptFailed);
+      return () => {
+        reusableScript.removeEventListener("load", setScriptReady);
+        reusableScript.removeEventListener("error", setScriptFailed);
+      };
     }
 
     const script = document.createElement("script");
-    const markReady = () => setReady(true);
     script.src = snapScriptUrl;
     script.async = true;
     script.setAttribute("data-client-key", clientKey);
     script.setAttribute("data-midtrans-snap-script", "true");
-    script.addEventListener("load", markReady);
+    script.addEventListener("load", setScriptReady);
+    script.addEventListener("error", setScriptFailed);
     document.body.appendChild(script);
 
     return () => {
-      script.removeEventListener("load", markReady);
+      script.removeEventListener("load", setScriptReady);
+      script.removeEventListener("error", setScriptFailed);
     };
   }, [clientKey, snapScriptUrl]);
 
   useEffect(() => {
-    if (!active || !ready || !window.snap || !snapToken) {
-      return;
-    }
-
-    if (embeddedTokenRef.current === snapToken) {
-      return;
-    }
-
-    const target = document.getElementById(embedId);
-    if (target) {
-      target.innerHTML = "";
-    }
-
-    embeddedTokenRef.current = snapToken;
-    window.snap.embed(snapToken, {
-      embedId,
-      onSuccess,
-      onPending,
-      onError,
-      onClose,
-    });
-  }, [active, embedId, onClose, onError, onPending, onSuccess, ready, snapToken]);
+    onReadyChange?.(ready);
+  }, [onReadyChange, ready]);
 
   useEffect(() => {
-    embeddedTokenRef.current = null;
-  }, [snapToken]);
+    if (!ready || !window.snap || !snapToken || launchKey <= 0) {
+      return;
+    }
 
-  return <div id={embedId} className="min-h-96 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white" />;
+    const requestKey = `${snapToken}:${launchKey}`;
+    if (launchedRef.current === requestKey) {
+      return;
+    }
+
+    launchedRef.current = requestKey;
+
+    try {
+      window.snap.hide?.();
+    } catch {
+      // Ignore cleanup errors from stale Snap state.
+    }
+
+    try {
+      window.snap.pay(snapToken, {
+        onSuccess,
+        onPending,
+        onError,
+        onClose: () => {
+          try {
+            window.snap?.hide?.();
+          } catch {
+            // Ignore cleanup errors from stale Snap state.
+          }
+          onClose?.();
+        },
+      });
+    } catch (error) {
+      onError?.(error);
+    }
+  }, [launchKey, onClose, onError, onPending, onSuccess, ready, snapToken]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        window.snap?.hide?.();
+      } catch {
+        // Ignore cleanup errors during unmount.
+      }
+    };
+  }, []);
+
+  return null;
 }
