@@ -162,9 +162,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <GoogleAuthButton
-              onClick={() => console.log("Google Login KS UKAI")}
-            />
+            <GoogleAuthButton />
 
             <div className="mt-8 text-center">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">

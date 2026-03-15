@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google"; // Ganti ke Poppins
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+import { SessionProvider } from "next-auth/react";
 
 // Inisialisasi Poppins dengan weight yang sering kita pakai (bold & black)
 const poppins = Poppins({
@@ -51,7 +52,7 @@ export default function RootLayout({
       <body
         className={`${poppins.className} antialiased bg-white text-slate-900`}
       >
-        {children}
+        <SessionProvider>{children}</SessionProvider>
         <Analytics />
       </body>
     </html>

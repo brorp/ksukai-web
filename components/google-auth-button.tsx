@@ -1,23 +1,40 @@
+"use client";
+
 import React from "react";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 
 interface GoogleButtonProps {
-  onClick?: () => void;
   isLoading?: boolean;
 }
 
-const GoogleAuthButton = ({ onClick, isLoading }: GoogleButtonProps) => {
+const GoogleAuthButton = ({
+  isLoading: externalLoading,
+}: GoogleButtonProps) => {
+  const [internalLoading, setInternalLoading] = React.useState(false);
+
+  const isLoading = externalLoading || internalLoading;
+
+  const handleLogin = async () => {
+    setInternalLoading(true);
+    try {
+      await signIn("google", { callbackUrl: "/apoteker/dashboard" });
+    } catch (error) {
+      console.error("Google Login Error:", error);
+    }
+  };
+
   return (
     <Button
       type="button"
       variant="outline"
       disabled={isLoading}
-      onClick={onClick}
-      className="w-full h-12 flex items-center justify-center gap-3 border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 shadow-sm active:scale-[0.98]"
+      onClick={handleLogin}
+      className="w-full h-12 flex items-center justify-center gap-3 border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 shadow-sm active:scale-[0.98] rounded-xl"
     >
       {isLoading ? (
         <svg
-          className="animate-spin h-5 w-5 text-slate-500"
+          className="animate-spin h-5 w-5 text-[#0085D1]"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
