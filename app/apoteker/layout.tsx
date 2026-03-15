@@ -37,8 +37,8 @@ export default function ApotekerLayout({
       icon: <LayoutDashboard className="h-4 w-4" />,
     },
     {
-      label: "Mulai Ujian",
-      href: "/apoteker/test",
+      label: "Pembelian",
+      href: "/apoteker/purchases",
       icon: <BookOpen className="h-4 w-4" />,
     },
     {

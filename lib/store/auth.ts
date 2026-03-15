@@ -6,6 +6,7 @@ import type { AuthState, User } from "@/lib/types";
 
 interface AuthStore extends AuthState {
   isLoading: boolean;
+  authNotice: string | null;
   login: (
     email: string,
     password: string,
@@ -37,6 +38,7 @@ export const useAuthStore = create<AuthStore>()(
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      authNotice: null,
 
       login: async (email, password) => {
         set({ isLoading: true });
@@ -49,11 +51,12 @@ export const useAuthStore = create<AuthStore>()(
             user: profile,
             isAuthenticated: true,
             isLoading: false,
+            authNotice: null,
           });
 
           return { success: true };
         } catch (error) {
-          set({ isLoading: false });
+          set({ isLoading: false, authNotice: null });
           return {
             success: false,
             message: toErrorMessage(error),
@@ -86,9 +89,17 @@ export const useAuthStore = create<AuthStore>()(
 
         try {
           const profile = await authApi.profile(token);
-          set({ user: profile, isAuthenticated: true });
-        } catch {
-          set({ token: null, user: null, isAuthenticated: false });
+          set({ user: profile, isAuthenticated: true, authNotice: null });
+        } catch (error) {
+          set({
+            token: null,
+            user: null,
+            isAuthenticated: false,
+            authNotice:
+              error instanceof ApiError && error.status === 403
+                ? toErrorMessage(error)
+                : null,
+          });
         }
       },
 
@@ -98,6 +109,7 @@ export const useAuthStore = create<AuthStore>()(
           user: null,
           isAuthenticated: false,
           isLoading: false,
+          authNotice: null,
         });
       },
 
@@ -105,6 +117,7 @@ export const useAuthStore = create<AuthStore>()(
         set({
           user,
           isAuthenticated: user !== null,
+          authNotice: null,
         });
       },
     }),

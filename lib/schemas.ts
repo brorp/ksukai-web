@@ -19,7 +19,11 @@ export const registerSchema = z
     confirmPassword: z.string(),
     education: z.string().min(2, "Pendidikan wajib diisi"),
     schoolOrigin: z.string().min(2, "Asal sekolah wajib diisi"),
-    examPurpose: z.enum(["ukai", "cpns", "pppk", "other"]),
+    examPurpose: z.enum([
+      "persiapan_ukai",
+      "persiapan_masuk_apoteker",
+      "lainnya",
+    ]),
     address: z.string().min(5, "Alamat minimal 5 karakter"),
     phone: z.string().min(8, "Nomor HP minimal 8 digit"),
     targetScore: z.coerce

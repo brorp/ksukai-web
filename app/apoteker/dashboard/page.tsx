@@ -2,188 +2,140 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Crown, Play, RefreshCw, WalletCards } from "lucide-react";
+import { Crown, Play, WalletCards } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { transactionApi, type ExamPackage, type Transaction } from "@/lib/api/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { transactionApi, type ExamPackage, type PurchaseRecord } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
+
+const formatExamPurposeLabel = (value?: string) => {
+  if (value === "persiapan_ukai") return "Persiapan UKAI";
+  if (value === "persiapan_masuk_apoteker") return "Persiapan Masuk Apoteker";
+  return "Lainnya";
+};
 
 export default function ApotekerDashboard() {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
-
   const [packages, setPackages] = useState<ExamPackage[]>([]);
-  const [latestTransaction, setLatestTransaction] = useState<Transaction | null>(null);
-  const [loadingPackages, setLoadingPackages] = useState(true);
-  const [actionMessage, setActionMessage] = useState("");
+  const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedPackageId, setSelectedPackageId] = useState<number | null>(null);
-  const [simulatingPayment, setSimulatingPayment] = useState(false);
 
   useEffect(() => {
-    const loadInitialData = async () => {
-      setLoadingPackages(true);
+    const load = async () => {
+      setLoading(true);
       setError("");
       try {
         await fetchProfile();
-        const packageList = await transactionApi.getPackages();
+        const [packageList, purchaseList] = await Promise.all([
+          transactionApi.getPackages(),
+          token ? transactionApi.myTransactions(token) : Promise.resolve([]),
+        ]);
         setPackages(packageList);
+        setPurchases(purchaseList);
       } catch (loadError) {
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Gagal memuat data dashboard.",
-        );
+        setError(loadError instanceof Error ? loadError.message : "Gagal memuat data dashboard.");
       } finally {
-        setLoadingPackages(false);
+        setLoading(false);
       }
     };
 
-    void loadInitialData();
-  }, [fetchProfile]);
+    void load();
+  }, [fetchProfile, token]);
 
-  const formattedPurpose = useMemo(() => {
-    if (!user?.examPurpose) return "-";
-    return user.examPurpose.toUpperCase();
-  }, [user?.examPurpose]);
-
-  const quickStartPackage = useMemo(
-    () => packages.find((item) => item.price === 0 || user?.isPremium) ?? null,
-    [packages, user?.isPremium],
+  const activePackageIds = useMemo(
+    () =>
+      new Set(
+        purchases
+          .filter((item) => item.access_status === "active")
+          .map((item) => item.package_id),
+      ),
+    [purchases],
   );
 
-  const handleCreateTransaction = async (packageId: number) => {
-    if (!token) return;
+  const pendingByPackageId = useMemo(
+    () => {
+      const map = new Map<number, PurchaseRecord>();
+      for (const item of purchases) {
+        if (
+          !map.has(item.package_id) &&
+          (item.transaction_status === "pending" ||
+            item.transaction_status === "created" ||
+            item.transaction_status === "challenge")
+        ) {
+          map.set(item.package_id, item);
+        }
+      }
+      return map;
+    },
+    [purchases],
+  );
 
-    setSelectedPackageId(packageId);
-    setActionMessage("");
-    setError("");
-
-    try {
-      const transaction = await transactionApi.createTransaction(token, packageId);
-      setLatestTransaction(transaction);
-      setActionMessage(
-        "Transaksi berhasil dibuat. Lanjutkan pembayaran pada URL yang disediakan.",
-      );
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal membuat transaksi.",
-      );
-    } finally {
-      setSelectedPackageId(null);
-    }
-  };
-
-  const handleSimulatePayment = async () => {
-    if (!latestTransaction) return;
-
-    setSimulatingPayment(true);
-    setError("");
-    setActionMessage("");
-
-    try {
-      await transactionApi.simulateWebhookSuccess(latestTransaction.id);
-      await fetchProfile();
-      setActionMessage("Pembayaran berhasil disimulasikan. Akun Anda sekarang premium.");
-    } catch (simulateError) {
-      setError(
-        simulateError instanceof Error
-          ? simulateError.message
-          : "Gagal memproses simulasi pembayaran.",
-      );
-    } finally {
-      setSimulatingPayment(false);
-    }
-  };
+  const quickStartPackage = useMemo(
+    () => packages.find((item) => item.price === 0 || activePackageIds.has(item.id)) ?? null,
+    [activePackageIds, packages],
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-            Dashboard Peserta
-          </h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Dashboard Peserta</h1>
           <p className="text-slate-500 font-medium">
             Selamat datang, <span className="text-sky-600">{user?.name ?? "-"}</span>
           </p>
         </div>
-        <div
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-full border shadow-sm w-fit",
-            user?.isPremium
-              ? "bg-emerald-50 border-emerald-200"
-              : "bg-amber-50 border-amber-200",
-          )}
-        >
-          <div
-            className={cn(
-              "h-2 w-2 rounded-full",
-              user?.isPremium ? "bg-emerald-500" : "bg-amber-500",
-            )}
-          />
+        <div className={cn("flex items-center gap-2 rounded-full border px-4 py-2 shadow-sm w-fit", activePackageIds.size > 0 ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50")}>
+          <div className={cn("h-2 w-2 rounded-full", activePackageIds.size > 0 ? "bg-emerald-500" : "bg-amber-500")} />
           <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-            {user?.isPremium ? "Premium Aktif" : "Belum Premium"}
+            {activePackageIds.size > 0 ? `${activePackageIds.size} Paket Aktif` : "Belum Ada Paket Aktif"}
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <ProfileCard label="Email" value={user?.email ?? "-"} />
         <ProfileCard label="Target Skor" value={`${user?.targetScore ?? 0}`} />
-        <ProfileCard label="Tujuan Ujian" value={formattedPurpose} />
+        <ProfileCard label="Tujuan Ujian" value={formatExamPurposeLabel(user?.examPurpose)} />
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm font-medium">
+      {error ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
           {error}
         </div>
-      )}
+      ) : null}
 
-      {actionMessage && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-3 text-sm font-medium">
-          {actionMessage}
-        </div>
-      )}
-
-      <Card className="border-none shadow-xl bg-gradient-to-br from-sky-600 via-cyan-600 to-sky-700 text-white">
+      <Card className="border-none bg-gradient-to-br from-sky-600 via-cyan-600 to-sky-700 text-white shadow-xl">
         <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-2xl">
             <Crown className="h-6 w-6" />
-            Simulasi Ujian CBT
+            Paket Ujian CBT
           </CardTitle>
           <CardDescription className="text-sky-100">
-            Pilih paket di bawah. Jumlah soal dan durasi akan mengikuti paket yang dipilih.
+            Paket gratis bisa langsung dimulai. Paket berbayar dibeli lewat checkout Midtrans di website ini.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <p className="text-sky-100 text-sm">
-              Paket gratis bisa langsung dimulai. Paket berbayar akan aktif setelah akun premium.
-            </p>
-          </div>
+        <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-sky-100">
+            Riwayat order dan status pembayaran selalu bisa dipantau dari menu Pembelian.
+          </p>
           {quickStartPackage ? (
-            <Link href={`/apoteker/test?packageId=${quickStartPackage.id}`} className="block">
-              <Button className="bg-white text-sky-700 hover:bg-sky-50 font-bold">
+            <Link href={`/apoteker/test?packageId=${quickStartPackage.id}`}>
+              <Button className="bg-white font-bold text-sky-700 hover:bg-sky-50">
                 <Play size={16} className="mr-2 fill-current" />
                 Mulai {quickStartPackage.name}
               </Button>
             </Link>
           ) : (
-            <Button disabled className="bg-white text-sky-700 font-bold">
-              <Play size={16} className="mr-2 fill-current" />
-              Paket Belum Tersedia
-            </Button>
+            <Link href="/apoteker/purchases">
+              <Button className="bg-white font-bold text-sky-700 hover:bg-sky-50">
+                Lihat Pembelian
+              </Button>
+            </Link>
           )}
         </CardContent>
       </Card>
@@ -195,17 +147,17 @@ export default function ApotekerDashboard() {
             Pilih Paket Ujian
           </CardTitle>
           <CardDescription>
-            Paket gratis bisa langsung dimulai. Untuk paket berbayar, buat transaksi lalu
-            aktifkan premium.
+            Aktivasi paket berbayar dilakukan per order dan hanya mengaktifkan paket yang dibayar.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {loadingPackages ? (
+          {loading ? (
             <p className="text-sm text-slate-500">Memuat daftar paket...</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {packages.map((pkg) => {
-                const canStartPackage = pkg.price === 0 || user?.isPremium;
+                const canStartPackage = pkg.price === 0 || activePackageIds.has(pkg.id);
+                const pendingOrder = pendingByPackageId.get(pkg.id);
 
                 return (
                   <Card key={pkg.id} className="border border-slate-200 bg-white">
@@ -215,14 +167,7 @@ export default function ApotekerDashboard() {
                           <CardTitle className="text-lg">{pkg.name}</CardTitle>
                           <CardDescription>{pkg.description}</CardDescription>
                         </div>
-                        <span
-                          className={cn(
-                            "rounded-full px-3 py-1 text-xs font-semibold",
-                            pkg.price === 0
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-sky-100 text-sky-700",
-                          )}
-                        >
+                        <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", pkg.price === 0 ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700")}>
                           {pkg.question_count} soal
                         </span>
                       </div>
@@ -230,76 +175,33 @@ export default function ApotekerDashboard() {
                     <CardContent className="space-y-4">
                       <p className="text-sm text-slate-500">{pkg.features}</p>
                       <p className="text-xl font-bold text-slate-900">
-                        {pkg.price === 0
-                          ? "Gratis"
-                          : `Rp ${Number(pkg.price).toLocaleString("id-ID")}`}
+                        {pkg.price === 0 ? "Gratis" : `Rp ${Number(pkg.price).toLocaleString("id-ID")}`}
                       </p>
                       {canStartPackage ? (
-                        <Link
-                          href={`/apoteker/test?packageId=${pkg.id}`}
-                          className="block"
-                        >
+                        <Link href={`/apoteker/test?packageId=${pkg.id}`} className="block">
                           <Button className="w-full bg-emerald-600 hover:bg-emerald-700">
                             <Play size={16} className="mr-2 fill-current" />
                             Mulai Paket
                           </Button>
                         </Link>
+                      ) : pendingOrder ? (
+                        <Link href={`/apoteker/checkout?transactionId=${pendingOrder.id}`} className="block">
+                          <Button className="w-full bg-amber-600 hover:bg-amber-700">
+                            Lanjutkan Pembayaran
+                          </Button>
+                        </Link>
                       ) : (
-                        <Button
-                          className="w-full bg-sky-600 hover:bg-sky-700"
-                          disabled={selectedPackageId === pkg.id}
-                          onClick={() => handleCreateTransaction(pkg.id)}
-                        >
-                          {selectedPackageId === pkg.id
-                            ? "Membuat Transaksi..."
-                            : "Aktivasi Paket"}
-                        </Button>
+                        <Link href={`/apoteker/checkout?packageId=${pkg.id}`} className="block">
+                          <Button className="w-full bg-sky-600 hover:bg-sky-700">
+                            Checkout Paket
+                          </Button>
+                        </Link>
                       )}
                     </CardContent>
                   </Card>
                 );
               })}
             </div>
-          )}
-
-          {latestTransaction && (
-            <Card className="border border-slate-200">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  Transaksi #{latestTransaction.id}
-                </CardTitle>
-                <CardDescription>
-                  Status: {latestTransaction.status}
-                  {latestTransaction.package_name
-                    ? ` • ${latestTransaction.package_name}`
-                    : ""}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <a
-                  href={latestTransaction.payment_gateway_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-sky-700 underline break-all"
-                >
-                  {latestTransaction.payment_gateway_url}
-                </a>
-
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  disabled={simulatingPayment}
-                  onClick={handleSimulatePayment}
-                >
-                  <RefreshCw
-                    size={14}
-                    className={cn("mr-2", simulatingPayment && "animate-spin")}
-                  />
-                  Simulasikan Pembayaran Sukses
-                </Button>
-              </CardContent>
-            </Card>
           )}
         </CardContent>
       </Card>
@@ -311,9 +213,7 @@ function ProfileCard({ label, value }: { label: string; value: string }) {
   return (
     <Card className="border border-slate-200 bg-white">
       <CardHeader className="pb-2">
-        <CardDescription className="text-xs uppercase tracking-wider font-semibold text-slate-400">
-          {label}
-        </CardDescription>
+        <CardDescription className="text-xs uppercase tracking-wider font-semibold text-slate-400">{label}</CardDescription>
         <CardTitle className="text-lg">{value}</CardTitle>
       </CardHeader>
     </Card>

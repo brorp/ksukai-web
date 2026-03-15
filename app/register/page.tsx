@@ -29,12 +29,11 @@ import { useAuthStore } from "@/lib/store/auth";
 
 const PURPOSE_OPTIONS: Array<{
   label: string;
-  value: "ukai" | "cpns" | "pppk" | "other";
+  value: "persiapan_ukai" | "persiapan_masuk_apoteker" | "lainnya";
 }> = [
-  { label: "UKAI", value: "ukai" },
-  { label: "CPNS", value: "cpns" },
-  { label: "PPPK", value: "pppk" },
-  { label: "Lainnya", value: "other" },
+  { label: "Persiapan UKAI", value: "persiapan_ukai" },
+  { label: "Persiapan Masuk Apoteker", value: "persiapan_masuk_apoteker" },
+  { label: "Lainnya", value: "lainnya" },
 ];
 
 export default function RegisterPage() {
@@ -52,7 +51,7 @@ export default function RegisterPage() {
       confirmPassword: "",
       education: "",
       schoolOrigin: "",
-      examPurpose: "ukai",
+      examPurpose: "persiapan_ukai",
       address: "",
       phone: "",
       targetScore: 75,
@@ -188,10 +187,9 @@ export default function RegisterPage() {
                             onChange={(event) =>
                               field.onChange(
                                 event.target.value as
-                                  | "ukai"
-                                  | "cpns"
-                                  | "pppk"
-                                  | "other",
+                                  | "persiapan_ukai"
+                                  | "persiapan_masuk_apoteker"
+                                  | "lainnya",
                               )
                             }
                           >

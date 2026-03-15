@@ -57,11 +57,10 @@ import {
   Search,
   CheckCircle2,
 } from "lucide-react";
-import { User } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { LegacyManagedUser } from "@/lib/legacy-admin-types";
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<LegacyManagedUser[]>([]);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [visiblePasswords, setVisiblePasswords] = useState<
@@ -332,7 +331,7 @@ export default function UserManagement() {
                 {filteredUsers.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={5}
                       className="py-12 text-center text-muted-foreground italic"
                     >
                       Tidak ada pengguna ditemukan...

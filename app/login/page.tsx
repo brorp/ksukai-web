@@ -33,6 +33,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const login = useAuthStore((state) => state.login);
   const isLoading = useAuthStore((state) => state.isLoading);
+  const authNotice = useAuthStore((state) => state.authNotice);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -98,9 +99,9 @@ export default function LoginPage() {
           <CardContent className="p-8 pt-6">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                {error && (
+                {(error || authNotice) && (
                   <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold px-4 py-3 rounded-xl">
-                    {error}
+                    {error || authNotice}
                   </div>
                 )}
 

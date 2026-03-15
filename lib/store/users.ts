@@ -1,14 +1,14 @@
 import { create } from "zustand";
-import { User } from "../types";
+import { LegacyManagedUser } from "../legacy-admin-types";
 
 interface UsersStore {
-  users: User[];
+  users: LegacyManagedUser[];
   loadUsers: () => void;
-  addUsers: (users: User[]) => void;
+  addUsers: (users: LegacyManagedUser[]) => void;
   generateUsers: (count: number) => void;
   deleteUser: (userId: string) => void;
-  getApoteker: () => User[];
-  getAdmins: () => User[];
+  getApoteker: () => LegacyManagedUser[];
+  getAdmins: () => LegacyManagedUser[];
 }
 
 export const useUsersStore = create<UsersStore>((set, get) => ({
@@ -17,10 +17,15 @@ export const useUsersStore = create<UsersStore>((set, get) => ({
   loadUsers: () => {
     const usersJson = localStorage.getItem("users");
     const users = usersJson ? JSON.parse(usersJson) : [];
-    set({ users });
+    set({
+      users: users.map((user: LegacyManagedUser) => ({
+        ...user,
+        createdAt: new Date(user.createdAt),
+      })),
+    });
   },
 
-  addUsers: (newUsers: User[]) => {
+  addUsers: (newUsers: LegacyManagedUser[]) => {
     const usersJson = localStorage.getItem("users");
     const existingUsers = usersJson ? JSON.parse(usersJson) : [];
     const allUsers = [...existingUsers, ...newUsers];
@@ -32,7 +37,7 @@ export const useUsersStore = create<UsersStore>((set, get) => ({
     const usersJson = localStorage.getItem("users");
     const existingUsers = usersJson ? JSON.parse(usersJson) : [];
 
-    const newUsers: User[] = [];
+    const newUsers: LegacyManagedUser[] = [];
     for (let i = 0; i < count; i++) {
       const username = `apoteker${String(existingUsers.length + i + 1).padStart(3, "0")}`;
       const password = `Pass${Math.random().toString(36).substr(2, 9)}`;

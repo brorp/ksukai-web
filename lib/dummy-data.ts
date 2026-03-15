@@ -1,7 +1,11 @@
-import { Question, User, TestResult } from "./types";
+import {
+  LegacyManagedUser,
+  LegacyQuestion,
+  LegacyTestResult,
+} from "./legacy-admin-types";
 
 // Sample admin and apoteker users
-export const dummyUsers: User[] = [
+export const dummyUsers: LegacyManagedUser[] = [
   {
     id: "admin_1",
     username: "admin",
@@ -53,7 +57,7 @@ export const dummyUsers: User[] = [
 ];
 
 // Generate 200 nursing exam questions
-export const dummyQuestions: Question[] = [
+export const dummyQuestions: LegacyQuestion[] = [
   {
     id: 1,
     question:
@@ -2830,7 +2834,7 @@ export const dummyQuestions: Question[] = [
 ];
 
 // Sample test results for dashboard
-export const dummyTestResults: TestResult[] = [
+export const dummyTestResults: LegacyTestResult[] = [
   {
     id: "result_1",
     userId: "apt_001",

@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BarChart3, CheckCircle2, Home, RefreshCw, XCircle } from "lucide-react";
+import {
+  BarChart3,
+  CheckCircle2,
+  Flag,
+  Home,
+  RefreshCw,
+  XCircle,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,16 +20,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { examApi, type ExamResultResponse } from "@/lib/api/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  examApi,
+  type ExamResultQuestion,
+  type ExamResultResponse,
+  type ExamSessionSummary,
+} from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
-import { useTestStore } from "@/lib/store/test";
 import { cn } from "@/lib/utils";
 
 export default function ResultsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionIdFromQuery = Number(searchParams.get("sessionId") ?? 0);
-  const sessionIdFromStore = useTestStore((state) => state.submittedSessionId);
 
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
@@ -31,7 +49,13 @@ export default function ResultsPage() {
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [sessions, setSessions] = useState<ExamSessionSummary[]>([]);
   const [result, setResult] = useState<ExamResultResponse | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportText, setReportText] = useState("");
+  const [reportingQuestion, setReportingQuestion] = useState<ExamResultQuestion | null>(null);
+  const [submittingReport, setSubmittingReport] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -45,22 +69,27 @@ export default function ResultsPage() {
 
   const activeSessionId = useMemo(() => {
     if (sessionIdFromQuery > 0) return sessionIdFromQuery;
-    if (sessionIdFromStore && sessionIdFromStore > 0) return sessionIdFromStore;
     return 0;
-  }, [sessionIdFromQuery, sessionIdFromStore]);
+  }, [sessionIdFromQuery]);
 
   useEffect(() => {
-    if (!mounted || !token || activeSessionId <= 0) {
-      setLoading(false);
+    if (!mounted || !token) {
       return;
     }
 
-    const loadResult = async () => {
+    const loadData = async () => {
       setLoading(true);
       setError("");
       try {
-        const response = await examApi.result(token, activeSessionId);
-        setResult(response);
+        const sessionRows = await examApi.sessions(token);
+        setSessions(sessionRows);
+
+        if (activeSessionId > 0) {
+          const response = await examApi.result(token, activeSessionId);
+          setResult(response);
+        } else {
+          setResult(null);
+        }
       } catch (loadError) {
         setError(
           loadError instanceof Error
@@ -72,8 +101,43 @@ export default function ResultsPage() {
       }
     };
 
-    void loadResult();
+    void loadData();
   }, [mounted, token, activeSessionId]);
+
+  const handleOpenReport = (question: ExamResultQuestion) => {
+    setReportingQuestion(question);
+    setReportText("");
+    setMessage("");
+    setReportOpen(true);
+  };
+
+  const handleSubmitReport = async () => {
+    if (!token || !result || !reportingQuestion || !reportText.trim()) {
+      return;
+    }
+
+    setSubmittingReport(true);
+    setError("");
+    try {
+      const response = await examApi.reportQuestion(token, {
+        question_id: reportingQuestion.questionId,
+        session_id: result.sessionId,
+        report_text: reportText.trim(),
+      });
+      setMessage(response.message ?? "Report soal berhasil dikirim.");
+      setReportOpen(false);
+      setReportText("");
+      setReportingQuestion(null);
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Gagal mengirim report soal.",
+      );
+    } finally {
+      setSubmittingReport(false);
+    }
+  };
 
   if (!mounted || !isAuthenticated || user?.role !== "user") return null;
 
@@ -86,35 +150,6 @@ export default function ResultsPage() {
     );
   }
 
-  if (!result || activeSessionId <= 0) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Hasil Belum Tersedia</CardTitle>
-            <CardDescription>
-              Selesaikan ujian terlebih dahulu untuk melihat skor dan pembahasan.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex gap-3">
-            <Link href="/apoteker/dashboard">
-              <Button className="bg-sky-600 hover:bg-sky-700">
-                <RefreshCw size={16} className="mr-2" /> Pilih Paket Ujian
-              </Button>
-            </Link>
-            <Link href="/apoteker/dashboard">
-              <Button variant="outline">
-                <Home size={16} className="mr-2" /> Dashboard
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const passed = result.score >= 60;
-
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {error && (
@@ -123,26 +158,180 @@ export default function ResultsPage() {
         </div>
       )}
 
+      {message && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-3 text-sm font-medium">
+          {message}
+        </div>
+      )}
+
+      {activeSessionId > 0 && result ? (
+        <ResultDetail
+          result={result}
+          onOpenReport={handleOpenReport}
+        />
+      ) : (
+        <SessionList sessions={sessions} />
+      )}
+
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Report Soal</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Jelaskan masalah pada soal ini agar admin bisa meninjau dengan tepat.
+            </p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              {reportingQuestion?.questionText ?? "-"}
+            </div>
+            <Textarea
+              value={reportText}
+              onChange={(event) => setReportText(event.target.value)}
+              placeholder="Contoh: opsi jawaban tidak sesuai, pembahasan kurang tepat, atau ada typo penting."
+              className="min-h-32"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReportOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => void handleSubmitReport()}
+              disabled={submittingReport || !reportText.trim()}
+              className="bg-sky-600 hover:bg-sky-700"
+            >
+              {submittingReport ? "Mengirim..." : "Kirim Report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function SessionList({ sessions }: { sessions: ExamSessionSummary[] }) {
+  if (sessions.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Belum Ada Riwayat Ujian</CardTitle>
+          <CardDescription>
+            Selesaikan ujian terlebih dahulu untuk melihat histori per sesi.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex gap-3">
+          <Link href="/apoteker/dashboard">
+            <Button className="bg-sky-600 hover:bg-sky-700">
+              <RefreshCw size={16} className="mr-2" /> Pilih Paket Ujian
+            </Button>
+          </Link>
+          <Link href="/apoteker/dashboard">
+            <Button variant="outline">
+              <Home size={16} className="mr-2" /> Dashboard
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
             Hasil Ujian
           </h1>
           <p className="text-slate-500">
+            Riwayat hasil ujian Anda tersimpan per sesi/attempt.
+          </p>
+        </div>
+        <Link href="/apoteker/dashboard">
+          <Button className="bg-sky-600 hover:bg-sky-700">
+            <RefreshCw size={16} className="mr-2" /> Ujian Baru
+          </Button>
+        </Link>
+      </div>
+
+      <Card className="border border-slate-200">
+        <CardHeader>
+          <CardTitle>Daftar Sesi Ujian</CardTitle>
+          <CardDescription>
+            Klik salah satu sesi untuk melihat detail hasil dan pembahasan.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {sessions.map((session) => (
+            <Card key={session.session_id} className="border border-slate-200">
+              <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-900">
+                    Sesi #{session.session_id}
+                    {session.package_name ? ` • ${session.package_name}` : ""}
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    Attempt #{session.attempt_number} • Status: {session.status}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Mulai:{" "}
+                    {session.start_time
+                      ? new Date(session.start_time).toLocaleString("id-ID")
+                      : "-"}
+                    {" • "}
+                    Submit:{" "}
+                    {session.end_time
+                      ? new Date(session.end_time).toLocaleString("id-ID")
+                      : "-"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-wide text-slate-400">Skor</p>
+                    <p className="text-2xl font-bold text-slate-900">{session.score}</p>
+                  </div>
+                  <Link href={`/apoteker/results?sessionId=${session.session_id}`}>
+                    <Button variant="outline">Lihat Detail</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ResultDetail({
+  result,
+  onOpenReport,
+}: {
+  result: ExamResultResponse;
+  onOpenReport: (question: ExamResultQuestion) => void;
+}) {
+  const passed = result.score >= 60;
+
+  return (
+    <>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+            Detail Hasil Ujian
+          </h1>
+          <p className="text-slate-500">
             Session #{result.sessionId}
             {result.package_name ? ` • ${result.package_name}` : ""}
-            {" • "}Status: {result.status}
+            {" • "}Attempt #{result.attempt_number ?? 1}
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href="/apoteker/dashboard">
-            <Button className="bg-sky-600 hover:bg-sky-700">
-              <RefreshCw size={16} className="mr-2" /> Pilih Paket Baru
-            </Button>
+          <Link href="/apoteker/results">
+            <Button variant="outline">Kembali ke Daftar Sesi</Button>
           </Link>
           <Link href="/apoteker/dashboard">
-            <Button variant="outline">
-              <Home size={16} className="mr-2" /> Dashboard
+            <Button className="bg-sky-600 hover:bg-sky-700">
+              <RefreshCw size={16} className="mr-2" /> Ujian Baru
             </Button>
           </Link>
         </div>
@@ -227,7 +416,7 @@ export default function ResultsPage() {
         <CardHeader>
           <CardTitle>Review Soal</CardTitle>
           <CardDescription>
-            Menampilkan jawaban Anda, jawaban benar, dan pembahasan.
+            Menampilkan jawaban Anda, jawaban benar, pembahasan, dan tombol report soal.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -243,16 +432,26 @@ export default function ResultsPage() {
                   <p className="text-sm font-semibold text-slate-900">
                     {index + 1}. {question.questionText}
                   </p>
-                  <span
-                    className={cn(
-                      "text-[10px] font-bold uppercase px-2 py-1 rounded-full",
-                      question.isCorrect
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-rose-100 text-rose-700",
-                    )}
-                  >
-                    {question.isCorrect ? "Benar" : "Salah"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "text-[10px] font-bold uppercase px-2 py-1 rounded-full",
+                        question.isCorrect
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-rose-100 text-rose-700",
+                      )}
+                    >
+                      {question.isCorrect ? "Benar" : "Salah"}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onOpenReport(question)}
+                    >
+                      <Flag size={14} className="mr-2" />
+                      Report Soal
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
@@ -290,7 +489,7 @@ export default function ResultsPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </>
   );
 }
 

@@ -77,6 +77,8 @@ export default function AdminBankSoalPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
+  const [packageFilter, setPackageFilter] = useState<number>(0);
+  const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">("");
   const [rows, setRows] = useState<AdminQuestion[]>([]);
   const [packages, setPackages] = useState<ExamPackage[]>([]);
   const [previewQuestion, setPreviewQuestion] = useState<AdminQuestion | null>(null);
@@ -93,7 +95,13 @@ export default function AdminBankSoalPage() {
     setError("");
     try {
       const [questionRows, packageRows] = await Promise.all([
-        adminApi.questions(token),
+        adminApi.questions(token, {
+          packageId: packageFilter || undefined,
+          isActive:
+            statusFilter === ""
+              ? undefined
+              : statusFilter === "active",
+        }),
         adminApi.packages(),
       ]);
       setRows(questionRows);
@@ -111,7 +119,7 @@ export default function AdminBankSoalPage() {
 
   useEffect(() => {
     void loadData();
-  }, [token]);
+  }, [token, packageFilter, statusFilter]);
 
   const filteredRows = useMemo(() => {
     if (!search.trim()) return rows;
@@ -271,12 +279,37 @@ export default function AdminBankSoalPage() {
       />
 
       <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Cari pertanyaan, opsi, atau pembahasan..."
-          className="lg:max-w-xl bg-white"
-        />
+        <div className="grid flex-1 grid-cols-1 gap-3 lg:max-w-4xl lg:grid-cols-[minmax(0,1fr)_220px_220px]">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Cari pertanyaan, opsi, atau pembahasan..."
+            className="bg-white"
+          />
+          <select
+            className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm"
+            value={packageFilter}
+            onChange={(event) => setPackageFilter(Number(event.target.value))}
+          >
+            <option value={0}>Semua kategori</option>
+            {packages.map((pkg) => (
+              <option key={pkg.id} value={pkg.id}>
+                {pkg.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm"
+            value={statusFilter}
+            onChange={(event) =>
+              setStatusFilter(event.target.value as "" | "active" | "inactive")
+            }
+          >
+            <option value="">Semua status</option>
+            <option value="active">Aktif</option>
+            <option value="inactive">Nonaktif</option>
+          </select>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={handleCreate}>
             <Plus size={16} className="mr-2" />

@@ -1,6 +1,11 @@
 export type UserRole = "admin" | "user";
 export type OptionKey = "a" | "b" | "c" | "d" | "e";
 export type QuestionFlagStatus = "answered" | "doubtful" | "empty";
+export type ExamPurpose =
+  | "persiapan_ukai"
+  | "persiapan_masuk_apoteker"
+  | "lainnya";
+export type UserAccountStatus = "active" | "inactive";
 
 export interface User {
   id: number;
@@ -9,11 +14,13 @@ export interface User {
   email: string;
   education: string;
   schoolOrigin: string;
-  examPurpose: string;
+  examPurpose: ExamPurpose;
   address: string;
   phone: string;
   targetScore: number;
   isPremium: boolean;
+  accountStatus: UserAccountStatus;
+  statusNote?: string | null;
 }
 
 export interface Question {

@@ -19,15 +19,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useScoresStore } from "@/lib/store/scores";
-import { TestResult } from "@/lib/types";
+import { LegacyTestResult } from "@/lib/legacy-admin-types";
 import { Download, ArrowUpDown } from "lucide-react";
 
 type SortKey = "username" | "score" | "completedAt";
 type SortOrder = "asc" | "desc";
 
 export default function ScoresTable() {
-  const [results, setResults] = useState<TestResult[]>([]);
-  const [filteredResults, setFilteredResults] = useState<TestResult[]>([]);
+  const [results, setResults] = useState<LegacyTestResult[]>([]);
+  const [filteredResults, setFilteredResults] = useState<LegacyTestResult[]>(
+    [],
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("completedAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -35,9 +37,12 @@ export default function ScoresTable() {
 
   useEffect(() => {
     scoresStore.loadResults();
+  }, []);
+
+  useEffect(() => {
     setResults(scoresStore.results);
     setFilteredResults(scoresStore.results);
-  }, []);
+  }, [scoresStore.results]);
 
   // Handle search filter
   useEffect(() => {
@@ -121,7 +126,14 @@ export default function ScoresTable() {
     content += "================================\n\n";
     content += `Tanggal Export: ${new Date().toLocaleDateString("id-ID")}\n`;
     content += `Total Peserta: ${sortedResults.length}\n`;
-    content += `Rata-rata Nilai: ${Math.round(sortedResults.reduce((sum, r) => sum + r.score, 0) / sortedResults.length)}\n\n`;
+    const averageScore =
+      sortedResults.length > 0
+        ? Math.round(
+            sortedResults.reduce((sum, result) => sum + result.score, 0) /
+              sortedResults.length,
+          )
+        : 0;
+    content += `Rata-rata Nilai: ${averageScore}\n\n`;
 
     content += "DETAIL HASIL:\n";
     content += "--------------------------------\n";

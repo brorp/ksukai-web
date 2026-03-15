@@ -10,6 +10,8 @@ import {
   BookOpen,
   ClipboardList,
   LayoutDashboard,
+  MessageSquareMore,
+  Package2,
   Users,
   WalletCards,
 } from "lucide-react";
@@ -55,6 +57,11 @@ export default function AdminLayout({
       icon: <WalletCards className="h-4 w-4" />,
     },
     {
+      label: "Paket",
+      href: "/admin/packages",
+      icon: <Package2 className="h-4 w-4" />,
+    },
+    {
       label: "Hasil Ujian",
       href: "/admin/exam-results",
       icon: <BarChart3 className="h-4 w-4" />,
@@ -68,6 +75,11 @@ export default function AdminLayout({
       label: "Kelola Soal",
       href: "/admin/kelola-soal",
       icon: <ClipboardList className="h-4 w-4" />,
+    },
+    {
+      label: "Report Soal",
+      href: "/admin/reports",
+      icon: <MessageSquareMore className="h-4 w-4" />,
     },
     {
       label: "Log Aktivitas",
