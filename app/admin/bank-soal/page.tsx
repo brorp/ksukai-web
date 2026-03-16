@@ -525,7 +525,7 @@ export default function AdminBankSoalPage() {
               <Button
                 onClick={handleSave}
                 disabled={actionLoading}
-                className="bg-sky-600 hover:bg-sky-700 text-white rounded-xl px-6 font-bold shadow-lg shadow-sky-100 min-w-[140px]"
+                className="bg-sky-600 hover:bg-sky-700 text-white rounded-xl px-6 font-bold shadow-lg shadow-sky-100 min-w-35"
               >
                 {actionLoading ? "Menyimpan..." : "Simpan Soal"}
               </Button>
@@ -601,7 +601,7 @@ export default function AdminBankSoalPage() {
                   question_text: e.target.value,
                 }))
               }
-              className="min-h-[120px] rounded-2xl border-slate-200 focus:ring-sky-500 text-base leading-relaxed p-4"
+              className="min-h-30 rounded-2xl border-slate-200 focus:ring-sky-500 text-base leading-relaxed p-4"
             />
           </div>
 
@@ -660,7 +660,7 @@ export default function AdminBankSoalPage() {
               onChange={(e) =>
                 setQuestionDraft((p) => ({ ...p, explanation: e.target.value }))
               }
-              className="min-h-[100px] bg-amber-50/30 border-amber-100 rounded-2xl focus:ring-amber-500 text-sm leading-relaxed p-4 italic"
+              className="min-h-25 bg-amber-50/30 border-amber-100 rounded-2xl focus:ring-amber-500 text-sm leading-relaxed p-4 italic"
             />
           </div>
         </div>
@@ -671,7 +671,7 @@ export default function AdminBankSoalPage() {
         onClose={() => setPreviewQuestion(null)}
         title="Preview Detail Soal"
         description={`ID: #${previewQuestion?.id}`}
-        maxWidth="2xl" // Kita kecilkan sedikit lebarnya dari 3xl ke 2xl
+        maxWidth="2xl"
         headerExtra={
           <Badge
             variant="outline"
@@ -721,7 +721,7 @@ export default function AdminBankSoalPage() {
                     >
                       <div
                         className={cn(
-                          "flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold",
+                          "shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold",
                           isCorrect
                             ? "bg-emerald-500 text-white"
                             : "bg-slate-50 text-slate-400 border border-slate-100",
@@ -784,7 +784,7 @@ export default function AdminBankSoalPage() {
               <AlertDialogTitle className="text-xl font-black text-slate-900 tracking-tight">
                 Hapus Soal Permanen?
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-sm font-medium text-slate-500 leading-relaxed max-w-[280px]">
+              <AlertDialogDescription className="text-sm font-medium text-slate-500 leading-relaxed max-w-70">
                 {deleteTarget ? (
                   <>
                     Soal{" "}

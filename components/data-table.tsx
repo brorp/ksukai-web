@@ -269,7 +269,7 @@ export function Table<TData, TValue>({
                   <button
                     onClick={() => table.setPageIndex((page as number) - 1)}
                     className={cn(
-                      "h-7 min-w-[28px] px-1.5 text-[11px] font-semibold rounded-lg transition-all",
+                      "h-7 min-w-7 px-1.5 text-[11px] font-semibold rounded-lg transition-all",
                       currentPage === page
                         ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/50"
                         : "text-slate-400 hover:text-slate-600 hover:bg-white/50",
