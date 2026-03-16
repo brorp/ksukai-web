@@ -96,7 +96,9 @@ export default function PurchasesPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <p className="text-sm text-slate-500">Memuat riwayat pembelian...</p>
+            <p className="text-sm text-slate-500">
+              Memuat riwayat pembelian...
+            </p>
           ) : rows.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
@@ -106,13 +108,12 @@ export default function PurchasesPage() {
                 Belum ada pembelian paket
               </h2>
               <p className="mt-2 text-sm text-slate-500">
-                Pilih paket dari dashboard untuk mulai transaksi atau akses paket gratis.
+                Pilih paket dari dashboard untuk mulai transaksi atau akses
+                paket gratis.
               </p>
               <div className="mt-5">
                 <Link href="/apoteker/dashboard">
-                  <Button className="bg-sky-600 hover:bg-sky-700">
-                    Buka Dashboard
-                  </Button>
+                  <Button>Buka Dashboard</Button>
                 </Link>
               </div>
             </div>
@@ -122,8 +123,12 @@ export default function PurchasesPage() {
                 <CardHeader className="pb-3">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div className="space-y-1">
-                      <CardTitle className="text-lg">{item.package_name}</CardTitle>
-                      <CardDescription>{item.package_description}</CardDescription>
+                      <CardTitle className="text-lg">
+                        {item.package_name}
+                      </CardTitle>
+                      <CardDescription>
+                        {item.package_description}
+                      </CardDescription>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Badge
@@ -164,9 +169,18 @@ export default function PurchasesPage() {
                       }
                     />
                     <InfoItem label="Order ID" value={item.order_code ?? "-"} />
-                    <InfoItem label="Tanggal Pembelian" value={formatDate(item.created_at)} />
-                    <InfoItem label="Tanggal Aktivasi" value={formatDate(item.activated_at)} />
-                    <InfoItem label="Expired" value={formatDate(item.expires_at)} />
+                    <InfoItem
+                      label="Tanggal Pembelian"
+                      value={formatDate(item.created_at)}
+                    />
+                    <InfoItem
+                      label="Tanggal Aktivasi"
+                      value={formatDate(item.activated_at)}
+                    />
+                    <InfoItem
+                      label="Expired"
+                      value={formatDate(item.expires_at)}
+                    />
                   </div>
 
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -176,7 +190,8 @@ export default function PurchasesPage() {
                     </div>
                     <p className="mt-2">
                       Sesi digunakan: <strong>{item.sessions_used}</strong>
-                      {typeof item.session_limit === "number" && item.session_limit > 0
+                      {typeof item.session_limit === "number" &&
+                      item.session_limit > 0
                         ? ` / ${item.session_limit}`
                         : " (tanpa batas sesi)"}
                     </p>
@@ -184,7 +199,9 @@ export default function PurchasesPage() {
 
                   <div className="flex flex-wrap gap-3">
                     {item.access_status === "active" ? (
-                      <Link href={`/apoteker/test?packageId=${item.package_id}`}>
+                      <Link
+                        href={`/apoteker/test?packageId=${item.package_id}`}
+                      >
                         <Button className="bg-emerald-600 hover:bg-emerald-700">
                           Mulai Ujian
                         </Button>
@@ -192,10 +209,10 @@ export default function PurchasesPage() {
                     ) : item.transaction_status === "pending" ||
                       item.transaction_status === "created" ||
                       item.transaction_status === "challenge" ? (
-                      <Link href={`/apoteker/checkout?transactionId=${item.id}`}>
-                        <Button className="bg-sky-600 hover:bg-sky-700">
-                          Lanjutkan Pembayaran
-                        </Button>
+                      <Link
+                        href={`/apoteker/checkout?transactionId=${item.id}`}
+                      >
+                        <Button>Lanjutkan Pembayaran</Button>
                       </Link>
                     ) : (
                       <Link href="/apoteker/dashboard">

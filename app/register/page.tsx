@@ -71,11 +71,11 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F4F8FF] p-4 relative overflow-hidden">
       <div className="absolute top-[-12%] right-[-12%] w-[42%] h-[42%] bg-cyan-100 rounded-full blur-3xl opacity-70" />
-      <div className="absolute bottom-[-10%] left-[-8%] w-[34%] h-[34%] bg-[#0085D1]/10 rounded-full blur-3xl opacity-70" />
+      <div className="absolute bottom-[-10%] left-[-8%] w-[34%] h-[34%] bg-primary/10 rounded-full blur-3xl opacity-70" />
 
       <div className="w-full max-w-115 z-10">
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="mb-4">
+          <div className="-mb-10">
             <Image
               src="/logo.png"
               alt="KS UKAI Logo"
@@ -86,7 +86,7 @@ export default function RegisterPage() {
             />
           </div>
           <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
-            Daftar <span className="text-[#0085D1]">Akun</span>
+            Daftar <span className="text-primary">Akun</span>
           </h1>
           <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-[0.3em] mt-1">
             Mulai Persiapan UKAI Anda
@@ -140,7 +140,7 @@ export default function RegisterPage() {
                           <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                           <Input
                             placeholder="nama@email.com"
-                            className="pl-11 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus:ring-[#0085D1] transition-all"
+                            className="pl-11 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus:ring-primary transition-all"
                             {...field}
                           />
                         </div>
@@ -153,7 +153,7 @@ export default function RegisterPage() {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-[#0085D1] hover:bg-[#0070B0] text-white font-semibold h-12 rounded-xl shadow-lg shadow-[#0085D1]/20 group transition-all"
+                  className="w-full bg-primary hover:bg-primary-700 text-white font-semibold h-12 rounded-xl shadow-lg shadow-primary/20 group transition-all"
                 >
                   {isLoading ? "Mengirim OTP..." : "Lanjutkan dengan Email"}
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -167,7 +167,7 @@ export default function RegisterPage() {
               </p>
               <Link
                 href="/login"
-                className="text-[#0085D1] hover:text-[#0070B0] text-sm font-semibold transition-colors"
+                className="text-primary hover:text-primary-700 text-sm font-semibold transition-colors"
               >
                 Masuk Sekarang
               </Link>

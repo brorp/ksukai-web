@@ -478,7 +478,6 @@ export default function AdminBankSoalPage() {
               setQuestionDraft(createEmptyQuestionDraft(packages[0]?.id || 0));
               setFormOpen(true);
             }}
-            className="bg-sky-600 hover:bg-sky-700"
           >
             <Plus size={16} className="mr-2" /> Tambah Soal
           </Button>
@@ -525,7 +524,7 @@ export default function AdminBankSoalPage() {
               <Button
                 onClick={handleSave}
                 disabled={actionLoading}
-                className="bg-sky-600 hover:bg-sky-700 text-white rounded-xl px-6 font-bold shadow-lg shadow-sky-100 min-w-35"
+                className="text-white rounded-xl px-6 font-bold shadow-lg shadow-sky-100 min-w-35"
               >
                 {actionLoading ? "Menyimpan..." : "Simpan Soal"}
               </Button>

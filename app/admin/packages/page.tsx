@@ -5,7 +5,13 @@ import { Archive, Package2, ShieldCheck } from "lucide-react";
 
 import AdminPageHeader from "@/components/admin/admin-page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { adminApi, type AdminPackage } from "@/lib/api/client";
@@ -87,7 +93,11 @@ export default function AdminPackagesPage() {
 
   const handleSave = async () => {
     if (!token) return;
-    if (!draft.name.trim() || !draft.description.trim() || !draft.features.trim()) {
+    if (
+      !draft.name.trim() ||
+      !draft.description.trim() ||
+      !draft.features.trim()
+    ) {
       setError("Nama, deskripsi, dan fitur paket wajib diisi.");
       return;
     }
@@ -174,7 +184,9 @@ export default function AdminPackagesPage() {
           <Input
             placeholder="Nama paket"
             value={draft.name}
-            onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
+            onChange={(event) =>
+              setDraft((prev) => ({ ...prev, name: event.target.value }))
+            }
           />
           <Input
             placeholder="Harga"
@@ -182,7 +194,10 @@ export default function AdminPackagesPage() {
             min={0}
             value={draft.price}
             onChange={(event) =>
-              setDraft((prev) => ({ ...prev, price: Number(event.target.value) }))
+              setDraft((prev) => ({
+                ...prev,
+                price: Number(event.target.value),
+              }))
             }
           />
           <Input
@@ -205,7 +220,10 @@ export default function AdminPackagesPage() {
             min={1}
             value={draft.question_count}
             onChange={(event) =>
-              setDraft((prev) => ({ ...prev, question_count: Number(event.target.value) }))
+              setDraft((prev) => ({
+                ...prev,
+                question_count: Number(event.target.value),
+              }))
             }
           />
           <Input
@@ -216,7 +234,9 @@ export default function AdminPackagesPage() {
             onChange={(event) =>
               setDraft((prev) => ({
                 ...prev,
-                session_limit: event.target.value ? Number(event.target.value) : null,
+                session_limit: event.target.value
+                  ? Number(event.target.value)
+                  : null,
               }))
             }
           />
@@ -228,7 +248,9 @@ export default function AdminPackagesPage() {
             onChange={(event) =>
               setDraft((prev) => ({
                 ...prev,
-                validity_days: event.target.value ? Number(event.target.value) : null,
+                validity_days: event.target.value
+                  ? Number(event.target.value)
+                  : null,
               }))
             }
           />
@@ -245,12 +267,12 @@ export default function AdminPackagesPage() {
           </div>
 
           <div className="flex gap-2 md:col-span-2">
-            <Button
-              onClick={() => void handleSave()}
-              disabled={saving}
-              className="bg-sky-600 hover:bg-sky-700"
-            >
-              {saving ? "Menyimpan..." : editingId ? "Update Paket" : "Tambah Paket"}
+            <Button onClick={() => void handleSave()} disabled={saving}>
+              {saving
+                ? "Menyimpan..."
+                : editingId
+                  ? "Update Paket"
+                  : "Tambah Paket"}
             </Button>
             {editingId && (
               <Button variant="outline" onClick={resetForm}>
@@ -284,10 +306,12 @@ export default function AdminPackagesPage() {
                     <p className="text-sm text-slate-500">{item.description}</p>
                     <p className="text-xs text-slate-400">
                       {item.question_count} soal
-                      {typeof item.session_limit === "number" && item.session_limit > 0
+                      {typeof item.session_limit === "number" &&
+                      item.session_limit > 0
                         ? ` • limit ${item.session_limit} sesi`
                         : ""}
-                      {typeof item.validity_days === "number" && item.validity_days > 0
+                      {typeof item.validity_days === "number" &&
+                      item.validity_days > 0
                         ? ` • ${item.validity_days} hari`
                         : ""}
                     </p>
@@ -313,7 +337,9 @@ export default function AdminPackagesPage() {
                         onClick={() => void handleArchive(item.id)}
                       >
                         <Archive className="mr-2 h-4 w-4" />
-                        {archivingId === item.id ? "Mengarsipkan..." : "Archive"}
+                        {archivingId === item.id
+                          ? "Mengarsipkan..."
+                          : "Archive"}
                       </Button>
                     ) : null}
                   </div>

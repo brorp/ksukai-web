@@ -51,12 +51,12 @@ export default function KSUKAICalculator({
   };
 
   const buttons = [
-    { label: "ln", cmd: "log(", color: "bg-slate-50 text-[#0085D1]" },
-    { label: "log", cmd: "log10(", color: "bg-slate-50 text-[#0085D1]" },
-    { label: "e", cmd: "exp(", color: "bg-slate-50 text-[#0085D1]" },
-    { label: "√", cmd: "sqrt(", color: "bg-slate-50 text-[#0085D1]" },
-    { label: "^", cmd: "^", color: "bg-slate-50 text-[#0085D1]" },
-    { label: "π", cmd: "pi", color: "bg-slate-50 text-[#0085D1]" },
+    { label: "ln", cmd: "log(", color: "bg-slate-50 text-primary" },
+    { label: "log", cmd: "log10(", color: "bg-slate-50 text-primary" },
+    { label: "e", cmd: "exp(", color: "bg-slate-50 text-primary" },
+    { label: "√", cmd: "sqrt(", color: "bg-slate-50 text-primary" },
+    { label: "^", cmd: "^", color: "bg-slate-50 text-primary" },
+    { label: "π", cmd: "pi", color: "bg-slate-50 text-primary" },
     { label: "sin", cmd: "sin(", color: "bg-slate-50 text-slate-500" },
     { label: "cos", cmd: "cos(", color: "bg-slate-50 text-slate-500" },
     { label: "tan", cmd: "tan(", color: "bg-slate-50 text-slate-500" },
@@ -86,7 +86,7 @@ export default function KSUKAICalculator({
     {
       label: "=",
       cmd: "=",
-      color: "bg-[#0085D1] text-white col-span-2 shadow-md shadow-blue-100",
+      color: "bg-primary text-white col-span-2 shadow-md shadow-blue-100",
     },
     { label: "+", cmd: "+", color: "bg-orange-50 text-orange-600" },
     {
@@ -128,7 +128,7 @@ export default function KSUKAICalculator({
           </div>
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className={`p-1.5 rounded-lg transition-all ${showHistory ? "bg-blue-50 text-[#0085D1]" : "hover:bg-slate-200 text-slate-400"}`}
+            className={`p-1.5 rounded-lg transition-all ${showHistory ? "bg-blue-50 text-primary" : "hover:bg-slate-200 text-slate-400"}`}
           >
             <History size={16} />
           </button>
@@ -193,7 +193,7 @@ export default function KSUKAICalculator({
                     <p className=" text-[10px] text-slate-400 truncate mb-1">
                       {h.split(" = ")[0]}
                     </p>
-                    <p className="font-bold text-[#0085D1] text-right text-xs">
+                    <p className="font-bold text-primary text-right text-xs">
                       = {h.split(" = ")[1]}
                     </p>
                   </div>

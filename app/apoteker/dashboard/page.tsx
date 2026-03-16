@@ -281,7 +281,7 @@ export default function ApotekerDashboard() {
                           href={`/apoteker/checkout?packageId=${pkg.id}`}
                           className="block"
                         >
-                          <Button className="w-full bg-sky-600 hover:bg-sky-700">
+                          <Button className="w-full bg-primary-600 hover:bg-primary-700">
                             Checkout Paket
                           </Button>
                         </Link>
@@ -314,7 +314,7 @@ export default function ApotekerDashboard() {
               onClick={() =>
                 router.push(`/apoteker/test?packageId=${selectPackage?.id}`)
               }
-              className="flex-2 bg-linear-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white rounded-2xl font-semibold text-xs uppercase tracking-widest shadow-xl shadow-blue-100 transition-all active:scale-95"
+              className="flex-2 bg-linear-to-r from-primary-600 to-primary-600 hover:from-sky-700 hover:to-primary-700 text-white rounded-2xl font-semibold text-xs uppercase tracking-widest shadow-xl shadow-blue-100 transition-all active:scale-95"
             >
               Mulai Sekarang
             </Button>

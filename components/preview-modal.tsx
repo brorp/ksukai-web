@@ -73,7 +73,7 @@ export function ModalPreview({
                 {title}
               </DialogTitle>
               {description && (
-                <DialogDescription className="text-[11px] font-bold uppercase tracking-wider text-blue-600/70">
+                <DialogDescription className="text-[11px] font-bold uppercase tracking-wider text-primary-600/70">
                   {description}
                 </DialogDescription>
               )}

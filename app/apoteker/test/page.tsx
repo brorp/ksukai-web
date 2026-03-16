@@ -214,7 +214,7 @@ export default function TestPage() {
   if (!mounted || isLoadingSession) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
-        <div className="h-10 w-10 border-4 border-slate-200 border-t-sky-600 rounded-full animate-spin" />
+        <div className="h-10 w-10 border-4 border-slate-200 border-t-primary-600 rounded-full animate-spin" />
         <p className="text-sm text-slate-500 mt-4">Menyiapkan sesi ujian...</p>
       </div>
     );
@@ -263,7 +263,7 @@ export default function TestPage() {
                   className="flex items-center gap-1.5"
                   title="Sudah Dijawab"
                 >
-                  <div className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.4)]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary-500 shadow-[0_0_8px_rgba(14,165,233,0.4)]" />
                   <span className="text-[10px] font-bold text-slate-600">
                     {summary.answered}
                   </span>
@@ -289,9 +289,9 @@ export default function TestPage() {
 
         <div className="flex items-center justify-end gap-2 md:gap-3 min-w-87.5">
           {/* Timer dibuat lebih ramping */}
-          <div className="flex items-center gap-2 bg-sky-50 border border-sky-100 px-3 py-1.5 rounded-xl">
-            <Clock className="h-4 w-4 text-sky-600" />
-            <div className="font-bold text-sm tabular-nums text-sky-700">
+          <div className="flex items-center gap-2 bg-primary-50 border border-primary-100 px-3 py-1.5 rounded-xl">
+            <Clock className="h-4 w-4 text-primary-600" />
+            <div className="font-bold text-sm tabular-nums text-primary-700">
               <TestTimer />
             </div>
           </div>
@@ -305,7 +305,7 @@ export default function TestPage() {
               onClick={() => setShowCalculator(!showCalculator)}
               className={cn(
                 "h-10 px-3 font-bold rounded-xl transition-all",
-                showCalculator ? "bg-[#0085D1] text-white" : "text-slate-600",
+                showCalculator ? "bg-primary text-white" : "text-slate-600",
               )}
             >
               <Calculator size={18} />
@@ -383,11 +383,11 @@ export default function TestPage() {
             <AlertDialogDescription className="pt-4">
               <div>
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
+                  <div className="p-3 bg-primary-50 rounded-xl border border-primary-100">
+                    <p className="text-xs font-semibold text-primary-600 uppercase tracking-wider">
                       Dijawab
                     </p>
-                    <p className="text-2xl font-bold text-blue-700">
+                    <p className="text-2xl font-bold text-primary-700">
                       {summary.answered}
                     </p>
                   </div>
