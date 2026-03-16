@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,6 +15,7 @@ import {
   MapPin,
   ArrowRight,
   Lock,
+  Mail,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { registrationApi } from "@/lib/api/client";
+import {
+  clearPendingRegistration,
+  getPendingRegistration,
+} from "@/lib/registration-flow";
 import { useAuthStore } from "@/lib/store/auth";
 
 const profileSchema = z
@@ -34,7 +40,11 @@ const profileSchema = z
     name: z.string().min(3, "Nama minimal 3 karakter"),
     education: z.string().min(1, "Pendidikan wajib diisi"),
     schoolOrigin: z.string().min(1, "Asal institusi wajib diisi"),
-    examPurpose: z.enum(["ukai", "cpns", "pppk", "other"]),
+    examPurpose: z.enum([
+      "persiapan_ukai",
+      "persiapan_masuk_apoteker",
+      "lainnya",
+    ]),
     address: z.string().min(5, "Alamat minimal 5 karakter"),
     phone: z.string().min(10, "No. HP tidak valid"),
     targetScore: z.number().min(0).max(100),
@@ -49,22 +59,22 @@ const profileSchema = z
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 const PURPOSE_OPTIONS = [
-  { label: "UKAI", value: "ukai" },
-  { label: "CPNS", value: "cpns" },
-  { label: "PPPK", value: "pppk" },
-  { label: "Lainnya", value: "other" },
+  { label: "Persiapan UKAI", value: "persiapan_ukai" },
+  {
+    label: "Persiapan Masuk Apoteker",
+    value: "persiapan_masuk_apoteker",
+  },
+  { label: "Lainnya", value: "lainnya" },
 ] as const;
 
-interface RegisterProfileFormProps {
-  email?: string;
-}
-
-export default function RegisterProfileForm({
-  email,
-}: RegisterProfileFormProps) {
+export default function RegisterProfileForm() {
   const router = useRouter();
-  const isLoading = useAuthStore((state) => state.isLoading);
+  const setSession = useAuthStore((state) => state.setSession);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [authSource, setAuthSource] = useState<"email" | "google">("email");
+  const [isReady, setIsReady] = useState(false);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -72,7 +82,7 @@ export default function RegisterProfileForm({
       name: "",
       education: "",
       schoolOrigin: "",
-      examPurpose: "ukai",
+      examPurpose: "persiapan_ukai",
       address: "",
       phone: "",
       targetScore: 75,
@@ -81,11 +91,81 @@ export default function RegisterProfileForm({
     },
   });
 
+  useEffect(() => {
+    const pendingRegistration = getPendingRegistration();
+
+    if (!pendingRegistration) {
+      router.replace("/register");
+      return;
+    }
+
+    setPendingEmail(pendingRegistration.email);
+    setAuthSource(pendingRegistration.source);
+    setIsReady(true);
+
+    form.reset({
+      name: pendingRegistration.name || "",
+      education: "",
+      schoolOrigin: "",
+      examPurpose: "persiapan_ukai",
+      address: "",
+      phone: "",
+      targetScore: 75,
+      password: "",
+      confirmPassword: "",
+    });
+  }, [form, router]);
+
   const onSubmit = async (data: ProfileFormData) => {
     setError("");
-    console.log("Submitting profile for:", email, data);
-    router.push("/apoteker/dashboard");
+
+    const pendingRegistration = getPendingRegistration();
+    if (!pendingRegistration) {
+      setError("Sesi registrasi tidak ditemukan. Silakan mulai lagi.");
+      router.replace("/register");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const result = await registrationApi.complete({
+        registration_token: pendingRegistration.registrationToken,
+        name: data.name,
+        password: data.password,
+        education: data.education,
+        school_origin: data.schoolOrigin,
+        exam_purpose: data.examPurpose,
+        address: data.address,
+        phone: data.phone,
+        target_score: data.targetScore,
+      });
+
+      if (!result.user) {
+        throw new Error("Profil pengguna tidak ditemukan pada response.");
+      }
+
+      clearPendingRegistration();
+      setSession(result.token, result.user);
+      router.push("/apoteker/dashboard");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Pendaftaran gagal. Silakan coba lagi.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  if (!isReady) {
+    return (
+      <div className="w-full h-125 bg-white/50 animate-pulse rounded-[2.5rem] flex items-center justify-center text-slate-400 font-medium">
+        Menyiapkan formulir profil...
+      </div>
+    );
+  }
 
   return (
     <Form {...form}>
@@ -95,6 +175,25 @@ export default function RegisterProfileForm({
             {error}
           </div>
         )}
+
+        <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-white p-2 text-sky-600 shadow-sm">
+              <Mail className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">
+                Metode Registrasi
+              </p>
+              <p className="text-sm font-semibold text-slate-900">
+                {authSource === "google"
+                  ? "Lanjutkan dengan Google"
+                  : "Lanjutkan dengan Email"}
+              </p>
+              <p className="text-sm text-slate-500">{pendingEmail}</p>
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField

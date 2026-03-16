@@ -19,11 +19,12 @@ const GoogleAuthButton = ({
     setInternalLoading(true);
     try {
       await signIn("google", {
-        redirectTo: "/apoteker/dashboard",
+        redirectTo: "/auth/google",
         redirect: true,
       });
     } catch (error) {
       console.error("Google Login Error:", error);
+      setInternalLoading(false);
     }
   };
 

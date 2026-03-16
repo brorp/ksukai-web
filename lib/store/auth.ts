@@ -17,6 +17,7 @@ interface AuthStore extends AuthState {
   fetchProfile: () => Promise<void>;
   logout: () => void;
   setUser: (user: User | null) => void;
+  setSession: (token: string, user: User) => void;
 }
 
 const toErrorMessage = (error: unknown): string => {
@@ -67,10 +68,18 @@ export const useAuthStore = create<AuthStore>()(
       register: async (payload) => {
         set({ isLoading: true });
         try {
-          await authApi.register(payload);
-          const result = await get().login(payload.email, payload.password);
-          set({ isLoading: false });
-          return result;
+          const { token, user } = await authApi.register(payload);
+          const profile = user ?? (await authApi.profile(token));
+
+          set({
+            token,
+            user: profile,
+            isAuthenticated: true,
+            isLoading: false,
+            authNotice: null,
+          });
+
+          return { success: true };
         } catch (error) {
           set({ isLoading: false });
           return {
@@ -117,6 +126,16 @@ export const useAuthStore = create<AuthStore>()(
         set({
           user,
           isAuthenticated: user !== null,
+          authNotice: null,
+        });
+      },
+
+      setSession: (token, user) => {
+        set({
+          token,
+          user,
+          isAuthenticated: true,
+          isLoading: false,
           authNotice: null,
         });
       },

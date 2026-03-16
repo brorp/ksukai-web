@@ -6,13 +6,13 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Lengkapi Profil Peserta",
   description:
-    "Finalisasi pendaftaran akun KSUKAI Anda untuk persiapan UKAI, CPNS, dan PPPK.",
+    "Finalisasi pendaftaran akun KSUKAI Anda untuk persiapan UKAI dan masuk profesi apoteker.",
   keywords: [
     "Daftar KSUKAI",
     "Profil Peserta UKAI",
     "Tryout Apoteker",
-    "Pendaftaran SKB Farmasi",
-    "Akun Latihan Soal PPPK",
+    "Persiapan Masuk Apoteker",
+    "Pendaftaran Tryout Farmasi",
   ],
   openGraph: {
     title: "Lengkapi Profil Peserta | KSUKAI",

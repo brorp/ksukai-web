@@ -58,7 +58,11 @@ export default function RegisterPage() {
 
       router.push(`/verify?email=${encodeURIComponent(data.email)}`);
     } catch (err) {
-      setError("Terjadi kesalahan saat mengirim OTP. Silakan coba lagi.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan saat mengirim OTP. Silakan coba lagi.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +96,7 @@ export default function RegisterPage() {
         <Card className="shadow-[0_24px_60px_rgba(0,133,209,0.14)] border-slate-200/70 rounded-4xl overflow-hidden bg-white/95 backdrop-blur-sm">
           <CardHeader className="pt-9 pb-2 text-center">
             <CardDescription className="font-medium text-slate-500 text-xs px-6">
-              Gunakan email untuk mendapatkan kode verifikasi (OTP).
+              Pilih lanjut dengan Google atau verifikasi email terlebih dahulu.
             </CardDescription>
           </CardHeader>
 
@@ -151,7 +155,7 @@ export default function RegisterPage() {
                   disabled={isLoading}
                   className="w-full bg-[#0085D1] hover:bg-[#0070B0] text-white font-semibold h-12 rounded-xl shadow-lg shadow-[#0085D1]/20 group transition-all"
                 >
-                  {isLoading ? "Mengirim OTP..." : "Daftar & Kirim OTP"}
+                  {isLoading ? "Mengirim OTP..." : "Lanjutkan dengan Email"}
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </form>

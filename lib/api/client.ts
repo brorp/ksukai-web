@@ -97,8 +97,9 @@ export interface LoginPayload {
 }
 
 export interface RegisterPayload {
+  registration_token?: string;
   name: string;
-  email: string;
+  email?: string;
   password: string;
   education: string;
   school_origin: string;
@@ -116,6 +117,43 @@ interface AuthResponse {
     token?: string;
     accessToken?: string;
     user?: User;
+  };
+}
+
+export interface EmailOtpSendResponse {
+  message: string;
+  request_id: number;
+  expires_at: string;
+  retry_after_seconds: number;
+  provider: "resend" | "log";
+  delivered: boolean;
+  warning?: string | null;
+}
+
+export interface EmailOtpVerifyResponse {
+  message: string;
+  email: string;
+  registration_token: string;
+  registration_token_expires_at: string;
+  next_step: "complete_profile";
+}
+
+export interface GoogleContinuePayload {
+  id_token: string;
+}
+
+export interface GoogleContinueResponse {
+  message: string;
+  next_step: "login" | "complete_profile";
+  token?: string;
+  user?: User;
+  registration_token?: string;
+  registration_token_expires_at?: string;
+  registration?: {
+    email: string;
+    name: string;
+    picture_url?: string | null;
+    auth_source: "google";
   };
 }
 
@@ -173,11 +211,14 @@ const parseAuthResponse = (
 };
 
 export const authApi = {
-  register: async (payload: RegisterPayload): Promise<void> => {
-    await request("/auth/register", {
+  register: async (
+    payload: RegisterPayload,
+  ): Promise<{ token: string; user?: User }> => {
+    const raw = await request<AuthResponse>("/auth/register", {
       method: "POST",
       body: payload,
     });
+    return parseAuthResponse(raw);
   },
 
   login: async (
@@ -204,11 +245,47 @@ export const authApi = {
     return normalizeUser(payload);
   },
 
-  reqEmailOtp: async (email: string): Promise<AdminQuestion> =>
-    request("/email-otp/send", {
+  reqEmailOtp: async (email: string): Promise<EmailOtpSendResponse> =>
+    request("/auth/email-otp/send", {
       method: "POST",
       body: { email },
     }),
+
+  verifyEmailOtp: async (
+    email: string,
+    otp: string,
+  ): Promise<EmailOtpVerifyResponse> =>
+    request("/auth/email-otp/verify", {
+      method: "POST",
+      body: { email, otp },
+    }),
+
+  continueWithGoogle: async (
+    payload: GoogleContinuePayload,
+  ): Promise<GoogleContinueResponse> => {
+    const raw = await request<GoogleContinueResponse & AuthResponse>(
+      "/auth/google/continue",
+      {
+        method: "POST",
+        body: payload,
+      },
+    );
+
+    if (raw.next_step === "login") {
+      const parsed = parseAuthResponse(raw);
+      return {
+        ...raw,
+        token: parsed.token,
+        user: parsed.user,
+      };
+    }
+
+    return raw;
+  },
+};
+
+export const registrationApi = {
+  complete: authApi.register,
 };
 
 export interface ExamPackage {

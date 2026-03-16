@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -13,23 +13,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ShieldCheck, Timer as TimerIcon, RefreshCcw } from "lucide-react";
+import { authApi } from "@/lib/api/client";
+import { savePendingRegistration } from "@/lib/registration-flow";
 
 type OTPFormData = {
   otp: string[];
 };
 
-interface OTPComponentProps {
-  email?: string;
-}
+const OTP_LENGTH = 4;
+const DEFAULT_TIMER_SECONDS = 60;
 
-const OTPComponent = ({ email = "User" }: OTPComponentProps) => {
+const OTPComponent = () => {
   const router = useRouter();
-  const [timer, setTimer] = useState(59);
+  const searchParams = useSearchParams();
+  const email = searchParams.get("email")?.trim().toLowerCase() ?? "";
+  const [timer, setTimer] = useState(DEFAULT_TIMER_SECONDS);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRefs = useRef<HTMLInputElement[]>([]);
 
   const { control, handleSubmit, watch } = useForm<OTPFormData>({
     defaultValues: {
-      otp: new Array(6).fill(""),
+      otp: new Array(OTP_LENGTH).fill(""),
     },
     mode: "onChange",
   });
@@ -37,25 +43,73 @@ const OTPComponent = ({ email = "User" }: OTPComponentProps) => {
   const otpValues = watch("otp");
 
   useEffect(() => {
+    if (!email) {
+      router.replace("/register");
+      return;
+    }
+
     const interval = setInterval(() => {
-      if (timer > 0) setTimer(timer - 1);
+      setTimer((currentTimer) =>
+        currentTimer > 0 ? currentTimer - 1 : currentTimer,
+      );
     }, 1000);
     return () => clearInterval(interval);
-  }, [timer]);
+  }, [email, router]);
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
-    index: number
+    index: number,
   ) => {
     if (e.key === "Backspace" && !otpValues[index] && index > 0) {
       inputRefs.current[index - 1].focus();
     }
   };
 
-  const onVerify = (data: OTPFormData) => {
+  const onVerify = async (data: OTPFormData) => {
+    setIsSubmitting(true);
+    setError(null);
     const fullOtp = data.otp.join("");
-    console.log("Verifikasi KS UKAI OTP:", fullOtp);
-    router.push("/profile");
+
+    try {
+      const response = await authApi.verifyEmailOtp(email, fullOtp);
+      savePendingRegistration({
+        registrationToken: response.registration_token,
+        email: response.email,
+        source: "email",
+        expiresAt: response.registration_token_expires_at,
+      });
+      router.push("/profile");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Verifikasi OTP gagal. Silakan coba lagi.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setIsResending(true);
+    setError(null);
+
+    try {
+      const response = await authApi.reqEmailOtp(email);
+      setTimer(
+        response.retry_after_seconds > 0
+          ? response.retry_after_seconds
+          : DEFAULT_TIMER_SECONDS,
+      );
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Gagal mengirim ulang OTP. Silakan coba lagi.",
+      );
+    } finally {
+      setIsResending(false);
+    }
   };
 
   return (
@@ -70,15 +124,21 @@ const OTPComponent = ({ email = "User" }: OTPComponentProps) => {
             Verifikasi Kode
           </CardTitle>
           <CardDescription className="font-medium text-slate-500 px-6">
-            Kami telah mengirimkan 6 digit kode ke{" "}
+            Kami telah mengirimkan 4 digit kode ke{" "}
             <span className="text-slate-900 font-semibold">{email}</span>
           </CardDescription>
         </CardHeader>
 
         <CardContent className="p-8 pt-6">
           <form onSubmit={handleSubmit(onVerify)} className="space-y-8">
+            {error ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                {error}
+              </div>
+            ) : null}
+
             <div className="flex justify-center gap-2 sm:gap-3">
-              {new Array(6).fill(0).map((_, index) => (
+              {new Array(OTP_LENGTH).fill(0).map((_, index) => (
                 <Controller
                   key={index}
                   name={`otp.${index}`}
@@ -98,7 +158,7 @@ const OTPComponent = ({ email = "User" }: OTPComponentProps) => {
                       onChange={(e) => {
                         const val = e.target.value.replace(/[^0-9]/g, "");
                         field.onChange(val);
-                        if (val && index < 5) {
+                        if (val && index < OTP_LENGTH - 1) {
                           inputRefs.current[index + 1].focus();
                         }
                       }}
@@ -111,10 +171,10 @@ const OTPComponent = ({ email = "User" }: OTPComponentProps) => {
             <div className="space-y-4">
               <Button
                 type="submit"
-                disabled={otpValues.some((v) => v === "")}
+                disabled={isSubmitting || otpValues.some((v) => v === "")}
                 className="w-full h-12 text-base font-semibold bg-[#0085D1] hover:bg-[#0070B0] rounded-xl shadow-lg shadow-[#0085D1]/20 transition-all active:scale-[0.98]"
               >
-                Verifikasi & Lanjutkan
+                {isSubmitting ? "Memverifikasi..." : "Verifikasi & Lanjutkan"}
               </Button>
 
               <div className="flex flex-col items-center gap-2">
@@ -131,10 +191,11 @@ const OTPComponent = ({ email = "User" }: OTPComponentProps) => {
                     variant="ghost"
                     type="button"
                     className="text-[#0085D1] hover:text-[#0070B0] hover:bg-blue-50 font-bold text-sm flex items-center gap-2 transition-colors"
-                    onClick={() => setTimer(59)}
+                    disabled={isResending}
+                    onClick={handleResend}
                   >
                     <RefreshCcw className="h-4 w-4" />
-                    Kirim Ulang Kode
+                    {isResending ? "Mengirim..." : "Kirim Ulang Kode"}
                   </Button>
                 )}
               </div>
