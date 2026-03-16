@@ -1,11 +1,26 @@
 "use client";
 
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { Eye, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  Eye,
+  Pencil,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  RefreshCcw,
+  CheckCircle2,
+  BookOpen,
+} from "lucide-react";
+import { type ColumnDef } from "@tanstack/react-table";
 
+// UI Components
 import AdminPageHeader from "@/components/admin/admin-page-header";
-import SimpleTable from "@/components/admin/simple-table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,8 +31,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -26,9 +39,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+
+// API & Utils
 import {
   adminApi,
   type AdminQuestion,
@@ -37,7 +49,12 @@ import {
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import type { OptionKey } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { Table } from "@/components/data-table";
+import { ModalPreview } from "@/components/preview-modal";
+import { Badge } from "@/components/ui/badge";
 
+// --- Helpers ---
 const createEmptyQuestionDraft = (packageId = 0): AdminQuestionPayload => ({
   package_id: packageId,
   question_text: "",
@@ -56,19 +73,6 @@ const truncateText = (value: string, maxLength: number): string => {
   return `${value.slice(0, maxLength).trim()}...`;
 };
 
-const toDraft = (question: AdminQuestion): AdminQuestionPayload => ({
-  package_id: question.package_id ?? 0,
-  question_text: question.question_text,
-  option_a: question.option_a,
-  option_b: question.option_b,
-  option_c: question.option_c,
-  option_d: question.option_d,
-  option_e: question.option_e,
-  correct_answer: question.correct_answer,
-  explanation: question.explanation,
-  is_active: question.is_active,
-});
-
 export default function AdminBankSoalPage() {
   const token = useAuthStore((state) => state.token);
 
@@ -78,13 +82,20 @@ export default function AdminBankSoalPage() {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [packageFilter, setPackageFilter] = useState<number>(0);
-  const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">("");
+  const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">(
+    "",
+  );
   const [rows, setRows] = useState<AdminQuestion[]>([]);
   const [packages, setPackages] = useState<ExamPackage[]>([]);
-  const [previewQuestion, setPreviewQuestion] = useState<AdminQuestion | null>(null);
-  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
-  const [questionDraft, setQuestionDraft] =
-    useState<AdminQuestionPayload>(createEmptyQuestionDraft());
+  const [previewQuestion, setPreviewQuestion] = useState<AdminQuestion | null>(
+    null,
+  );
+  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(
+    null,
+  );
+  const [questionDraft, setQuestionDraft] = useState<AdminQuestionPayload>(
+    createEmptyQuestionDraft(),
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminQuestion | null>(null);
   const [inlineActionId, setInlineActionId] = useState<number | null>(null);
@@ -97,10 +108,7 @@ export default function AdminBankSoalPage() {
       const [questionRows, packageRows] = await Promise.all([
         adminApi.questions(token, {
           packageId: packageFilter || undefined,
-          isActive:
-            statusFilter === ""
-              ? undefined
-              : statusFilter === "active",
+          isActive: statusFilter === "" ? undefined : statusFilter === "active",
         }),
         adminApi.packages(),
       ]);
@@ -151,12 +159,6 @@ export default function AdminBankSoalPage() {
     setFormOpen(true);
   };
 
-  const handleEdit = (question: AdminQuestion) => {
-    setEditingQuestionId(question.id);
-    setQuestionDraft(toDraft(question));
-    setFormOpen(true);
-  };
-
   const handleInlineUpdate = async (
     questionId: number,
     payload: Partial<AdminQuestionPayload>,
@@ -176,9 +178,7 @@ export default function AdminBankSoalPage() {
       if (previewQuestion?.id === updated.id) {
         setPreviewQuestion(updated);
       }
-      if (editingQuestionId === updated.id) {
-        setQuestionDraft(toDraft(updated));
-      }
+
       setMessage(successMessage);
     } catch (actionError) {
       setError(
@@ -194,7 +194,10 @@ export default function AdminBankSoalPage() {
   const handleSave = async () => {
     if (!token) return;
 
-    if (!Number.isInteger(questionDraft.package_id) || questionDraft.package_id <= 0) {
+    if (
+      !Number.isInteger(questionDraft.package_id) ||
+      questionDraft.package_id <= 0
+    ) {
       setError("Kategori soal wajib dipilih.");
       return;
     }
@@ -267,59 +270,173 @@ export default function AdminBankSoalPage() {
     }
   };
 
+  // 2. Column Definitions
+  const columns = useMemo<ColumnDef<AdminQuestion>[]>(
+    () => [
+      {
+        id: "select",
+        header: ({ table }) => (
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && "indeterminate")
+            }
+            onCheckedChange={(value) =>
+              table.toggleAllPageRowsSelected(!!value)
+            }
+            aria-label="Select all"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+      },
+      {
+        accessorKey: "id",
+        header: "ID",
+        cell: (info) => (
+          <span className="text-xs text-slate-400">
+            {info.getValue() as string}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "question_text",
+        header: "Pertanyaan",
+        cell: ({ row }) => (
+          <div className="max-w-100">
+            <p className="font-medium text-slate-900 leading-snug">
+              {truncateText(row.original.question_text, 100)}
+            </p>
+            <div className="flex gap-2 mt-1 items-center">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight bg-slate-100 px-1.5 rounded">
+                Kunci: {row.original.correct_answer.toUpperCase()}
+              </span>
+              <button
+                onClick={() => setPreviewQuestion(row.original)}
+                className="text-[10px] font-bold text-sky-600 hover:underline uppercase"
+              >
+                Detail Soal
+              </button>
+            </div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "package_name",
+        header: "Kategori",
+        cell: ({ row }) => (
+          <span className="inline-flex items-center rounded-md bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
+            {row.original.package_name || "Uncategorized"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "is_active",
+        header: "Status",
+        cell: ({ row }) => (
+          <Switch
+            checked={row.original.is_active}
+            onCheckedChange={async (checked) => {
+              await adminApi.updateQuestion(token!, row.original.id, {
+                is_active: checked,
+              });
+              setRows((prev) =>
+                prev.map((r) =>
+                  r.id === row.original.id ? { ...r, is_active: checked } : r,
+                ),
+              );
+            }}
+          />
+        ),
+      },
+      {
+        id: "actions",
+        header: "Aksi",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-slate-400 hover:text-sky-600"
+              onClick={() => setPreviewQuestion(row.original)}
+            >
+              <Eye size={16} />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-slate-400 hover:text-amber-600"
+              onClick={() => {
+                setEditingQuestionId(row.original.id);
+                setQuestionDraft({
+                  package_id: row.original.package_id ?? 0,
+                  question_text: row.original.question_text,
+                  option_a: row.original.option_a,
+                  option_b: row.original.option_b,
+                  option_c: row.original.option_c,
+                  option_d: row.original.option_d,
+                  option_e: row.original.option_e,
+                  correct_answer: row.original.correct_answer,
+                  explanation: row.original.explanation,
+                  is_active: row.original.is_active,
+                });
+                setFormOpen(true);
+              }}
+            >
+              <Pencil size={16} />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-slate-400 hover:text-rose-600"
+              onClick={() => setDeleteTarget(row.original)}
+            >
+              <Trash2 size={16} />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [token],
+  );
+
+  const handleBulkUpdate = async (selectedRows: AdminQuestion[]) => {
+    if (!token) return;
+    setActionLoading(true);
+    try {
+      // Contoh: Mengaktifkan semua yang terpilih
+      await Promise.all(
+        selectedRows.map((q) =>
+          adminApi.updateQuestion(token, q.id, { is_active: true }),
+        ),
+      );
+      await loadData();
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const filteredData = useMemo(() => {
+    if (!search) return rows;
+    return rows.filter((r) =>
+      r.question_text.toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [rows, search]);
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <AdminPageHeader
         title="Bank Soal"
-        description="Lihat pembahasan dan kelola setiap soal langsung dari daftar."
+        description="Gunakan tabel di bawah untuk manajemen database soal secara masal."
         icon={<ShieldCheck size={20} />}
-        actionLabel="Refresh Bank Soal"
-        onAction={() => void loadData()}
-        actionDisabled={loading}
       />
-
-      <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
-        <div className="grid flex-1 grid-cols-1 gap-3 lg:max-w-4xl lg:grid-cols-[minmax(0,1fr)_220px_220px]">
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Cari pertanyaan, opsi, atau pembahasan..."
-            className="bg-white"
-          />
-          <select
-            className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm"
-            value={packageFilter}
-            onChange={(event) => setPackageFilter(Number(event.target.value))}
-          >
-            <option value={0}>Semua kategori</option>
-            {packages.map((pkg) => (
-              <option key={pkg.id} value={pkg.id}>
-                {pkg.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm"
-            value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value as "" | "active" | "inactive")
-            }
-          >
-            <option value="">Semua status</option>
-            <option value="active">Aktif</option>
-            <option value="inactive">Nonaktif</option>
-          </select>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={handleCreate}>
-            <Plus size={16} className="mr-2" />
-            Tambah Soal
-          </Button>
-          <Link href="/admin/kelola-soal">
-            <Button variant="outline">Import / Batch Soal</Button>
-          </Link>
-        </div>
-      </div>
 
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm font-medium">
@@ -332,457 +449,373 @@ export default function AdminBankSoalPage() {
         </div>
       )}
 
-      <Card className="border border-slate-200">
-        <CardContent className="p-6">
-          <SimpleTable
-            loading={loading}
-            headers={["ID", "Pertanyaan", "Kategori", "Pembahasan", "Kunci", "Status", "Aksi"]}
-            rows={filteredRows.map((item) => [
-              String(item.id),
-              <div key={`question-${item.id}`} className="space-y-1">
-                <p className="font-medium text-slate-900">
-                  {truncateText(item.question_text, 180)}
-                </p>
-                <p className="text-xs text-slate-500">
-                  Opsi: A, B, C, D, E
-                </p>
-              </div>,
-              <div key={`package-${item.id}`} className="min-w-56 space-y-2">
-                <select
-                  className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
-                  value={item.package_id ?? ""}
-                  disabled={inlineActionId === item.id || packages.length === 0}
-                  onChange={(event) => {
-                    const nextPackageId = Number(event.target.value);
-                    if (!nextPackageId || nextPackageId === item.package_id) {
-                      return;
-                    }
-
-                    void handleInlineUpdate(
-                      item.id,
-                      { package_id: nextPackageId },
-                      `Kategori soal #${item.id} berhasil diperbarui.`,
-                    );
-                  }}
-                >
-                  <option value="">Pilih kategori</option>
-                  {packages.map((pkg) => (
-                    <option key={pkg.id} value={pkg.id}>
-                      {pkg.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-500">
-                  {item.package_name ?? "Belum ada kategori"}
-                </p>
-              </div>,
-              <div key={`explanation-${item.id}`} className="space-y-1">
-                <p className="text-slate-700">{truncateText(item.explanation, 160)}</p>
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-sky-600 hover:text-sky-700"
-                  onClick={() => setPreviewQuestion(item)}
-                >
-                  Lihat pembahasan lengkap
-                </button>
-              </div>,
-              item.correct_answer.toUpperCase(),
-              <div key={`active-${item.id}`} className="min-w-36 space-y-2">
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={item.is_active}
-                    disabled={inlineActionId === item.id}
-                    onCheckedChange={(checked) =>
-                      void handleInlineUpdate(
-                        item.id,
-                        { is_active: checked },
-                        `Soal #${item.id} ${checked ? "diaktifkan" : "dinonaktifkan"}.`,
-                      )
-                    }
-                  />
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      item.is_active
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {item.is_active ? "Aktif" : "Nonaktif"}
-                  </span>
-                </div>
-                {inlineActionId === item.id && (
-                  <p className="text-xs text-slate-500">Menyimpan perubahan...</p>
-                )}
-              </div>,
-              <div key={`actions-${item.id}`} className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPreviewQuestion(item)}
-                >
-                  <Eye size={14} className="mr-1" />
-                  Lihat
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleEdit(item)}
-                >
-                  <Pencil size={14} className="mr-1" />
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={actionLoading}
-                  onClick={() => setDeleteTarget(item)}
-                >
-                  <Trash2 size={14} className="mr-1" />
-                  Hapus
-                </Button>
-              </div>,
-            ])}
-            emptyText="Belum ada data bank soal."
+      {/* Toolbar */}
+      <div className="flex flex-col lg:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex flex-1 gap-3 w-full lg:max-w-3xl">
+          <Input
+            placeholder="Cari pertanyaan..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1"
           />
-        </CardContent>
-      </Card>
+          <select
+            className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-sky-500"
+            value={packageFilter}
+            onChange={(e) => setPackageFilter(Number(e.target.value))}
+          >
+            <option value={0}>Semua Kategori</option>
+            {packages.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex gap-2 w-full lg:w-auto">
+          <Button
+            onClick={() => {
+              setEditingQuestionId(null);
+              setQuestionDraft(createEmptyQuestionDraft(packages[0]?.id || 0));
+              setFormOpen(true);
+            }}
+            className="bg-sky-600 hover:bg-sky-700"
+          >
+            <Plus size={16} className="mr-2" /> Tambah Soal
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => void loadData()}
+            disabled={loading}
+          >
+            <RefreshCcw size={16} className={loading ? "animate-spin" : ""} />
+          </Button>
+        </div>
+      </div>
 
-      <Dialog
+      <Table
+        columns={columns}
+        data={filteredData}
+        onBulkUpdate={handleBulkUpdate}
+      />
+
+      <ModalPreview
         open={formOpen}
-        onOpenChange={(open) => {
-          setFormOpen(open);
-          if (!open) {
-            resetForm();
-          }
-        }}
+        onClose={() => setFormOpen(false)}
+        title={editingQuestionId ? "Edit Detail Soal" : "Tambah Soal Baru"}
+        description={
+          editingQuestionId
+            ? `Mengedit ID Soal #${editingQuestionId}`
+            : "Lengkapi form di bawah untuk menambahkan soal baru ke bank soal."
+        }
+        maxWidth="5xl"
+        footer={
+          <div className="flex w-full items-center justify-between">
+            <p className="text-[10px] text-slate-400 font-medium italic">
+              * Pastikan semua opsi jawaban dan kunci sudah benar.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setFormOpen(false)}
+                className="rounded-xl font-bold text-xs uppercase tracking-widest text-slate-500"
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={actionLoading}
+                className="bg-sky-600 hover:bg-sky-700 text-white rounded-xl px-6 font-bold shadow-lg shadow-sky-100 min-w-[140px]"
+              >
+                {actionLoading ? "Menyimpan..." : "Simpan Soal"}
+              </Button>
+            </div>
+          </div>
+        }
       >
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingQuestionId ? `Edit Soal #${editingQuestionId}` : "Tambah Soal Baru"}
-            </DialogTitle>
-            <DialogDescription>
-              Pembahasan ikut disimpan dan akan tampil langsung di bank soal.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Kategori Soal</label>
+        <div className="space-y-6">
+          {/* Baris Pertama: Pengaturan Utama */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+            <div className="md:col-span-8 space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                Kategori / Paket Soal
+              </label>
               <select
-                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                className="w-full h-11 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium focus:ring-2 focus:ring-sky-500 outline-none transition-all shadow-sm"
                 value={questionDraft.package_id}
-                onChange={(event) =>
-                  setQuestionDraft((prev) => ({
-                    ...prev,
-                    package_id: Number(event.target.value),
+                onChange={(e) =>
+                  setQuestionDraft((p) => ({
+                    ...p,
+                    package_id: Number(e.target.value),
                   }))
                 }
               >
-                <option value={0}>Pilih kategori soal</option>
-                {packages.map((pkg) => (
-                  <option key={pkg.id} value={pkg.id}>
-                    {pkg.name}
+                {packages.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Pertanyaan</label>
-              <Textarea
-                value={questionDraft.question_text}
-                onChange={(event) =>
-                  setQuestionDraft((prev) => ({
-                    ...prev,
-                    question_text: event.target.value,
-                  }))
-                }
-                placeholder="Masukkan isi pertanyaan"
-                className="min-h-28 bg-white"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <InputField
-                label="Opsi A"
-                value={questionDraft.option_a}
-                onChange={(value) =>
-                  setQuestionDraft((prev) => ({ ...prev, option_a: value }))
-                }
-              />
-              <InputField
-                label="Opsi B"
-                value={questionDraft.option_b}
-                onChange={(value) =>
-                  setQuestionDraft((prev) => ({ ...prev, option_b: value }))
-                }
-              />
-              <InputField
-                label="Opsi C"
-                value={questionDraft.option_c}
-                onChange={(value) =>
-                  setQuestionDraft((prev) => ({ ...prev, option_c: value }))
-                }
-              />
-              <InputField
-                label="Opsi D"
-                value={questionDraft.option_d}
-                onChange={(value) =>
-                  setQuestionDraft((prev) => ({ ...prev, option_d: value }))
-                }
-              />
-              <div className="md:col-span-2">
-                <InputField
-                  label="Opsi E"
-                  value={questionDraft.option_e}
-                  onChange={(value) =>
-                    setQuestionDraft((prev) => ({ ...prev, option_e: value }))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Kunci Jawaban</label>
-                <select
-                  className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
-                  value={questionDraft.correct_answer}
-                  onChange={(event) =>
-                    setQuestionDraft((prev) => ({
-                      ...prev,
-                      correct_answer: event.target.value as OptionKey,
-                    }))
-                  }
-                >
-                  {(["a", "b", "c", "d", "e"] as const).map((item) => (
-                    <option key={item} value={item}>
-                      {item.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-end">
-                <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
-                  <Switch
-                    checked={questionDraft.is_active}
-                    onCheckedChange={(checked) =>
-                      setQuestionDraft((prev) => ({
-                        ...prev,
-                        is_active: checked,
+            <div className="md:col-span-4 space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-sky-600 ml-1">
+                Kunci Jawaban
+              </label>
+              <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                {["a", "b", "c", "d", "e"].map((o) => (
+                  <button
+                    key={o}
+                    type="button"
+                    onClick={() =>
+                      setQuestionDraft((p) => ({
+                        ...p,
+                        correct_answer: o as any,
                       }))
                     }
-                  />
-                  <span>{questionDraft.is_active ? "Soal aktif" : "Soal nonaktif"}</span>
-                </div>
+                    className={cn(
+                      "flex-1 h-9 rounded-lg text-xs font-black uppercase transition-all",
+                      questionDraft.correct_answer === o
+                        ? "bg-sky-600 text-white shadow-md shadow-sky-200 scale-105 z-10"
+                        : "text-slate-400 hover:bg-slate-50",
+                    )}
+                  >
+                    {o}
+                  </button>
+                ))}
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Pembahasan</label>
-              <Textarea
-                value={questionDraft.explanation}
-                onChange={(event) =>
-                  setQuestionDraft((prev) => ({
-                    ...prev,
-                    explanation: event.target.value,
-                  }))
-                }
-                placeholder="Masukkan pembahasan lengkap"
-                className="min-h-32 bg-white"
-              />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setFormOpen(false);
-                resetForm();
-              }}
-            >
-              Batal
-            </Button>
-            <Button onClick={() => void handleSave()} disabled={actionLoading}>
-              {actionLoading ? "Menyimpan..." : editingQuestionId ? "Update Soal" : "Tambah Soal"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {/* Section: Pertanyaan */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+              Teks Pertanyaan
+            </label>
+            <Textarea
+              placeholder="Tuliskan butir soal di sini..."
+              value={questionDraft.question_text}
+              onChange={(e) =>
+                setQuestionDraft((p) => ({
+                  ...p,
+                  question_text: e.target.value,
+                }))
+              }
+              className="min-h-[120px] rounded-2xl border-slate-200 focus:ring-sky-500 text-base leading-relaxed p-4"
+            />
+          </div>
 
-      <Dialog
-        open={previewQuestion !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPreviewQuestion(null);
-          }
-        }}
-      >
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {previewQuestion ? `Detail Soal #${previewQuestion.id}` : "Detail Soal"}
-            </DialogTitle>
-            <DialogDescription>
-              Tampilkan soal lengkap, opsi jawaban, dan pembahasan.
-            </DialogDescription>
-          </DialogHeader>
-
-          {previewQuestion && (
-            <div className="space-y-5">
-              <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Kategori
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    {previewQuestion.package_name ?? "Belum ada kategori"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Status
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">
-                    {previewQuestion.is_active ? "Aktif" : "Nonaktif"}
-                  </p>
-                </div>
-              </section>
-
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  Pertanyaan
-                </h3>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 whitespace-pre-wrap text-sm text-slate-800">
-                  {previewQuestion.question_text}
-                </div>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  Opsi Jawaban
-                </h3>
-                <div className="grid grid-cols-1 gap-2">
-                  {(
-                    [
-                      ["A", previewQuestion.option_a],
-                      ["B", previewQuestion.option_b],
-                      ["C", previewQuestion.option_c],
-                      ["D", previewQuestion.option_d],
-                      ["E", previewQuestion.option_e],
-                    ] as const
-                  ).map(([label, value]) => {
-                    const isCorrect =
-                      previewQuestion.correct_answer.toUpperCase() === label;
-
-                    return (
-                      <div
-                        key={label}
-                        className={`rounded-lg border px-4 py-3 text-sm ${
-                          isCorrect
-                            ? "border-emerald-300 bg-emerald-50"
-                            : "border-slate-200 bg-white"
-                        }`}
-                      >
-                        <div className="mb-1 flex items-center justify-between gap-3">
-                          <span className="font-semibold text-slate-700">{label}</span>
-                          {isCorrect && (
-                            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-                              Kunci Jawaban
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-slate-700 whitespace-pre-wrap">{value}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  Pembahasan
-                </h3>
-                <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 whitespace-pre-wrap text-sm text-slate-800">
-                  {previewQuestion.explanation}
-                </div>
-              </section>
+          {/* Section: Opsi Jawaban Grid */}
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+              Pilihan Jawaban
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(["a", "b", "c", "d", "e"] as const).map((key) => {
+                const isCorrect = questionDraft.correct_answer === key;
+                return (
+                  <div key={key} className="relative group">
+                    <div
+                      className={cn(
+                        "absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black border transition-all",
+                        isCorrect
+                          ? "bg-sky-600 border-sky-600 text-white shadow-lg shadow-sky-100"
+                          : "bg-slate-100 border-slate-200 text-slate-400 group-focus-within:border-sky-300",
+                      )}
+                    >
+                      {key.toUpperCase()}
+                    </div>
+                    <Input
+                      placeholder={`Isi opsi ${key.toUpperCase()}...`}
+                      className={cn(
+                        "pl-12 h-12 rounded-xl border-slate-200 transition-all",
+                        isCorrect &&
+                          "border-sky-300 bg-sky-50/30 ring-1 ring-sky-100",
+                      )}
+                      value={(questionDraft as any)[`option_${key}`]}
+                      onChange={(e) =>
+                        setQuestionDraft((p) => ({
+                          ...p,
+                          [`option_${key}`]: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </div>
 
-          <DialogFooter>
-            {previewQuestion && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  handleEdit(previewQuestion);
-                  setPreviewQuestion(null);
-                }}
-              >
-                <Pencil size={14} className="mr-2" />
-                Edit Soal Ini
-              </Button>
+          {/* Section: Pembahasan */}
+          <div className="space-y-2 pt-2">
+            <div className="flex items-center gap-2 ml-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                Penjelasan & Pembahasan
+              </label>
+            </div>
+            <Textarea
+              placeholder="Berikan alasan atau referensi jawaban yang benar..."
+              value={questionDraft.explanation}
+              onChange={(e) =>
+                setQuestionDraft((p) => ({ ...p, explanation: e.target.value }))
+              }
+              className="min-h-[100px] bg-amber-50/30 border-amber-100 rounded-2xl focus:ring-amber-500 text-sm leading-relaxed p-4 italic"
+            />
+          </div>
+        </div>
+      </ModalPreview>
+
+      <ModalPreview
+        open={!!previewQuestion}
+        onClose={() => setPreviewQuestion(null)}
+        title="Preview Detail Soal"
+        description={`ID: #${previewQuestion?.id}`}
+        maxWidth="2xl" // Kita kecilkan sedikit lebarnya dari 3xl ke 2xl
+        headerExtra={
+          <Badge
+            variant="outline"
+            className="bg-white border-slate-200 text-slate-500 text-[10px] h-5"
+          >
+            {previewQuestion?.package_name || "Umum"}
+          </Badge>
+        }
+        footer={
+          <Button
+            variant="ghost"
+            onClick={() => setPreviewQuestion(null)}
+            className="h-8 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:bg-slate-100"
+          >
+            Tutup
+          </Button>
+        }
+      >
+        {previewQuestion && (
+          <div className="space-y-6">
+            <section className="space-y-2">
+              <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                Pertanyaan
+              </h4>
+              <div className="text-xs font-medium text-slate-800 leading-snug border-l-2 border-sky-400 pl-3">
+                {previewQuestion.question_text}
+              </div>
+            </section>
+            <section className="space-y-2">
+              <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                Pilihan Jawaban
+              </h4>
+              <div className="grid gap-2">
+                {" "}
+                {/* Gap antar opsi lebih rapat */}
+                {(["a", "b", "c", "d", "e"] as const).map((key) => {
+                  const isCorrect = previewQuestion.correct_answer === key;
+                  return (
+                    <div
+                      key={key}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg border transition-all",
+                        isCorrect
+                          ? "bg-emerald-50/40 border-emerald-200"
+                          : "bg-white border-slate-100 shadow-sm",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold",
+                          isCorrect
+                            ? "bg-emerald-500 text-white"
+                            : "bg-slate-50 text-slate-400 border border-slate-100",
+                        )}
+                      >
+                        {key.toUpperCase()}
+                      </div>
+                      <p
+                        className={cn(
+                          "text-xs leading-tight flex-1",
+                          isCorrect
+                            ? "font-semibold text-emerald-900"
+                            : "text-slate-600",
+                        )}
+                      >
+                        {(previewQuestion as any)[`option_${key}`]}
+                      </p>
+                      {isCorrect && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+            {/* Section: Pembahasan */}
+            {previewQuestion.explanation && (
+              <section>
+                <div className="rounded-xl bg-slate-50 border border-slate-100 overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-100/50 border-b border-slate-100">
+                    <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+                    <h4 className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                      Pembahasan
+                    </h4>
+                  </div>
+                  <div className="p-3 text-xs text-slate-600 leading-relaxed italic">
+                    {previewQuestion.explanation}
+                  </div>
+                </div>
+              </section>
             )}
-            <Button variant="outline" onClick={() => setPreviewQuestion(null)}>
-              Tutup
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        )}
+      </ModalPreview>
 
       <AlertDialog
         open={deleteTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
-          }
-        }}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus soal ini?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteTarget
-                ? `Soal #${deleteTarget.id} akan dihapus permanen dari bank soal.`
-                : "Data soal akan dihapus permanen."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+        <AlertDialogContent className="p-0 overflow-hidden border-none shadow-2xl max-w-md rounded-3xl">
+          {/* Header dengan Aksen Rose/Red yang Soft */}
+          <div className="p-8 pb-4 flex flex-col items-center text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center animate-in zoom-in duration-300">
+              <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-rose-600" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <AlertDialogTitle className="text-xl font-black text-slate-900 tracking-tight">
+                Hapus Soal Permanen?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm font-medium text-slate-500 leading-relaxed max-w-[280px]">
+                {deleteTarget ? (
+                  <>
+                    Soal{" "}
+                    <span className="text-rose-600 font-bold">
+                      ID {deleteTarget.id}
+                    </span>{" "}
+                    akan dihapus dan tidak dapat dipulihkan kembali.
+                  </>
+                ) : (
+                  "Data soal akan dihapus permanen dari sistem."
+                )}
+              </AlertDialogDescription>
+            </div>
+          </div>
+
+          {/* Footer dengan Action yang Tegas */}
+          <div className="p-6 pt-2 flex flex-col gap-2">
             <AlertDialogAction
-              className="bg-rose-600 text-white hover:bg-rose-700"
+              className="w-full h-12 bg-rose-600 text-white hover:bg-rose-700 rounded-2xl font-black text-xs uppercase tracking-[0.15em] shadow-lg shadow-rose-200 transition-all active:scale-95 border-none"
               onClick={() => void handleDelete()}
+              disabled={actionLoading}
             >
-              {actionLoading ? "Menghapus..." : "Hapus Soal"}
+              {actionLoading ? "Menghapus..." : "Ya, Hapus Sekarang"}
             </AlertDialogAction>
-          </AlertDialogFooter>
+
+            <AlertDialogCancel className="w-full h-12 border-none bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all">
+              Batalkan
+            </AlertDialogCancel>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-}
-
-function InputField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-slate-700">{label}</label>
-      <Input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={`Masukkan ${label.toLowerCase()}`}
-        className="bg-white"
-      />
     </div>
   );
 }
