@@ -172,7 +172,7 @@ export default function RegisterPage() {
         </Card>
 
         <p className="text-center mt-7 text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-          © 2026 KS UKAI - CBT Apoteker
+          © 2026 KSUKAI
         </p>
       </div>
     </div>

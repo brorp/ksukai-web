@@ -1,38 +1,72 @@
 import type { Metadata, Viewport } from "next";
-import { Poppins } from "next/font/google"; // Ganti ke Poppins
+import { Poppins } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import SessionProvider from "@/components/providers/session-provider";
 import "./globals.css";
-import { SessionProvider } from "next-auth/react";
 
-// Inisialisasi Poppins dengan weight yang sering kita pakai (bold & black)
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800", "900"],
-  variable: "--font-poppins", // CSS variable untuk digunakan di Tailwind
+  variable: "--font-poppins",
 });
 
 export const metadata: Metadata = {
-  title: "CBT - Platform Ujian Apoteker Profesional",
+  metadataBase: new URL("https://kumpulansoalukai.com"),
+  title: {
+    default: "KSUKAI | Platform Latihan Soal UKAI, CPNS & PPPK Apoteker No. 1",
+    template: "%s | KSUKAI",
+  },
   description:
-    "Platform ujian online CBT untuk apoteker dengan simulasi 200 soal, kalkulator saintifik, dan referensi nilai laboratorium normal.",
-  keywords: "CBT, ujian Apoteker, CBT Apoteker, simulasi UKOM, Apoteker",
-  generator: "CBT Dev Team",
-  icons: {
-    icon: [
+    "Persiapkan diri Anda untuk UKAI, SKB CPNS, dan PPPK Farmasi dengan KSUKAI. Platform simulasi CBT terbaik dengan database soal terupdate dan pembahasan lengkap.",
+  keywords: [
+    "KSUKAI",
+    "UKAI",
+    "Ujian Apoteker",
+    "Tryout Apoteker",
+    "CBT Apoteker",
+    "CPNS",
+    "PPPK",
+    "CPNS Apoteker",
+    "PPPK Tenaga Kesehatan",
+    "SKB Farmasi",
+    "Latihan Soal PPPK Apoteker",
+    "kumpulansoalukai.com",
+  ],
+  authors: [{ name: "KSUKAI Dev Team" }],
+  creator: "KSUKAI",
+  openGraph: {
+    type: "website",
+    locale: "id_ID",
+    url: "https://kumpulansoalukai.com",
+    title: "KSUKAI | Platform Latihan Soal UKAI, CPNS & PPPK Apoteker",
+    description:
+      "Simulasi CBT untuk UKAI dan Seleksi CASN Farmasi. Cek skor dan pembahasan secara instan.",
+    siteName: "KSUKAI",
+    images: [
       {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "KSUKAI Learning Platform",
       },
     ],
-    apple: "/apple-icon.png",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "KSUKAI | Kumpulan Soal UKAI & CASN Farmasi Terbaik",
+    description: "Simulasi ujian CBT dengan fitur terlengkap.",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 };
 
@@ -40,6 +74,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  themeColor: "#0085D1",
 };
 
 export default function RootLayout({
@@ -47,14 +82,38 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Schema.org JSON-LD untuk SEO Organization & Course
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "EducationalOrganization",
+    name: "KSUKAI",
+    url: "https://kumpulansoalukai.com",
+    logo: "https://kumpulansoalukai.com/Logo-KS-UKAI.png",
+    description:
+      "Platform persiapan ujian UKAI, CPNS, dan PPPK Apoteker di Indonesia dengan sistem CBT realistik.",
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Jakarta",
+      addressCountry: "ID",
+    },
+    offers: {
+      "@type": "Offer",
+      category: "Pharmacy Exam Preparation",
+    },
+  };
+
   return (
     <html lang="id" className={poppins.variable}>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body
         className={`${poppins.className} antialiased bg-white text-slate-900`}
       >
-        <SessionProvider refetchOnWindowFocus={false} refetchInterval={5 * 60}>
-          {children}
-        </SessionProvider>
+        <SessionProvider>{children}</SessionProvider>
         <Analytics />
       </body>
     </html>

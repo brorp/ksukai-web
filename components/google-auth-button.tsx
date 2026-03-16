@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { signIn } from "next-auth/react";
 
 interface GoogleButtonProps {
   isLoading?: boolean;
@@ -18,7 +18,10 @@ const GoogleAuthButton = ({
   const handleLogin = async () => {
     setInternalLoading(true);
     try {
-      await signIn("google", { callbackUrl: "/apoteker/dashboard" });
+      await signIn("google", {
+        redirectTo: "/apoteker/dashboard",
+        redirect: true,
+      });
     } catch (error) {
       console.error("Google Login Error:", error);
     }
