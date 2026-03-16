@@ -8,7 +8,6 @@ import TestQuestion from "@/components/apoteker/test-question";
 import LabValuesModal from "@/components/apoteker/lab-values-modal";
 import TestTimer from "@/components/apoteker/test-timer";
 import QuestionNumberGrid from "@/components/apoteker/question-number-grid";
-import ScientificCalculator from "@/components/apoteker/simple-calculator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +24,8 @@ import { useAuthStore } from "@/lib/store/auth";
 import { useTestStore } from "@/lib/store/test";
 import type { OptionKey, Question, QuestionFlagStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import ScientificCalculator from "@/components/apoteker/scientific-calculator";
+import KSUKAICalculator from "@/components/apoteker/scientific-calculator";
 
 export default function TestPage() {
   const router = useRouter();
@@ -196,10 +197,10 @@ export default function TestPage() {
   const doubtfulCount = answersArray.filter(
     (a) => a.status === "doubtful",
   ).length;
-  const emptyCount = Math.max(
-    shuffledQuestions.length - answersArray.length,
-    0,
-  );
+
+  const emptyCount = useMemo(() => {
+    return shuffledQuestions.length - (answeredCount + doubtfulCount);
+  }, [shuffledQuestions.length, answeredCount, doubtfulCount]);
 
   const summary = useMemo(
     () => ({
@@ -239,59 +240,85 @@ export default function TestPage() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900">
-      <header className="h-20 bg-white border-b px-6 flex items-center justify-between z-30 shrink-0">
-        <div className="w-1/4 flex items-center justify-start overflow-hidden">
+      <header className="h-20 bg-white border-b px-6 flex items-center justify-between z-30 shrink-0 sticky top-0">
+        {/* KIRI: Tetap kompak */}
+        <div className="flex items-center gap-4 min-w-45">
           <Button
             variant="ghost"
             onClick={() => setShowExitDialog(true)}
-            className="text-slate-500 hover:text-rose-600 font-bold gap-2"
+            className="text-slate-500 hover:text-rose-600 font-bold gap-2 rounded-xl transition-all"
           >
             <ChevronLeft size={20} />
-            <span className="hidden md:inline">Keluar</span>
+            <span className="hidden lg:inline">Keluar</span>
           </Button>
-        </div>
+          <div className="hidden sm:block border-l pl-4 border-slate-100">
+            <div className="flex-1 flex flex-col items-center px-4 overflow-hidden">
+              {/* Judul Paket */}
+              <h2 className="text-sm font-bold text-slate-800 truncate w-full text-center mb-1">
+                {packageName || "Paket Ujian"}
+              </h2>
 
-        <div className="w-1/2 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-slate-400">
-              Sesi #{sessionId}
-            </p>
-            <p className="text-xs font-medium text-sky-700">
-              {packageName || "Paket Ujian"}
-            </p>
-            <p className="text-xs text-slate-500">
-              Jawab: {summary.answered} • Ragu: {summary.doubtful} • Kosong:{" "}
-              {summary.empty}
-            </p>
+              <div className="flex items-center gap-3 bg-slate-50/50 px-3 py-1 rounded-full border border-slate-100">
+                <div
+                  className="flex items-center gap-1.5"
+                  title="Sudah Dijawab"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.4)]" />
+                  <span className="text-[10px] font-bold text-slate-600">
+                    {summary.answered}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5" title="Ragu-Ragu">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
+                  <span className="text-[10px] font-bold text-slate-600">
+                    {summary.doubtful}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5" title="Belum Diisi">
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shadow-[0_0_8px_rgba(203,213,225,0.4)]" />
+                  <span className="text-[10px] font-bold text-slate-600">
+                    {summary.empty}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="w-1/4 flex items-center justify-end gap-3">
-          <div className="flex items-center gap-3 bg-sky-50 border border-sky-100 px-5 py-2 rounded-2xl shadow-sm">
-            <Clock className="h-5 w-5 text-sky-600 animate-pulse" />
-            <div className="font-semibold text-lg tabular-nums text-sky-700 min-w-20 text-center">
+        <div className="flex items-center justify-end gap-2 md:gap-3 min-w-87.5">
+          {/* Timer dibuat lebih ramping */}
+          <div className="flex items-center gap-2 bg-sky-50 border border-sky-100 px-3 py-1.5 rounded-xl">
+            <Clock className="h-4 w-4 text-sky-600" />
+            <div className="font-bold text-sm tabular-nums text-sky-700">
               <TestTimer />
             </div>
           </div>
-          <LabValuesModal />
-          <Button
-            variant="outline"
-            onClick={() => setShowCalculator(!showCalculator)}
-            className={cn(
-              "h-10 gap-2 border-slate-200 font-semibold",
-              showCalculator && "bg-sky-600 text-white border-sky-600",
-            )}
-          >
-            <Calculator size={18} />
-            <span className="hidden xl:inline">Kalkulator</span>
-          </Button>
-          <Button
-            onClick={() => setShowSubmitDialog(true)}
-            disabled={isSubmitting}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-6 rounded-xl shadow-lg shadow-emerald-100 shrink-0"
-          >
-            {isSubmitting ? "Mengirim..." : "Selesai"}
-          </Button>
+
+          {/* Gunakan w-auto atau w-10 (icon only) jika layar menyempit */}
+          <div className="flex items-center gap-2">
+            <LabValuesModal />
+
+            <Button
+              variant="outline"
+              onClick={() => setShowCalculator(!showCalculator)}
+              className={cn(
+                "h-10 px-3 font-bold rounded-xl transition-all",
+                showCalculator ? "bg-[#0085D1] text-white" : "text-slate-600",
+              )}
+            >
+              <Calculator size={18} />
+              <span className="hidden xl:inline ml-2">Kalkulator</span>
+            </Button>
+
+            <Button
+              onClick={() => setShowSubmitDialog(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-emerald-100"
+            >
+              Selesai
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -340,39 +367,10 @@ export default function TestPage() {
         </main>
 
         {showCalculator && (
-          <div className="absolute top-6 right-6 z-50 animate-in fade-in zoom-in slide-in-from-top-4 duration-300">
-            <div className="relative bg-white rounded-4xl shadow-[0_25px_70px_-15px_rgba(0,0,0,0.3)] border border-slate-200/60 overflow-hidden w-[320px]">
-              <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <div className="h-2.5 w-2.5 rounded-full bg-rose-400/80" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-amber-400/80" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" />
-                  </div>
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] ml-2">
-                    Calculator
-                  </span>
-                </div>
-
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 rounded-full hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                  onClick={() => setShowCalculator(false)}
-                >
-                  <X size={16} strokeWidth={3} />
-                </Button>
-              </div>
-
-              <div className="p-1 bg-white">
-                <ScientificCalculator />
-              </div>
-
-              <div className="h-4 bg-slate-50 flex justify-center items-center">
-                <div className="w-12 h-1 bg-slate-200 rounded-full" />
-              </div>
-            </div>
-          </div>
+          <KSUKAICalculator
+            showCalculator={showCalculator}
+            setShowCalculator={setShowCalculator}
+          />
         )}
       </div>
 
@@ -383,38 +381,40 @@ export default function TestPage() {
               Selesaikan Ujian?
             </AlertDialogTitle>
             <AlertDialogDescription className="pt-4">
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
-                    Dijawab
-                  </p>
-                  <p className="text-2xl font-bold text-blue-700">
-                    {summary.answered}
-                  </p>
+              <div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
+                      Dijawab
+                    </p>
+                    <p className="text-2xl font-bold text-blue-700">
+                      {summary.answered}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
+                      Ragu
+                    </p>
+                    <p className="text-2xl font-bold text-amber-700">
+                      {summary.doubtful}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-red-50 rounded-xl border border-red-100">
+                    <p className="text-xs font-semibold text-red-500 uppercase tracking-wider">
+                      Kosong
+                    </p>
+                    <p className="text-2xl font-bold text-red-700">
+                      {summary.empty}
+                    </p>
+                  </div>
                 </div>
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
-                    Ragu
-                  </p>
-                  <p className="text-2xl font-bold text-amber-700">
-                    {summary.doubtful}
-                  </p>
-                </div>
-                <div className="p-3 bg-red-50 rounded-xl border border-red-100">
-                  <p className="text-xs font-semibold text-red-500 uppercase tracking-wider">
-                    Kosong
-                  </p>
-                  <p className="text-2xl font-bold text-red-700">
-                    {summary.empty}
-                  </p>
-                </div>
-              </div>
 
-              {summary.empty > 0 && (
-                <p className="mt-4 text-sm text-red-500 text-center font-medium bg-red-50 py-2 rounded-lg">
-                  ⚠️ Masih ada {summary.empty} soal yang belum diisi!
-                </p>
-              )}
+                {summary.empty > 0 && (
+                  <p className="mt-4 text-sm text-red-500 text-center font-medium bg-red-50 py-2 rounded-lg">
+                    ⚠️ Masih ada {summary.empty} soal yang belum diisi!
+                  </p>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
 

@@ -112,6 +112,7 @@ export default function RootLayout({
       </head>
       <body
         className={`${poppins.className} antialiased bg-white text-slate-900`}
+        suppressHydrationWarning
       >
         <SessionProvider>{children}</SessionProvider>
         <Analytics />

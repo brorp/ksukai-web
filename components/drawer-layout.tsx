@@ -20,6 +20,7 @@ import { useAuthStore } from "@/lib/store/auth";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface NavItem {
   label: string;
@@ -93,13 +94,15 @@ export default function DrawerLayout({
       {/* SIDEBAR DESKTOP */}
       <aside className="hidden md:flex w-72 flex-col border-r border-slate-100 bg-white">
         <div className="p-8">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-100 transform -rotate-6">
-              <Stethoscope className="text-white h-5 w-5" />
-            </div>
-            <span className="text-2xl font-semibold tracking-tighter text-slate-900">
-              CBT<span className="text-blue-600">Portal</span>
-            </span>
+          <div className="flex items-center justify-center gap-3 mb-1">
+            <Image
+              src="/logo.png"
+              alt="KS UKAI Logo"
+              width={100}
+              height={96}
+              priority
+              className="h-20 w-auto object-contain"
+            />
           </div>
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.3em] ml-11">
             Professional CBT

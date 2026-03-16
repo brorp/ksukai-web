@@ -66,7 +66,7 @@ export default function LabValuesModal() {
     <>
       <Button
         onClick={() => setIsOpen(true)}
-        className="w-full bg-purple-600 hover:bg-purple-700 flex items-center justify-center gap-2"
+        className="bg-purple-600 hover:bg-purple-700 flex items-center justify-center gap-2"
       >
         <TestTubes size={18} />
         Nilai Lab Normal

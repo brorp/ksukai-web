@@ -72,7 +72,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center mb-8 text-center">
           <div className="mb-4">
             <Image
-              src="/Logo KS UKAI.png"
+              src="/logo.png"
               alt="KS UKAI Logo"
               width={320}
               height={96}
