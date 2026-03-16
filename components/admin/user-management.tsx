@@ -290,9 +290,7 @@ export default function UserManagement() {
                 {users.length}
               </span>
             </CardTitle>
-            <CardDescription>
-              Manajemen akses portal CBT Apoteker
-            </CardDescription>
+            <CardDescription>Manajemen akses portal KS UKAI</CardDescription>
           </div>
           <div className="relative w-full md:w-64">
             <Search
@@ -418,7 +416,7 @@ export default function UserManagement() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               Tindakan ini permanen. Akun tersebut tidak akan bisa lagi
-              mengakses portal CBT Apoteker.
+              mengakses portal KSUKAI.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-3 mt-4 justify-end">

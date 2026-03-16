@@ -142,7 +142,7 @@ export default function DrawerLayout({
                 </Button>
               </SheetTrigger>
               <SheetHeader className="sr-only">
-                <SheetTitle>Menu Navigasi CBT Apoteker</SheetTitle>
+                <SheetTitle>Menu Navigasi KS UKAI</SheetTitle>
               </SheetHeader>
               <SheetContent
                 side="left"
@@ -155,7 +155,7 @@ export default function DrawerLayout({
                       <Stethoscope className="text-white h-5 w-5" />
                     </div>
                     <span className="text-xl font-semibold tracking-tighter text-slate-900">
-                      CBT Apoteker
+                      KS UKAI
                     </span>
                   </div>
                 </div>
@@ -178,7 +178,7 @@ export default function DrawerLayout({
               </SheetContent>
             </Sheet>
             <span className="font-semibold text-slate-900 tracking-tighter">
-              CBT Apoteker
+              KS UKAI
             </span>
           </div>
 

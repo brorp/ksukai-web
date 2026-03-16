@@ -44,7 +44,7 @@ export default function AdminDashboardPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <AdminPageHeader
         title="Dashboard Admin"
-        description="Ringkasan data utama platform CBT."
+        description="Ringkasan data utama platform KSUKAI."
         icon={<ShieldCheck size={20} />}
         actionLabel="Refresh Data"
         onAction={() => void loadData()}

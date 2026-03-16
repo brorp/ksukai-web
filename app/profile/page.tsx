@@ -1,12 +1,30 @@
 import { Suspense } from "react";
 import { BadgeCheck } from "lucide-react";
 import FormProfilePage from "@/components/profile";
+import { Metadata } from "next";
 
-export const metadata = {
-  title: "Lengkapi Profil Peserta | KS UKAI",
-  description: "Finalisasi pendaftaran akun CBT Apoteker Anda",
+export const metadata: Metadata = {
+  title: "Lengkapi Profil Peserta",
+  description:
+    "Finalisasi pendaftaran akun KSUKAI Anda untuk persiapan UKAI, CPNS, dan PPPK.",
+  keywords: [
+    "Daftar KSUKAI",
+    "Profil Peserta UKAI",
+    "Tryout Apoteker",
+    "Pendaftaran SKB Farmasi",
+    "Akun Latihan Soal PPPK",
+  ],
+  openGraph: {
+    title: "Lengkapi Profil Peserta | KSUKAI",
+    description: "Satu langkah lagi untuk mulai simulasi CBT terbaik.",
+    url: "https://kumpulansoalukai.com/profile",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
-
 export default function ProfilePage({
   searchParams,
 }: {
