@@ -10,29 +10,19 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowUpDown, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
-  onBulkUpdate?: (selectedRows: TData[]) => void;
-  onSortChange?: (sortKey: string, direction: "asc" | "desc") => void;
-}
 
 export function Table<TData, TValue>({
   columns,
   data,
   onBulkUpdate,
-  onSortChange,
-}: DataTableProps<TData, TValue>) {
+}: {
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  onBulkUpdate?: (selectedRows: TData[]) => void;
+}) {
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -41,257 +31,183 @@ export function Table<TData, TValue>({
     columns,
     state: { rowSelection, sorting },
     onRowSelectionChange: setRowSelection,
-    onSortingChange: (updater) => {
-      const nextState =
-        typeof updater === "function" ? updater(sorting) : updater;
-      setSorting(nextState);
-      if (nextState.length > 0) {
-        onSortChange?.(nextState[0].id, nextState[0].desc ? "desc" : "asc");
-      }
-    },
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
 
-  // --- Logic Pagination: Collapse if > 5 pages ---
   const currentPage = table.getState().pagination.pageIndex + 1;
   const totalPages = table.getPageCount();
+  const hasData = data.length > 0;
 
   const paginationRange = useMemo(() => {
     const range: (number | string)[] = [];
-
     if (totalPages <= 5) {
       for (let i = 1; i <= totalPages; i++) range.push(i);
     } else {
-      range.push(1); // Selalu tampilkan halaman pertama
-
+      range.push(1);
       if (currentPage > 3) range.push("...");
-
       const start = Math.max(2, currentPage - 1);
       const end = Math.min(totalPages - 1, currentPage + 1);
-
-      for (let i = start; i <= end; i++) {
-        if (!range.includes(i)) range.push(i);
-      }
-
+      for (let i = start; i <= end; i++) if (!range.includes(i)) range.push(i);
       if (currentPage < totalPages - 2) range.push("...");
-
       if (!range.includes(totalPages)) range.push(totalPages);
     }
     return range;
   }, [currentPage, totalPages]);
 
-  const selectedRows = table.getFilteredSelectedRowModel().rows;
-
   return (
-    <div className="space-y-4">
-      {/* Bulk Action Toolbar */}
-      {selectedRows.length > 0 && (
-        <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-2">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
-              {selectedRows.length}
-            </span>
-            <span className="text-sm font-medium text-blue-700">
-              soal terpilih
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-              onClick={() =>
-                onBulkUpdate?.(selectedRows.map((r) => r.original))
-              }
-            >
-              Update Status Masal
-            </Button>
-            <Button size="sm" variant="destructive">
-              Hapus Masal
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Table Container */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-200">
-            <thead className="bg-slate-50/80 border-b border-slate-200">
+    <div className="flex flex-col w-full h-full">
+      <div className="rounded-4xl border border-slate-100 bg-white shadow-sm flex flex-col h-[calc(100vh-160px)] overflow-hidden">
+        <div className="flex-1 overflow-auto no-scrollbar relative">
+          <table className="w-full text-left border-separate border-spacing-0">
+            <thead className="sticky top-0 z-30">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    const isStickyLeft = header.column.id === "select";
-                    const isStickyRight = header.column.id === "actions";
-
-                    return (
-                      <th
-                        key={header.id}
+                  {headerGroup.headers.map((header, index) => (
+                    <th
+                      key={header.id}
+                      className={cn(
+                        "px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400 bg-slate-50/90 backdrop-blur-md border-b border-slate-100",
+                        index === 0 &&
+                          "rounded-tl-4xl sticky left-0 z-40 bg-slate-50",
+                        index === headerGroup.headers.length - 1 &&
+                          "rounded-tr-4xl sticky right-0 z-40 bg-slate-50",
+                      )}
+                    >
+                      <div
                         className={cn(
-                          "px-4 py-4 text-[11px] font-semibold uppercase tracking-widest text-slate-400 transition-colors",
+                          "flex items-center gap-2",
                           header.column.getCanSort() &&
-                            "cursor-pointer hover:text-slate-600 select-none",
-                          isStickyLeft &&
-                            "sticky left-0 z-20 bg-slate-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]",
-                          isStickyRight &&
-                            "sticky right-0 z-20 bg-slate-50 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]",
+                            "cursor-pointer select-none",
                         )}
                         onClick={header.column.getToggleSortingHandler()}
                       >
-                        <div className="flex items-center gap-2">
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                          {header.column.getCanSort() && (
-                            <span className="text-slate-300">
-                              {{
-                                asc: (
-                                  <ArrowUp
-                                    size={12}
-                                    className="text-blue-500"
-                                  />
-                                ),
-                                desc: (
-                                  <ArrowDown
-                                    size={12}
-                                    className="text-blue-500"
-                                  />
-                                ),
-                              }[header.column.getIsSorted() as string] ?? (
-                                <ArrowUpDown size={12} />
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-                    );
-                  })}
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                        {header.column.getCanSort() && (
+                          <ArrowUpDown size={10} />
+                        )}
+                      </div>
+                    </th>
+                  ))}
                 </tr>
               ))}
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={cn(
-                    "hover:bg-slate-50/50 transition-colors group",
-                    row.getIsSelected() ? "bg-blue-50/30" : "",
-                  )}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    const isStickyLeft = cell.column.id === "select";
-                    const isStickyRight = cell.column.id === "actions";
-
-                    return (
+            <tbody className="divide-y divide-slate-50">
+              {hasData ? (
+                table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className={cn(
+                      "hover:bg-slate-50/50 transition-colors",
+                      row.getIsSelected() ? "bg-primary-50/30" : "",
+                    )}
+                  >
+                    {row.getVisibleCells().map((cell, index) => (
                       <td
                         key={cell.id}
                         className={cn(
-                          "px-4 py-4 text-sm text-slate-600",
-                          isStickyLeft &&
-                            "sticky left-0 z-10 bg-white group-hover:bg-slate-50/50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]",
-                          isStickyRight &&
-                            "sticky right-0 z-10 bg-white group-hover:bg-slate-50/50 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]",
-                          row.getIsSelected() &&
-                            (isStickyLeft || isStickyRight) &&
-                            "bg-blue-50/40",
+                          "px-4 py-2 text-[13px] text-slate-600 font-medium",
+                          cell.column.id === "pertanyaan" && "max-w-md",
+                          index === 0 &&
+                            "sticky left-0 bg-white group-hover:bg-slate-50/50 z-10",
+                          index === row.getVisibleCells().length - 1 &&
+                            "sticky right-0 bg-white group-hover:bg-slate-50/50 z-10",
                         )}
                       >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
+                        <div
+                          className={cn(
+                            cell.column.id === "pertanyaan" && "line-clamp-2",
+                          )}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </div>
                       </td>
-                    );
-                  })}
+                    ))}
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={columns.length} className="h-full">
+                    <div className="flex flex-col items-center justify-center py-24 text-slate-300">
+                      <div className="bg-slate-50 p-4 rounded-3xl mb-4">
+                        <Inbox size={40} strokeWidth={1.5} />
+                      </div>
+                      <p className="text-xs font-black uppercase tracking-widest">
+                        Data Tidak Ditemukan
+                      </p>
+                      <p className="text-[10px] font-medium text-slate-400 mt-1">
+                        Belum ada informasi yang bisa ditampilkan saat ini.
+                      </p>
+                    </div>
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Pagination Controls */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-4 bg-white border-t border-slate-100">
-        {/* Sisi Kiri: Page Size & Info */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-              Rows
-            </span>
-            <select
-              value={table.getState().pagination.pageSize}
-              onChange={(e) => table.setPageSize(Number(e.target.value))}
-              className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer"
-            >
-              {[10, 20, 50, 100].map((pageSize) => (
-                <option key={pageSize} value={pageSize}>
-                  {pageSize}
-                </option>
+        {hasData && (
+          <div className="bg-white border-t border-slate-100 px-6 py-3 flex items-center justify-between z-30">
+            <div className="flex items-center gap-3">
+              <select
+                value={table.getState().pagination.pageSize}
+                onChange={(e) => table.setPageSize(Number(e.target.value))}
+                className="bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[10px] font-semibold text-primary outline-none"
+              >
+                {[10, 20, 50].map((size) => (
+                  <option key={size} value={size}>
+                    {size} Rows
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-lg"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              >
+                <ChevronLeft size={14} />
+              </Button>
+              {paginationRange.map((page, idx) => (
+                <button
+                  key={idx}
+                  onClick={() =>
+                    typeof page === "number" && table.setPageIndex(page - 1)
+                  }
+                  className={cn(
+                    "h-7 min-w-7 text-[10px] font-bold rounded-lg",
+                    currentPage === page
+                      ? "bg-primary text-white shadow-sm shadow-primary/20"
+                      : "text-slate-400 hover:bg-white",
+                  )}
+                >
+                  {page}
+                </button>
               ))}
-            </select>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-lg"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              >
+                <ChevronRight size={14} />
+              </Button>
+            </div>
           </div>
-          <p className="text-[11px] font-medium text-slate-400 hidden md:block">
-            Showing{" "}
-            <span className="text-slate-900 font-bold">
-              {table.getRowModel().rows.length}
-            </span>{" "}
-            of{" "}
-            <span className="text-slate-900 font-bold">
-              {table.getFilteredRowModel().rows.length}
-            </span>
-          </p>
-        </div>
-
-        {/* Sisi Kanan: Pagination Control */}
-        <div className="flex items-center gap-1.5">
-          {/* Navigasi Kiri */}
-          <Button
-            variant="ghost"
-            className="h-9 w-9 p-0 rounded-xl hover:bg-slate-50 text-slate-400 hover:text-slate-900 transition-all active:scale-90"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <ChevronLeft size={18} />
-          </Button>
-
-          {/* Angka Halaman - Gaya Floating Pill */}
-          <div className="flex items-center gap-1 px-1.5 py-1 bg-slate-50 rounded-2xl border border-slate-100">
-            {paginationRange.map((page, idx) => (
-              <React.Fragment key={idx}>
-                {page === "..." ? (
-                  <span className="w-6 text-center text-slate-300 text-[10px] font-semibold tracking-widest">
-                    ...
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => table.setPageIndex((page as number) - 1)}
-                    className={cn(
-                      "h-7 min-w-7 px-1.5 text-[11px] font-semibold rounded-lg transition-all",
-                      currentPage === page
-                        ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200/50"
-                        : "text-slate-400 hover:text-slate-600 hover:bg-white/50",
-                    )}
-                  >
-                    {page}
-                  </button>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-
-          {/* Navigasi Kanan */}
-          <Button
-            variant="ghost"
-            className="h-9 w-9 p-0 rounded-xl hover:bg-slate-50 text-slate-400 hover:text-slate-900 transition-all active:scale-90"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            <ChevronRight size={18} />
-          </Button>
-        </div>
+        )}
       </div>
     </div>
   );

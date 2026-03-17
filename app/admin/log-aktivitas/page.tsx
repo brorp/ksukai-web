@@ -1,14 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity } from "lucide-react";
+import {
+  Activity,
+  Search,
+  RefreshCcw,
+  CheckCircle2,
+  XCircle,
+  User,
+  Zap,
+} from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
 
 import AdminPageHeader from "@/components/admin/admin-page-header";
-import SimpleTable from "@/components/admin/simple-table";
-import { Card, CardContent } from "@/components/ui/card";
+import { Table } from "@/components/data-table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { adminApi, type ActivityLog } from "@/lib/api/client";
-import { asString } from "@/lib/admin-utils";
 import { useAuthStore } from "@/lib/store/auth";
+import { cn } from "@/lib/utils";
 
 type LogStatusFilter = "all" | "success" | "failed";
 
@@ -16,6 +26,7 @@ export default function AdminLogAktivitasPage() {
   const token = useAuthStore((state) => state.token);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [statusFilter, setStatusFilter] = useState<LogStatusFilter>("all");
 
@@ -28,9 +39,7 @@ export default function AdminLogAktivitasPage() {
       setLogs(response);
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Gagal memuat log aktivitas.",
+        loadError instanceof Error ? loadError.message : "Gagal memuat log.",
       );
     } finally {
       setLoading(false);
@@ -42,82 +51,180 @@ export default function AdminLogAktivitasPage() {
   }, [token]);
 
   const filteredLogs = useMemo(() => {
-    if (statusFilter === "all") return logs;
-    return logs.filter((item) => item.status === statusFilter);
-  }, [logs, statusFilter]);
+    return logs.filter((item) => {
+      const matchesStatus =
+        statusFilter === "all" || item.status === statusFilter;
+      const matchesSearch =
+        item.action.toLowerCase().includes(search.toLowerCase()) ||
+        item.entity.toLowerCase().includes(search.toLowerCase()) ||
+        (item.message?.toLowerCase() || "").includes(search.toLowerCase());
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [logs, statusFilter, search]);
+
+  const columns = useMemo<ColumnDef<ActivityLog>[]>(
+    () => [
+      {
+        accessorKey: "created_at",
+        header: "Waktu",
+        cell: ({ row }) => (
+          <div className="flex flex-col min-w-30">
+            <span className="text-[11px] font-semibold text-slate-900">
+              {new Date(row.original.created_at).toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
+            <span className="text-[10px] text-slate-400">
+              {new Date(row.original.created_at).toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "action",
+        header: "Aktivitas",
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1.5">
+              <Zap size={12} className="text-sky-500" />
+              <span className="font-semibold text-slate-900 text-[12px] uppercase tracking-tight">
+                {row.original.action}
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-400 font-medium lowercase italic">
+              target: {row.original.entity}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "actor",
+        header: "Aktor",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400">
+              <User size={12} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] font-semibold text-slate-700">
+                {row.original.actor_role || "system"}
+              </span>
+              <span className="text-[10px] text-slate-400">
+                ID: {row.original.actor_user_id ?? "-"}
+              </span>
+            </div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+          const isSuccess = row.original.status === "success";
+          return (
+            <div
+              className={cn(
+                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-semibold uppercase",
+                isSuccess
+                  ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                  : "bg-rose-50 text-rose-600 border-rose-100",
+              )}
+            >
+              {isSuccess ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
+              {row.original.status}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "message",
+        header: "Keterangan",
+        cell: ({ row }) => (
+          <p className="text-[11px] text-slate-500 max-w-xs line-clamp-2 italic leading-relaxed">
+            {row.original.message || "-"}
+          </p>
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="flex flex-col space-y-4 animate-in fade-in duration-500 h-full text-slate-900">
       <AdminPageHeader
         title="Log Aktivitas"
-        description="Riwayat aktivitas API dan tindakan admin/peserta."
+        description="Pantau riwayat aksi sistem dan pengguna secara real-time."
         icon={<Activity size={20} />}
-        actionLabel="Refresh Log"
-        onAction={() => void loadData()}
-        actionDisabled={loading}
       />
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          className={`px-3 h-9 rounded-md text-sm border transition-colors ${
-            statusFilter === "all"
-              ? "bg-sky-600 text-white border-sky-600"
-              : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-          }`}
-          onClick={() => setStatusFilter("all")}
+      <div className="flex flex-col md:flex-row gap-2 bg-white/50 backdrop-blur-sm p-2 px-3 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="relative flex-1 group">
+          <Input
+            placeholder="Cari aksi atau entitas..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 pl-9 bg-slate-50/50 border-slate-100 rounded-xl text-xs focus:bg-white transition-all"
+          />
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors"
+          />
+        </div>
+
+        <div className="flex gap-1.5 bg-slate-100/50 p-1 rounded-xl border border-slate-100">
+          {(["all", "success", "failed"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                "px-3 h-7 rounded-lg text-[10px] font-semibold uppercase transition-all",
+                statusFilter === s
+                  ? "bg-white text-primary shadow-sm"
+                  : "text-slate-400 hover:text-slate-600",
+              )}
+            >
+              {s === "all" ? "Semua" : s === "success" ? "Berhasil" : "Gagal"}
+            </button>
+          ))}
+        </div>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-xl border border-slate-100 bg-white text-slate-400 hover:text-primary hover:bg-primary-50"
+          onClick={() => void loadData()}
+          disabled={loading}
         >
-          Semua
-        </button>
-        <button
-          type="button"
-          className={`px-3 h-9 rounded-md text-sm border transition-colors ${
-            statusFilter === "success"
-              ? "bg-emerald-600 text-white border-emerald-600"
-              : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-          }`}
-          onClick={() => setStatusFilter("success")}
-        >
-          Berhasil
-        </button>
-        <button
-          type="button"
-          className={`px-3 h-9 rounded-md text-sm border transition-colors ${
-            statusFilter === "failed"
-              ? "bg-rose-600 text-white border-rose-600"
-              : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-          }`}
-          onClick={() => setStatusFilter("failed")}
-        >
-          Gagal
-        </button>
+          <RefreshCcw size={14} className={loading ? "animate-spin" : ""} />
+        </Button>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm font-medium">
+        <div className="px-4 py-2 rounded-xl text-xs font-semibold border border-rose-100 bg-rose-50 text-rose-600">
           {error}
         </div>
       )}
 
-      <Card className="border border-slate-200">
-        <CardContent className="p-6">
-          <SimpleTable
-            loading={loading}
-            headers={["Waktu", "Aksi", "Entitas", "Aktor", "Status", "Keterangan"]}
-            rows={filteredLogs.map((item) => [
-              new Date(item.created_at).toLocaleString("id-ID"),
-              item.action,
-              item.entity,
-              item.actor_role
-                ? `${item.actor_role}#${item.actor_user_id ?? "-"}`
-                : "-",
-              item.status === "success" ? "Berhasil" : "Gagal",
-              asString(item.message),
-            ])}
-            emptyText="Belum ada log aktivitas."
-          />
-        </CardContent>
-      </Card>
+      <div className="bg-white rounded-4xl border border-slate-100 shadow-sm overflow-hidden flex-1">
+        {loading ? (
+          <div className="h-full min-h-100 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <RefreshCcw size={20} className="animate-spin text-primary" />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                Menyinkronkan Log...
+              </span>
+            </div>
+          </div>
+        ) : (
+          <Table columns={columns} data={filteredLogs} />
+        )}
+      </div>
     </div>
   );
 }

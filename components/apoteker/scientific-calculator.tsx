@@ -122,7 +122,7 @@ export default function KSUKAICalculator({
               <div className="h-3 w-3 rounded-full bg-amber-400/80" />
               <div className="h-3 w-3 rounded-full bg-emerald-400/80" />
             </div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] ml-3">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.3em] ml-3">
               KSUKAI Sci-Engine v1.0
             </span>
           </div>
@@ -166,7 +166,7 @@ export default function KSUKAICalculator({
           {showHistory && (
             <div className="w-56 bg-slate-50/50 border-l border-slate-100 p-5 flex flex-col animate-in slide-in-from-right duration-300">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <h3 className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                   History
                 </h3>
                 <button
