@@ -11,6 +11,8 @@ import {
   RefreshCcw,
   CheckCircle2,
   BookOpen,
+  ChevronDown,
+  Search,
 } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
@@ -431,7 +433,7 @@ export default function AdminBankSoalPage() {
   }, [rows, search]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-3 animate-in fade-in duration-500">
       <AdminPageHeader
         title="Bank Soal"
         description="Gunakan tabel di bawah untuk manajemen database soal secara masal."
@@ -449,45 +451,63 @@ export default function AdminBankSoalPage() {
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="flex flex-col lg:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex flex-1 gap-3 w-full lg:max-w-3xl">
-          <Input
-            placeholder="Cari pertanyaan..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1"
-          />
-          <select
-            className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-sky-500"
-            value={packageFilter}
-            onChange={(e) => setPackageFilter(Number(e.target.value))}
-          >
-            <option value={0}>Semua Kategori</option>
-            {packages.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+      <div className="flex flex-col sm:flex-row items-center gap-2 bg-white/50 backdrop-blur-sm p-2 px-3 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="flex items-center flex-1 gap-2 w-full">
+          <div className="relative flex-1 group">
+            <Input
+              placeholder="Cari pertanyaan..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 pl-9 bg-slate-50/50 border-slate-100 rounded-xl text-xs focus:bg-white transition-all"
+            />
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors"
+            />
+          </div>
+
+          <div className="relative group">
+            <select
+              className="h-9 min-w-[140px] appearance-none rounded-xl border border-slate-100 bg-slate-50/50 pl-3 pr-8 text-[11px] font-semibold uppercase tracking-tight text-slate-600 outline-none focus:ring-2 focus:ring-sky-500/20 focus:bg-white transition-all cursor-pointer"
+              value={packageFilter}
+              onChange={(e) => setPackageFilter(Number(e.target.value))}
+            >
+              <option value={0}>Semua Kategori</option>
+              {packages.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={12}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            />
+          </div>
         </div>
-        <div className="flex gap-2 w-full lg:w-auto">
+
+        <div className="flex items-center gap-1.5 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-100 pt-2 sm:pt-0 sm:pl-2">
           <Button
+            size="sm"
+            className="flex-1 sm:flex-none h-9 rounded-xl font-bold text-xs bg-primary hover:bg-primary/90 shadow-sm shadow-primary/20"
             onClick={() => {
               setEditingQuestionId(null);
               setQuestionDraft(createEmptyQuestionDraft(packages[0]?.id || 0));
               setFormOpen(true);
             }}
           >
-            <Plus size={16} className="mr-2" /> Tambah Soal
+            <Plus size={14} className="mr-1.5" />
+            <span className="whitespace-nowrap">Tambah Soal</span>
           </Button>
+
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
+            className="h-9 w-9 rounded-xl border border-slate-100 bg-white text-slate-400 hover:text-primary hover:bg-primary-50 transition-all"
             onClick={() => void loadData()}
             disabled={loading}
           >
-            <RefreshCcw size={16} className={loading ? "animate-spin" : ""} />
+            <RefreshCcw size={14} className={loading ? "animate-spin" : ""} />
           </Button>
         </div>
       </div>
@@ -536,7 +556,7 @@ export default function AdminBankSoalPage() {
           {/* Baris Pertama: Pengaturan Utama */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
             <div className="md:col-span-8 space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+              <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 ml-1">
                 Kategori / Paket Soal
               </label>
               <select
@@ -558,7 +578,7 @@ export default function AdminBankSoalPage() {
             </div>
 
             <div className="md:col-span-4 space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-sky-600 ml-1">
+              <label className="text-[10px] font-semibold uppercase tracking-widest text-sky-600 ml-1">
                 Kunci Jawaban
               </label>
               <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
@@ -573,7 +593,7 @@ export default function AdminBankSoalPage() {
                       }))
                     }
                     className={cn(
-                      "flex-1 h-9 rounded-lg text-xs font-black uppercase transition-all",
+                      "flex-1 h-9 rounded-lg text-xs font-semibold uppercase transition-all",
                       questionDraft.correct_answer === o
                         ? "bg-sky-600 text-white shadow-md shadow-sky-200 scale-105 z-10"
                         : "text-slate-400 hover:bg-slate-50",
@@ -588,7 +608,7 @@ export default function AdminBankSoalPage() {
 
           {/* Section: Pertanyaan */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+            <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 ml-1">
               Teks Pertanyaan
             </label>
             <Textarea
@@ -606,7 +626,7 @@ export default function AdminBankSoalPage() {
 
           {/* Section: Opsi Jawaban Grid */}
           <div className="space-y-3">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+            <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 ml-1">
               Pilihan Jawaban
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -616,7 +636,7 @@ export default function AdminBankSoalPage() {
                   <div key={key} className="relative group">
                     <div
                       className={cn(
-                        "absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black border transition-all",
+                        "absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-semibold border transition-all",
                         isCorrect
                           ? "bg-sky-600 border-sky-600 text-white shadow-lg shadow-sky-100"
                           : "bg-slate-100 border-slate-200 text-slate-400 group-focus-within:border-sky-300",
@@ -649,7 +669,7 @@ export default function AdminBankSoalPage() {
           <div className="space-y-2 pt-2">
             <div className="flex items-center gap-2 ml-1">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+              <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
                 Penjelasan & Pembahasan
               </label>
             </div>
@@ -780,7 +800,7 @@ export default function AdminBankSoalPage() {
             </div>
 
             <div className="space-y-2">
-              <AlertDialogTitle className="text-xl font-black text-slate-900 tracking-tight">
+              <AlertDialogTitle className="text-xl font-semibold text-slate-900 tracking-tight">
                 Hapus Soal Permanen?
               </AlertDialogTitle>
               <AlertDialogDescription className="text-sm font-medium text-slate-500 leading-relaxed max-w-70">
@@ -802,7 +822,7 @@ export default function AdminBankSoalPage() {
           {/* Footer dengan Action yang Tegas */}
           <div className="p-6 pt-2 flex flex-col gap-2">
             <AlertDialogAction
-              className="w-full h-12 bg-rose-600 text-white hover:bg-rose-700 rounded-2xl font-black text-xs uppercase tracking-[0.15em] shadow-lg shadow-rose-200 transition-all active:scale-95 border-none"
+              className="w-full h-12 bg-rose-600 text-white hover:bg-rose-700 rounded-2xl font-semibold text-xs uppercase tracking-[0.15em] shadow-lg shadow-rose-200 transition-all active:scale-95 border-none"
               onClick={() => void handleDelete()}
               disabled={actionLoading}
             >

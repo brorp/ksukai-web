@@ -1,20 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import {
   Menu,
   LogOut,
-  ClipboardCheck,
-  Stethoscope,
   ChevronRight,
+  ChevronLeft,
+  Stethoscope,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store/auth";
 import { useRouter, usePathname } from "next/navigation";
@@ -28,188 +21,155 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-interface DrawerLayoutProps {
-  navItems: NavItem[];
-  children: React.ReactNode;
-}
-
 export default function DrawerLayout({
   navItems,
   children,
-}: DrawerLayoutProps) {
-  const [open, setOpen] = useState(false);
+}: {
+  navItems: NavItem[];
+  children: React.ReactNode;
+}) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
 
-  const isTestPage = pathname.includes("/test") || pathname.includes("/exam");
+  const isTestPage = pathname.includes("/test");
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-  };
-
-  // Komponen Navigasi Reusable
-  const NavigationMenu = () => (
-    <nav className="flex flex-col gap-2 mt-4 px-4">
-      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-2 px-2">
-        Menu Navigasi
-      </p>
-      {navItems.map((item) => {
-        const isActive = pathname === item.href;
-        return (
-          <Link key={item.href} href={item.href} onClick={() => setOpen(false)}>
-            <Button
-              variant="ghost"
-              className={cn(
-                "w-full justify-between px-4 py-6 h-12 transition-all rounded-xl group",
-                isActive
-                  ? "bg-primary text-white shadow-lg shadow-primary-100 hover:bg-primary-700 hover:text-white"
-                  : "text-primary-600 hover:bg-primary-100 hover:text-primary-500",
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className={cn(
-                    isActive
-                      ? "text-white"
-                      : "text-slate-400 group-hover:text-primary-600",
-                  )}
-                >
-                  {item.icon}
-                </span>
-                <span className="font-bold">{item.label}</span>
-              </div>
-              {isActive && <ChevronRight size={14} className="opacity-50" />}
-            </Button>
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  if (isTestPage) {
+    return (
+      <div className="h-screen w-full overflow-hidden bg-white font-sans">
+        <main className="h-full w-full overflow-y-auto no-scrollbar">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-white font-sans">
-      {/* SIDEBAR DESKTOP */}
-      <aside className="hidden md:flex w-72 flex-col border-r border-slate-100 bg-white">
-        <div className="p-8">
-          <div className="flex items-center justify-center gap-3 -mb-3">
+      <aside
+        className={cn(
+          "hidden md:flex flex-col border-r border-slate-100 bg-white transition-all duration-300 relative",
+          isCollapsed ? "w-20" : "w-72",
+        )}
+      >
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute -right-3 top-10 z-50 bg-white border border-slate-200 rounded-full p-1 shadow-sm hover:bg-slate-50 transition-all text-slate-400 hover:text-primary"
+        >
+          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+
+        <div
+          className={cn(
+            "p-8 transition-all",
+            isCollapsed ? "px-4 text-center" : "px-8",
+          )}
+        >
+          <div className="flex flex-col items-center gap-2">
             <Image
               src="/logo.png"
-              alt="KS UKAI Logo"
-              width={100}
-              height={96}
-              priority
-              className="h-20 w-auto object-contain"
+              alt="Logo"
+              width={120}
+              height={100}
+              className={cn(
+                "w-auto object-contain transition-all",
+                isCollapsed ? "h-8" : "h-16",
+              )}
             />
+            {!isCollapsed && (
+              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-[0.4em]">
+                Professional CBT
+              </p>
+            )}
           </div>
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.3em] ml-11">
-            Professional CBT
-          </p>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          <NavigationMenu />
-        </div>
-
-        <div className="p-6 border-t border-slate-50">
-          <div className="bg-slate-50 p-4 rounded-2xl mb-4">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1">
-              User Aktif
+        <nav className="flex-1 overflow-y-auto no-scrollbar px-3 space-y-1.5">
+          {!isCollapsed && (
+            <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-slate-400 mb-4 px-4">
+              Menu
             </p>
-            <p className="text-sm font-bold text-slate-900 truncate">
-              {user?.name || "User"}
+          )}
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link key={item.href} href={item.href}>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "w-full transition-all rounded-xl group",
+                    isCollapsed
+                      ? "justify-center px-0 h-12"
+                      : "justify-between px-4 h-12",
+                    isActive
+                      ? "bg-primary text-white shadow-lg shadow-primary/20"
+                      : "text-slate-500 hover:bg-primary-50 hover:text-primary",
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={cn(
+                        isActive
+                          ? "text-white"
+                          : "text-slate-400 group-hover:text-primary",
+                      )}
+                    >
+                      {item.icon}
+                    </span>
+                    {!isCollapsed && (
+                      <span className="font-bold text-xs uppercase tracking-wide">
+                        {item.label}
+                      </span>
+                    )}
+                  </div>
+                </Button>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-slate-50">
+          <div
+            className={cn(
+              "bg-primary-50 rounded-2xl mb-4 border border-primary-100/50 transition-all",
+              isCollapsed ? "p-2 text-center" : "p-4",
+            )}
+          >
+            {!isCollapsed && (
+              <p className="text-[9px] font-semibold text-primary-400 uppercase tracking-wider mb-1">
+                User
+              </p>
+            )}
+            <p className="text-xs font-semibold text-primary-900 truncate">
+              {isCollapsed ? user?.name?.charAt(0) : user?.name || "A"}
             </p>
           </div>
           <Button
-            onClick={handleLogout}
+            onClick={() => {
+              logout();
+              router.push("/login");
+            }}
             variant="ghost"
-            className="w-full justify-start gap-3 text-rose-500 hover:bg-rose-50 hover:text-rose-600 font-semibold rounded-xl h-12"
+            className={cn(
+              "w-full text-rose-500 hover:bg-rose-50 rounded-xl transition-all",
+              isCollapsed ? "justify-center px-0" : "justify-start gap-3 px-4",
+            )}
           >
-            <LogOut className="h-5 w-5" />
-            <span>Keluar Sesi</span>
+            <LogOut size={isCollapsed ? 20 : 16} />
+            {!isCollapsed && (
+              <span className="text-xs font-bold uppercase tracking-widest">
+                Keluar
+              </span>
+            )}
           </Button>
         </div>
       </aside>
 
-      {/* AREA KONTEN UTAMA */}
       <div className="flex flex-col flex-1 min-w-0 bg-[#F8FAFC]">
-        {/* HEADER MOBILE */}
-        <header className="flex items-center justify-between h-16 px-4 border-b border-slate-100 bg-white md:hidden shadow-sm z-30">
-          <div className="flex items-center gap-2">
-            <Sheet open={open} onOpenChange={setOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-slate-600">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetHeader className="sr-only">
-                <SheetTitle>Menu Navigasi KS UKAI</SheetTitle>
-              </SheetHeader>
-              <SheetContent
-                side="left"
-                className="w-80 p-0 flex flex-col border-none"
-              >
-                {/* Header di dalam Drawer Mobile */}
-                <div className="p-8 border-b border-slate-50">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary-600 p-2 rounded-xl">
-                      <Stethoscope className="text-white h-5 w-5" />
-                    </div>
-                    <span className="text-xl font-semibold tracking-tighter text-slate-900">
-                      KS UKAI
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto">
-                  <NavigationMenu />
-                </div>
-
-                <div className="p-6 border-t border-slate-50">
-                  <Button
-                    onClick={handleLogout}
-                    variant="ghost"
-                    className="w-full justify-start gap-3 text-rose-500 hover:bg-rose-50 font-semibold rounded-xl h-12"
-                  >
-                    <LogOut className="h-5 w-5" />
-                    <span>Keluar Sesi</span>
-                  </Button>
-                </div>
-              </SheetContent>
-            </Sheet>
-            <span className="font-semibold text-slate-900 tracking-tighter">
-              KS UKAI
-            </span>
-          </div>
-
-          {/* QUICK LOGOUT ICON DI HEADER MOBILE */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="text-slate-400 hover:text-rose-500"
-          >
-            <LogOut size={20} />
-          </Button>
-        </header>
-
-        {/* BODY UTAMA */}
-        <main
-          className={cn(
-            "flex-1 overflow-y-auto no-scrollbar",
-            isTestPage ? "p-4 md:p-6" : "p-4 md:p-10",
-          )}
-        >
-          <div
-            className={cn(
-              "mx-auto transition-all duration-300",
-              isTestPage ? "max-w-full lg:max-w-350" : "max-w-6xl",
-            )}
-          >
-            {children}
-          </div>
+        <main className="flex-1 overflow-y-auto no-scrollbar px-4 pt-4 md:px-8">
+          <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </div>
     </div>
