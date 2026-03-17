@@ -73,7 +73,7 @@ export default function LoginPage() {
           <div className="-mb-10">
             <Image
               src="/logo.png"
-              alt="KS UKAI Logo"
+              alt="KSUKAI Logo"
               width={320}
               height={96}
               priority
