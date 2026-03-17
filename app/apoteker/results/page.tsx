@@ -54,7 +54,8 @@ export default function ResultsPage() {
   const [result, setResult] = useState<ExamResultResponse | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState("");
-  const [reportingQuestion, setReportingQuestion] = useState<ExamResultQuestion | null>(null);
+  const [reportingQuestion, setReportingQuestion] =
+    useState<ExamResultQuestion | null>(null);
   const [submittingReport, setSubmittingReport] = useState(false);
 
   useEffect(() => {
@@ -165,10 +166,7 @@ export default function ResultsPage() {
       )}
 
       {activeSessionId > 0 && result ? (
-        <ResultDetail
-          result={result}
-          onOpenReport={handleOpenReport}
-        />
+        <ResultDetail result={result} onOpenReport={handleOpenReport} />
       ) : (
         <SessionList sessions={sessions} />
       )}
@@ -180,7 +178,8 @@ export default function ResultsPage() {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-slate-600">
-              Jelaskan masalah pada soal ini agar admin bisa meninjau dengan tepat.
+              Jelaskan masalah pada soal ini agar admin bisa meninjau dengan
+              tepat.
             </p>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               {reportingQuestion?.questionText ?? "-"}
@@ -199,7 +198,6 @@ export default function ResultsPage() {
             <Button
               onClick={() => void handleSubmitReport()}
               disabled={submittingReport || !reportText.trim()}
-              className="bg-sky-600 hover:bg-sky-700"
             >
               {submittingReport ? "Mengirim..." : "Kirim Report"}
             </Button>
@@ -222,7 +220,7 @@ function SessionList({ sessions }: { sessions: ExamSessionSummary[] }) {
         </CardHeader>
         <CardContent className="flex gap-3">
           <Link href="/apoteker/dashboard">
-            <Button className="bg-sky-600 hover:bg-sky-700">
+            <Button>
               <RefreshCw size={16} className="mr-2" /> Pilih Paket Ujian
             </Button>
           </Link>
@@ -248,7 +246,7 @@ function SessionList({ sessions }: { sessions: ExamSessionSummary[] }) {
           </p>
         </div>
         <Link href="/apoteker/dashboard">
-          <Button className="bg-sky-600 hover:bg-sky-700">
+          <Button>
             <RefreshCw size={16} className="mr-2" /> Ujian Baru
           </Button>
         </Link>
@@ -287,10 +285,16 @@ function SessionList({ sessions }: { sessions: ExamSessionSummary[] }) {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <p className="text-xs uppercase tracking-wide text-slate-400">Skor</p>
-                    <p className="text-2xl font-bold text-slate-900">{session.score}</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-400">
+                      Skor
+                    </p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {session.score}
+                    </p>
                   </div>
-                  <Link href={`/apoteker/results?sessionId=${session.session_id}`}>
+                  <Link
+                    href={`/apoteker/results?sessionId=${session.session_id}`}
+                  >
                     <Button variant="outline">Lihat Detail</Button>
                   </Link>
                 </div>
@@ -330,7 +334,7 @@ function ResultDetail({
             <Button variant="outline">Kembali ke Daftar Sesi</Button>
           </Link>
           <Link href="/apoteker/dashboard">
-            <Button className="bg-sky-600 hover:bg-sky-700">
+            <Button>
               <RefreshCw size={16} className="mr-2" /> Ujian Baru
             </Button>
           </Link>
@@ -403,10 +407,16 @@ function ResultDetail({
                 : "Tinjau kembali pembahasan tiap soal untuk memperbaiki area yang belum optimal."}
             </p>
             <p className="text-xs text-sky-100">
-              Mulai: {result.startedAt ? new Date(result.startedAt).toLocaleString("id-ID") : "-"}
+              Mulai:{" "}
+              {result.startedAt
+                ? new Date(result.startedAt).toLocaleString("id-ID")
+                : "-"}
             </p>
             <p className="text-xs text-sky-100">
-              Submit: {result.submittedAt ? new Date(result.submittedAt).toLocaleString("id-ID") : "-"}
+              Submit:{" "}
+              {result.submittedAt
+                ? new Date(result.submittedAt).toLocaleString("id-ID")
+                : "-"}
             </p>
           </CardContent>
         </Card>
@@ -416,12 +426,15 @@ function ResultDetail({
         <CardHeader>
           <CardTitle>Review Soal</CardTitle>
           <CardDescription>
-            Menampilkan jawaban Anda, jawaban benar, pembahasan, dan tombol report soal.
+            Menampilkan jawaban Anda, jawaban benar, pembahasan, dan tombol
+            report soal.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {result.questions.length === 0 ? (
-            <p className="text-sm text-slate-500">Detail soal tidak tersedia.</p>
+            <p className="text-sm text-slate-500">
+              Detail soal tidak tersedia.
+            </p>
           ) : (
             result.questions.map((question, index) => (
               <div
@@ -474,7 +487,9 @@ function ResultDetail({
                         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                           {key}
                         </p>
-                        <p className="text-slate-700">{question.options[key]}</p>
+                        <p className="text-slate-700">
+                          {question.options[key]}
+                        </p>
                       </div>
                     );
                   })}
@@ -505,7 +520,9 @@ function StatCard({
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex items-center gap-2">{icon}</div>
-      <p className="text-xs text-slate-500 mt-2 uppercase tracking-wide">{label}</p>
+      <p className="text-xs text-slate-500 mt-2 uppercase tracking-wide">
+        {label}
+      </p>
       <p className="text-2xl font-bold text-slate-900">{value}</p>
     </div>
   );

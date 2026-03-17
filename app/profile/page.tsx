@@ -39,11 +39,11 @@ export default function ProfilePage({
       <div className="w-full max-w-200 z-10 py-12">
         {/* Header Section */}
         <div className="flex flex-col items-center mb-8">
-          <div className="bg-[#0085D1] p-3 rounded-2xl shadow-xl shadow-blue-200 mb-5 animate-in fade-in zoom-in duration-500">
+          <div className="bg-primary p-3 rounded-2xl shadow-xl shadow-blue-200 mb-5 animate-in fade-in zoom-in duration-500">
             <BadgeCheck className="text-white h-8 w-8" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight text-center">
-            Sedikit Lagi <span className="text-[#0085D1]">Selesai!</span>
+            Sedikit Lagi <span className="text-primary">Selesai!</span>
           </h1>
           <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.4em] mt-3">
             Lengkapi Profil Peserta KS UKAI

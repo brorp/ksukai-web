@@ -65,14 +65,14 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F4F8FF] p-4 relative overflow-hidden">
-      <div className="absolute top-[-12%] left-[-8%] w-[34%] h-[34%] bg-[#0085D1]/10 rounded-full blur-3xl opacity-70" />
+      <div className="absolute top-[-12%] left-[-8%] w-[34%] h-[34%] bg-primary/10 rounded-full blur-3xl opacity-70" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[42%] h-[42%] bg-cyan-100 rounded-full blur-3xl opacity-60" />
 
       <div className="w-full max-w-115 z-10">
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="mb-4">
+          <div className="-mb-10">
             <Image
-              src="/Logo KS UKAI.png"
+              src="/logo.png"
               alt="KS UKAI Logo"
               width={320}
               height={96}
@@ -80,9 +80,6 @@ export default function LoginPage() {
               className="h-48 w-auto object-contain"
             />
           </div>
-          <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
-            KS <span className="text-[#0085D1]">UKAI</span>
-          </h1>
           <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-[0.3em] mt-1">
             Portal Kumpulan Soal UKAI
           </p>
@@ -123,7 +120,7 @@ export default function LoginPage() {
                           <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                           <Input
                             placeholder="nama@email.com"
-                            className="pl-11 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus-visible:ring-[#0085D1] focus-visible:border-[#0085D1] transition-all"
+                            className="pl-11 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus-visible:ring-primary focus-visible:border-primary transition-all"
                             {...field}
                           />
                         </div>
@@ -143,7 +140,7 @@ export default function LoginPage() {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-[#0085D1] hover:bg-[#0070B0] text-white font-semibold h-12 rounded-xl shadow-lg shadow-[#0085D1]/20 group transition-all"
+                  className="w-full  hover:bg-primary-700 bg-primary text-white font-semibold h-12 rounded-xl shadow-lg shadow-primary/20 group transition-all"
                 >
                   {isLoading ? "Memproses..." : "Masuk Sekarang"}
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -170,7 +167,7 @@ export default function LoginPage() {
               </p>
               <Link
                 href="/register"
-                className="text-[#0085D1] hover:text-[#0070B0] text-sm font-semibold transition-colors"
+                className="text-primary hover:text-primary-600 text-sm font-semibold transition-colors"
               >
                 Daftar Akun Baru
               </Link>

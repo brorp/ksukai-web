@@ -42,7 +42,7 @@ export function PasswordField({
               <Input
                 type={showPassword ? "text" : "password"}
                 placeholder={placeholder}
-                className="pl-11 pr-10 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus-visible:ring-[#0085D1] focus-visible:border-[#0085D1] transition-all"
+                className="pl-11 pr-10 h-12 bg-slate-50/70 border-slate-200 rounded-xl focus-visible:ring-primary focus-visible:border-primary transition-all"
                 {...field}
               />
               <button

@@ -390,7 +390,7 @@ export default function RegisterProfileForm() {
         <Button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold h-12 rounded-xl shadow-lg shadow-sky-100 group transition-all"
+          className="w-full  text-white font-semibold h-12 rounded-xl shadow-lg shadow-sky-100 group transition-all"
         >
           {isLoading ? "Menyimpan..." : "Selesaikan Pendaftaran"}
           <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />

@@ -29,7 +29,9 @@ export default function GoogleAuthPage() {
       return;
     }
 
-    const googleSession = session as (typeof session & SessionWithGoogle) | null;
+    const googleSession = session as
+      | (typeof session & SessionWithGoogle)
+      | null;
     const idToken = googleSession?.googleIdToken;
 
     if (!idToken) {
@@ -113,7 +115,7 @@ export default function GoogleAuthPage() {
           <div className="flex justify-center">
             <Button
               type="button"
-              className="rounded-xl bg-[#0085D1] hover:bg-[#0070B0]"
+              className="rounded-xl bg-primary hover:bg-primary-700"
               onClick={() => router.replace("/register")}
             >
               Kembali ke Registrasi

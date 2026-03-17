@@ -36,10 +36,7 @@ import { useAuthStore } from "@/lib/store/auth";
 
 const PURPOSE_OPTIONS: Array<{
   label: string;
-  value:
-    | "persiapan_ukai"
-    | "persiapan_masuk_apoteker"
-    | "lainnya";
+  value: "persiapan_ukai" | "persiapan_masuk_apoteker" | "lainnya";
 }> = [
   { label: "Persiapan UKAI", value: "persiapan_ukai" },
   {
@@ -329,7 +326,7 @@ export default function RegisterPage() {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold h-12 rounded-xl shadow-lg shadow-sky-100 group transition-all mt-2"
+                  className="w-full text-white font-semibold h-12 rounded-xl shadow-lg shadow-sky-100 group transition-all mt-2"
                 >
                   {isLoading ? "Memproses..." : "Buat Akun"}
                   <UserPlus className="ml-2 h-4 w-4" />

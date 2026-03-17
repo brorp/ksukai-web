@@ -20,6 +20,7 @@ import { useAuthStore } from "@/lib/store/auth";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface NavItem {
   label: string;
@@ -64,8 +65,8 @@ export default function DrawerLayout({
               className={cn(
                 "w-full justify-between px-4 py-6 h-12 transition-all rounded-xl group",
                 isActive
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-100 hover:bg-blue-700 hover:text-white"
-                  : "text-slate-600 hover:bg-slate-100",
+                  ? "bg-primary text-white shadow-lg shadow-primary-100 hover:bg-primary-700 hover:text-white"
+                  : "text-primary-600 hover:bg-primary-100 hover:text-primary-500",
               )}
             >
               <div className="flex items-center gap-3">
@@ -73,7 +74,7 @@ export default function DrawerLayout({
                   className={cn(
                     isActive
                       ? "text-white"
-                      : "text-slate-400 group-hover:text-blue-600",
+                      : "text-slate-400 group-hover:text-primary-600",
                   )}
                 >
                   {item.icon}
@@ -93,13 +94,15 @@ export default function DrawerLayout({
       {/* SIDEBAR DESKTOP */}
       <aside className="hidden md:flex w-72 flex-col border-r border-slate-100 bg-white">
         <div className="p-8">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-100 transform -rotate-6">
-              <Stethoscope className="text-white h-5 w-5" />
-            </div>
-            <span className="text-2xl font-semibold tracking-tighter text-slate-900">
-              CBT<span className="text-blue-600">Portal</span>
-            </span>
+          <div className="flex items-center justify-center gap-3 -mb-3">
+            <Image
+              src="/logo.png"
+              alt="KS UKAI Logo"
+              width={100}
+              height={96}
+              priority
+              className="h-20 w-auto object-contain"
+            />
           </div>
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.3em] ml-11">
             Professional CBT
@@ -151,7 +154,7 @@ export default function DrawerLayout({
                 {/* Header di dalam Drawer Mobile */}
                 <div className="p-8 border-b border-slate-50">
                   <div className="flex items-center gap-3">
-                    <div className="bg-blue-600 p-2 rounded-xl">
+                    <div className="bg-primary-600 p-2 rounded-xl">
                       <Stethoscope className="text-white h-5 w-5" />
                     </div>
                     <span className="text-xl font-semibold tracking-tighter text-slate-900">
@@ -164,7 +167,6 @@ export default function DrawerLayout({
                   <NavigationMenu />
                 </div>
 
-                {/* LOGOUT DI DALAM DRAWER MOBILE */}
                 <div className="p-6 border-t border-slate-50">
                   <Button
                     onClick={handleLogout}

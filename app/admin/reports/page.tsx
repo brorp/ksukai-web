@@ -5,7 +5,13 @@ import { Mail, MessageSquareMore, ShieldCheck } from "lucide-react";
 
 import AdminPageHeader from "@/components/admin/admin-page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
   adminApi,
@@ -21,12 +27,16 @@ export default function AdminReportsPage() {
   const [replying, setReplying] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"open" | "replied" | "closed" | "">("");
+  const [statusFilter, setStatusFilter] = useState<
+    "open" | "replied" | "closed" | ""
+  >("");
   const [rows, setRows] = useState<QuestionReportSummary[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<QuestionReportDetail | null>(null);
   const [replyText, setReplyText] = useState("");
-  const [replyStatus, setReplyStatus] = useState<"replied" | "closed">("replied");
+  const [replyStatus, setReplyStatus] = useState<"replied" | "closed">(
+    "replied",
+  );
 
   const loadList = async () => {
     if (!token) return;
@@ -143,7 +153,9 @@ export default function AdminReportsPage() {
               className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
               value={statusFilter}
               onChange={(event) =>
-                setStatusFilter(event.target.value as "open" | "replied" | "closed" | "")
+                setStatusFilter(
+                  event.target.value as "open" | "replied" | "closed" | "",
+                )
               }
             >
               <option value="">Semua status</option>
@@ -173,7 +185,9 @@ export default function AdminReportsPage() {
                       {item.status}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm text-slate-700 line-clamp-3">{item.report_text}</p>
+                  <p className="mt-2 text-sm text-slate-700 line-clamp-3">
+                    {item.report_text}
+                  </p>
                   <p className="mt-3 text-xs text-slate-400">
                     {item.user_name} • {item.package_name ?? "-"}
                   </p>
@@ -194,7 +208,9 @@ export default function AdminReportsPage() {
             {detailLoading ? (
               <p className="text-sm text-slate-500">Memuat detail report...</p>
             ) : !detail ? (
-              <p className="text-sm text-slate-500">Pilih salah satu report di sebelah kiri.</p>
+              <p className="text-sm text-slate-500">
+                Pilih salah satu report di sebelah kiri.
+              </p>
             ) : (
               <>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -231,10 +247,13 @@ export default function AdminReportsPage() {
                           {new Date(reply.created_at).toLocaleString("id-ID")}
                         </p>
                       </div>
-                      <p className="mt-2 text-sm text-slate-700">{reply.message_text}</p>
+                      <p className="mt-2 text-sm text-slate-700">
+                        {reply.message_text}
+                      </p>
                       {reply.author_role === "admin" ? (
                         <p className="mt-2 text-xs text-slate-400">
-                          Email: {reply.emailed_at ? "terkirim" : "belum tercatat"}
+                          Email:{" "}
+                          {reply.emailed_at ? "terkirim" : "belum tercatat"}
                         </p>
                       ) : null}
                     </div>
@@ -265,7 +284,6 @@ export default function AdminReportsPage() {
                   <Button
                     onClick={() => void handleReply()}
                     disabled={replying || !replyText.trim()}
-                    className="bg-sky-600 hover:bg-sky-700"
                   >
                     <Mail className="mr-2 h-4 w-4" />
                     {replying ? "Mengirim..." : "Simpan Balasan & Kirim Email"}
