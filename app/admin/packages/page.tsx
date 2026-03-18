@@ -1,23 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Archive, Package2, ShieldCheck } from "lucide-react";
+import {
+  Archive,
+  ShieldCheck,
+  Plus,
+  Pencil,
+  RotateCcw,
+  Coins,
+  Layers,
+  AlertCircle,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import AdminPageHeader from "@/components/admin/admin-page-header";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { adminApi, type AdminPackage } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
+import { cn } from "@/lib/utils";
 
 type PackageDraft = {
+  id: string;
   name: string;
   description: string;
   features: string;
@@ -29,6 +35,7 @@ type PackageDraft = {
 };
 
 const defaultDraft: PackageDraft = {
+  id: "",
   name: "",
   description: "",
   features: "",
@@ -44,8 +51,6 @@ export default function AdminPackagesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [archivingId, setArchivingId] = useState<number | null>(null);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [rows, setRows] = useState<AdminPackage[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState<PackageDraft>(defaultDraft);
@@ -53,16 +58,11 @@ export default function AdminPackagesPage() {
   const loadData = async () => {
     if (!token) return;
     setLoading(true);
-    setError("");
     try {
       const response = await adminApi.managePackages(token);
       setRows(response);
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Gagal memuat paket ujian.",
-      );
+    } catch {
+      toast.error("Gagal memuat paket.");
     } finally {
       setLoading(false);
     }
@@ -80,9 +80,10 @@ export default function AdminPackagesPage() {
   const handleEdit = (item: AdminPackage) => {
     setEditingId(item.id);
     setDraft({
+      id: item.id.toString(),
       name: item.name,
       description: item.description,
-      features: item.features,
+      features: item.features || "",
       price: item.price,
       question_count: item.question_count,
       session_limit: item.session_limit ?? null,
@@ -93,35 +94,24 @@ export default function AdminPackagesPage() {
 
   const handleSave = async () => {
     if (!token) return;
-    if (
-      !draft.name.trim() ||
-      !draft.description.trim() ||
-      !draft.features.trim()
-    ) {
-      setError("Nama, deskripsi, dan fitur paket wajib diisi.");
+    if (!draft.name.trim() || !draft.description.trim()) {
+      toast.warning("Nama dan deskripsi wajib diisi.");
       return;
     }
 
     setSaving(true);
-    setError("");
-    setMessage("");
-
     try {
       if (editingId) {
         await adminApi.updatePackage(token, editingId, draft);
-        setMessage("Paket berhasil diperbarui.");
+        toast.success("Paket diperbarui.");
       } else {
         await adminApi.createPackage(token, draft);
-        setMessage("Paket berhasil dibuat.");
+        toast.success("Paket dibuat.");
       }
       resetForm();
       await loadData();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal menyimpan paket.",
-      );
+    } catch {
+      toast.error("Gagal menyimpan.");
     } finally {
       setSaving(false);
     }
@@ -129,226 +119,324 @@ export default function AdminPackagesPage() {
 
   const handleArchive = async (id: number) => {
     if (!token) return;
-
     setArchivingId(id);
-    setError("");
-    setMessage("");
     try {
       await adminApi.archivePackage(token, id);
-      setMessage(`Paket #${id} berhasil diarsipkan.`);
+      toast.success(`Paket #${id} diarsipkan.`);
       await loadData();
-      if (editingId === id) {
-        resetForm();
-      }
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal mengarsipkan paket.",
-      );
+      if (editingId === id) resetForm();
+    } catch {
+      toast.error("Gagal mengarsipkan.");
     } finally {
       setArchivingId(null);
     }
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <AdminPageHeader
-        title="Kelola Paket"
-        description="CRUD paket ujian yang dijual atau diaktifkan di platform."
-        icon={<ShieldCheck size={20} />}
-        actionLabel="Refresh Paket"
-        onAction={() => void loadData()}
-        actionDisabled={loading}
-      />
+    <div className="flex flex-col h-screen w-full animate-in fade-in duration-500 overflow-hidden">
+      <div className="px-6 py-2 shrink-0">
+        <AdminPageHeader
+          title="Manajemen Paket"
+          description="Atur katalog produk dan limitasi akses ujian."
+          icon={<ShieldCheck className="text-primary" size={24} />}
+          actionLabel="Sinkronkan"
+          onAction={() => void loadData()}
+          actionDisabled={loading}
+        />
+      </div>
 
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm font-medium">
-          {error}
-        </div>
-      )}
-      {message && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-3 text-sm font-medium">
-          {message}
-        </div>
-      )}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 pt-2 overflow-hidden items-start">
+        <div className="lg:col-span-4 h-full max-h-full overflow-y-auto pr-2 custom-scrollbar">
+          <Card className="border-slate-200 shadow-sm border-none ring-1 ring-slate-200 p-0 m-1">
+            <CardHeader
+              className={cn(
+                "px-5 py-5 border-b transition-colors rounded-t-xl [.border-b]:pb-4",
+                editingId ? "bg-primary/5" : "bg-slate-50/50",
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={cn(
+                    "p-2 rounded-lg shadow-sm",
+                    editingId
+                      ? "bg-primary text-white"
+                      : "bg-white text-slate-400 border border-slate-100",
+                  )}
+                >
+                  {editingId ? <Pencil size={16} /> : <Plus size={16} />}
+                </div>
+                <CardTitle className="text-base font-bold tracking-tight">
+                  {editingId ? `Update Paket ${draft.id}` : "Tambah Paket"}
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold uppercase text-slate-400 ml-1">
+                    Nama Produk
+                  </label>
+                  <Input
+                    className="h-10 rounded-lg focus:ring-primary border-slate-200"
+                    value={draft.name}
+                    onChange={(e) =>
+                      setDraft((p) => ({ ...p, name: e.target.value }))
+                    }
+                  />
+                </div>
 
-      <Card className="border border-slate-200">
-        <CardHeader>
-          <CardTitle>{editingId ? "Edit Paket" : "Tambah Paket"}</CardTitle>
-          <CardDescription>
-            Paket lama dari seed tetap bisa dikelola di sini.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Input
-            placeholder="Nama paket"
-            value={draft.name}
-            onChange={(event) =>
-              setDraft((prev) => ({ ...prev, name: event.target.value }))
-            }
-          />
-          <Input
-            placeholder="Harga"
-            type="number"
-            min={0}
-            value={draft.price}
-            onChange={(event) =>
-              setDraft((prev) => ({
-                ...prev,
-                price: Number(event.target.value),
-              }))
-            }
-          />
-          <Input
-            placeholder="Deskripsi"
-            value={draft.description}
-            onChange={(event) =>
-              setDraft((prev) => ({ ...prev, description: event.target.value }))
-            }
-          />
-          <Input
-            placeholder="Fitur singkat"
-            value={draft.features}
-            onChange={(event) =>
-              setDraft((prev) => ({ ...prev, features: event.target.value }))
-            }
-          />
-          <Input
-            placeholder="Jumlah soal"
-            type="number"
-            min={1}
-            value={draft.question_count}
-            onChange={(event) =>
-              setDraft((prev) => ({
-                ...prev,
-                question_count: Number(event.target.value),
-              }))
-            }
-          />
-          <Input
-            placeholder="Batas sesi (opsional)"
-            type="number"
-            min={1}
-            value={draft.session_limit ?? ""}
-            onChange={(event) =>
-              setDraft((prev) => ({
-                ...prev,
-                session_limit: event.target.value
-                  ? Number(event.target.value)
-                  : null,
-              }))
-            }
-          />
-          <Input
-            placeholder="Masa berlaku hari (opsional)"
-            type="number"
-            min={1}
-            value={draft.validity_days ?? ""}
-            onChange={(event) =>
-              setDraft((prev) => ({
-                ...prev,
-                validity_days: event.target.value
-                  ? Number(event.target.value)
-                  : null,
-              }))
-            }
-          />
-          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <Switch
-              checked={draft.is_active}
-              onCheckedChange={(checked) =>
-                setDraft((prev) => ({ ...prev, is_active: checked }))
-              }
-            />
-            <span className="text-sm font-medium text-slate-700">
-              {draft.is_active ? "Paket Aktif" : "Paket Nonaktif"}
-            </span>
-          </div>
-
-          <div className="flex gap-2 md:col-span-2">
-            <Button onClick={() => void handleSave()} disabled={saving}>
-              {saving
-                ? "Menyimpan..."
-                : editingId
-                  ? "Update Paket"
-                  : "Tambah Paket"}
-            </Button>
-            {editingId && (
-              <Button variant="outline" onClick={resetForm}>
-                Batal
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-slate-200">
-        <CardHeader>
-          <CardTitle>Daftar Paket</CardTitle>
-          <CardDescription>
-            Archive digunakan agar histori transaksi dan akses tetap aman.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {loading ? (
-            <p className="text-sm text-slate-500">Memuat paket...</p>
-          ) : rows.length === 0 ? (
-            <p className="text-sm text-slate-500">Belum ada paket.</p>
-          ) : (
-            rows.map((item) => (
-              <Card key={item.id} className="border border-slate-200">
-                <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <p className="font-semibold text-slate-900">
-                      #{item.id} • {item.name}
-                    </p>
-                    <p className="text-sm text-slate-500">{item.description}</p>
-                    <p className="text-xs text-slate-400">
-                      {item.question_count} soal
-                      {typeof item.session_limit === "number" &&
-                      item.session_limit > 0
-                        ? ` • limit ${item.session_limit} sesi`
-                        : ""}
-                      {typeof item.validity_days === "number" &&
-                      item.validity_days > 0
-                        ? ` • ${item.validity_days} hari`
-                        : ""}
-                    </p>
+                    <label className="text-[10px] font-semibold uppercase text-slate-400 ml-1">
+                      Harga (Rp)
+                    </label>
+                    <Input
+                      type="number"
+                      className="h-10 rounded-lg"
+                      value={draft.price}
+                      onChange={(e) =>
+                        setDraft((p) => ({
+                          ...p,
+                          price: Number(e.target.value),
+                        }))
+                      }
+                    />
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        item.is_active
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-100 text-slate-700"
-                      }`}
-                    >
-                      {item.is_active ? "Aktif" : "Archived"}
-                    </span>
-                    <Button variant="outline" onClick={() => handleEdit(item)}>
-                      <Package2 className="mr-2 h-4 w-4" />
-                      Edit
-                    </Button>
-                    {item.is_active ? (
-                      <Button
-                        variant="outline"
-                        disabled={archivingId === item.id}
-                        onClick={() => void handleArchive(item.id)}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase text-slate-400 ml-1">
+                      Jml Soal
+                    </label>
+                    <Input
+                      type="number"
+                      className="h-10 rounded-lg text-center font-bold"
+                      value={draft.question_count}
+                      onChange={(e) =>
+                        setDraft((p) => ({
+                          ...p,
+                          question_count: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold uppercase text-slate-400 ml-1">
+                    Deskripsi
+                  </label>
+                  <Input
+                    className="h-10 rounded-lg"
+                    value={draft.description}
+                    onChange={(e) =>
+                      setDraft((p) => ({ ...p, description: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase text-slate-400 ml-1">
+                      Batas Sesi
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="∞"
+                      className="h-10 rounded-lg"
+                      value={draft.session_limit ?? ""}
+                      onChange={(e) =>
+                        setDraft((p) => ({
+                          ...p,
+                          session_limit: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase text-slate-400 ml-1">
+                      Masa Aktif
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="∞"
+                      className="h-10 rounded-lg"
+                      value={draft.validity_days ?? ""}
+                      onChange={(e) =>
+                        setDraft((p) => ({
+                          ...p,
+                          validity_days: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50/50">
+                  <span className="text-xs font-bold text-slate-600">
+                    Publikasikan
+                  </span>
+                  <Switch
+                    checked={draft.is_active}
+                    onCheckedChange={(v) =>
+                      setDraft((p) => ({ ...p, is_active: v }))
+                    }
+                    className="data-[state=checked]:bg-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-2">
+                <Button
+                  onClick={() => void handleSave()}
+                  disabled={saving}
+                  className="w-full h-10 bg-primary hover:bg-primary/90 font-bold text-white rounded-lg shadow-sm"
+                >
+                  {saving
+                    ? "..."
+                    : editingId
+                      ? "Simpan Perubahan"
+                      : "Terbitkan Paket"}
+                </Button>
+                {editingId && (
+                  <Button
+                    variant="ghost"
+                    onClick={resetForm}
+                    className="h-9 text-slate-400 text-xs font-bold"
+                  >
+                    <RotateCcw size={14} className="mr-2" /> Batal
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-8 flex flex-col h-full overflow-hidden">
+          <div className="flex items-center gap-2 px-1 mb-4 shrink-0">
+            <div className="h-2 w-2 rounded-full bg-primary" />
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-tighter">
+              Database Paket ({rows.length})
+            </h3>
+          </div>
+
+          {loading ? (
+            <div className="flex-1 flex flex-col items-center justify-center bg-white border border-dashed border-slate-200 rounded-2xl">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mb-2" />
+              <p className="text-[10px] font-bold text-slate-400 uppercase">
+                Mengambil data...
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+              {rows.map((item) => (
+                <Card
+                  key={item.id}
+                  className={cn(
+                    "group p-0 mx-1 my-2 relative border-none ring-1 ring-slate-200/60 shadow-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:ring-primary/30 rounded-2xl overflow-hidden",
+                    !item.is_active && "opacity-70 bg-slate-50/50",
+                  )}
+                >
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary scale-y-0 group-hover:scale-y-100 transition-transform duration-300 origin-top" />
+
+                  <CardContent className="p-0">
+                    <div className="flex items-stretch min-h-25">
+                      <div
+                        className={cn(
+                          "w-20 flex flex-col items-center justify-center border-r border-slate-100/80 transition-colors group-hover:bg-primary/2",
+                          item.is_active ? "text-primary" : "text-slate-400",
+                        )}
                       >
-                        <Archive className="mr-2 h-4 w-4" />
-                        {archivingId === item.id
-                          ? "Mengarsipkan..."
-                          : "Archive"}
-                      </Button>
-                    ) : null}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                        <span className="text-[9px] font-semibold uppercase tracking-tighter opacity-40">
+                          ID
+                        </span>
+                        <span className="text-lg font-semibold tracking-tight leading-none mt-1">
+                          {item.id}
+                        </span>
+                      </div>
+
+                      <div className="p-5 flex-1 space-y-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1">
+                            <h4 className="font-bold text-slate-800 text-sm group-hover:text-primary transition-colors duration-300">
+                              {item.name}
+                            </h4>
+                            <p className="text-[11px] text-slate-400 line-clamp-1 italic font-medium">
+                              {item.description || "Tidak ada deskripsi paket."}
+                            </p>
+                          </div>
+
+                          <div
+                            className={cn(
+                              "shrink-0 px-2.5 py-1 rounded-lg text-[9px] font-semibold uppercase tracking-widest shadow-sm border",
+                              item.is_active
+                                ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                : "bg-slate-100 text-slate-500 border-slate-200",
+                            )}
+                          >
+                            {item.is_active ? "Active" : "Draft"}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/4 rounded-md ring-1 ring-primary/10">
+                            <Coins size={12} className="text-primary" />
+                            <span className="text-[12px] font-semibold text-slate-700">
+                              Rp {item.price.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-100/50 rounded-md ring-1 ring-slate-200/50">
+                            <Layers size={12} className="text-slate-400" />
+                            <span className="text-[11px] font-bold text-slate-500">
+                              {item.question_count} Soal
+                            </span>
+                          </div>
+                          {item.validity_days && (
+                            <div className="flex items-center gap-1.5 text-slate-400">
+                              <AlertCircle size={12} />
+                              <span className="text-[11px] font-medium">
+                                {item.validity_days} Hari
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col md:flex-row items-center gap-1 px-4 border-l border-slate-50 bg-slate-50/30 group-hover:bg-slate-50/80 transition-colors">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(item)}
+                          className="h-9 w-9 rounded-xl hover:bg-white hover:text-primary hover:shadow-md text-slate-400 transition-all active:scale-90"
+                          title="Edit Paket"
+                        >
+                          <Pencil size={15} />
+                        </Button>
+                        {item.is_active && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={archivingId === item.id}
+                            onClick={() => void handleArchive(item.id)}
+                            className="h-9 w-9 rounded-xl hover:bg-rose-50 hover:text-rose-600 text-slate-400 transition-all active:scale-90"
+                            title="Arsipkan"
+                          >
+                            <Archive size={15} />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              <div className="h-6 w-full shrink-0" />
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

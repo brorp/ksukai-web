@@ -15,6 +15,7 @@ import {
 import { type PurchaseRecord, transactionApi } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const formatDate = (value?: string | null) =>
   value ? new Date(value).toLocaleString("id-ID") : "-";
@@ -39,7 +40,6 @@ const getTransactionLabel = (value: PurchaseRecord["transaction_status"]) => {
 export default function PurchasesPage() {
   const token = useAuthStore((state) => state.token);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [rows, setRows] = useState<PurchaseRecord[]>([]);
 
   useEffect(() => {
@@ -47,16 +47,16 @@ export default function PurchasesPage() {
 
     const loadData = async () => {
       setLoading(true);
-      setError("");
       try {
         const response = await transactionApi.myTransactions(token);
         setRows(response);
       } catch (loadError) {
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Gagal memuat riwayat pembelian.",
-        );
+        toast.error("Gagal Memuat Riwayat", {
+          description:
+            loadError instanceof Error
+              ? loadError.message
+              : "Gagal memuat riwayat pembelian.",
+        });
       } finally {
         setLoading(false);
       }
@@ -77,12 +77,6 @@ export default function PurchasesPage() {
           </p>
         </div>
       </div>
-
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
-          {error}
-        </div>
-      )}
 
       <Card className="border border-slate-200">
         <CardHeader>

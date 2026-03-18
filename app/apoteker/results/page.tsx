@@ -10,6 +10,14 @@ import {
   Home,
   RefreshCw,
   XCircle,
+  ChevronLeft,
+  Clock,
+  Calendar,
+  ChevronRight,
+  AlertCircle,
+  LayoutGrid,
+  ArrowLeft,
+  Trophy,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   examApi,
   type ExamResultQuestion,
@@ -36,6 +45,7 @@ import {
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -48,10 +58,9 @@ export default function ResultsPage() {
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [sessions, setSessions] = useState<ExamSessionSummary[]>([]);
   const [result, setResult] = useState<ExamResultResponse | null>(null);
+
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState("");
   const [reportingQuestion, setReportingQuestion] =
@@ -68,19 +77,16 @@ export default function ResultsPage() {
     }
   }, [mounted, isAuthenticated, user, router]);
 
-  const activeSessionId = useMemo(() => {
-    if (sessionIdFromQuery > 0) return sessionIdFromQuery;
-    return 0;
-  }, [sessionIdFromQuery]);
+  const activeSessionId = useMemo(
+    () => (sessionIdFromQuery > 0 ? sessionIdFromQuery : 0),
+    [sessionIdFromQuery],
+  );
 
   useEffect(() => {
-    if (!mounted || !token) {
-      return;
-    }
+    if (!mounted || !token) return;
 
     const loadData = async () => {
       setLoading(true);
-      setError("");
       try {
         const sessionRows = await examApi.sessions(token);
         setSessions(sessionRows);
@@ -92,11 +98,12 @@ export default function ResultsPage() {
           setResult(null);
         }
       } catch (loadError) {
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Gagal memuat hasil ujian.",
-        );
+        toast.error("Gagal Memuat Data", {
+          description:
+            loadError instanceof Error
+              ? loadError.message
+              : "Gagal memuat hasil ujian.",
+        });
       } finally {
         setLoading(false);
       }
@@ -108,201 +115,102 @@ export default function ResultsPage() {
   const handleOpenReport = (question: ExamResultQuestion) => {
     setReportingQuestion(question);
     setReportText("");
-    setMessage("");
     setReportOpen(true);
   };
-
   const handleSubmitReport = async () => {
-    if (!token || !result || !reportingQuestion || !reportText.trim()) {
-      return;
-    }
-
+    if (!token || !result || !reportingQuestion || !reportText.trim()) return;
     setSubmittingReport(true);
-    setError("");
-    try {
-      const response = await examApi.reportQuestion(token, {
-        question_id: reportingQuestion.questionId,
-        session_id: result.sessionId,
-        report_text: reportText.trim(),
-      });
-      setMessage(response.message ?? "Report soal berhasil dikirim.");
-      setReportOpen(false);
-      setReportText("");
-      setReportingQuestion(null);
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Gagal mengirim report soal.",
-      );
-    } finally {
-      setSubmittingReport(false);
-    }
+
+    const promise = examApi.reportQuestion(token, {
+      question_id: reportingQuestion.questionId,
+      session_id: result.sessionId,
+      report_text: reportText.trim(),
+    });
+
+    toast.promise(promise, {
+      loading: "Mengirim laporan...",
+      success: (response) => {
+        setReportOpen(false);
+        setReportText("");
+        return response.message ?? "Laporan soal berhasil dikirim.";
+      },
+      error: "Gagal mengirim laporan.",
+      finally: () => setSubmittingReport(false),
+    });
   };
 
   if (!mounted || !isAuthenticated || user?.role !== "user") return null;
 
   if (loading) {
     return (
-      <div className="h-[70vh] w-full flex flex-col items-center justify-center">
-        <div className="h-10 w-10 border-4 border-slate-200 border-t-sky-600 rounded-full animate-spin" />
-        <p className="text-sm text-slate-500 mt-4">Memuat hasil ujian...</p>
+      <div className="h-[60vh] flex flex-col items-center justify-center space-y-4">
+        <div className="relative h-12 w-12">
+          <div className="absolute inset-0 rounded-full border-4 border-slate-100" />
+          <div className="absolute inset-0 rounded-full border-4 border-t-primary animate-spin" />
+        </div>
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+          Menyiapkan Hasil...
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm font-medium">
-          {error}
-        </div>
-      )}
-
-      {message && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-3 text-sm font-medium">
-          {message}
-        </div>
-      )}
-
+    <div className="max-w-6xl mx-auto pb-20 space-y-6 animate-in fade-in duration-500">
       {activeSessionId > 0 && result ? (
         <ResultDetail result={result} onOpenReport={handleOpenReport} />
       ) : (
         <SessionList sessions={sessions} />
       )}
 
+      {/* Report Modal */}
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Report Soal</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-slate-600">
-              Jelaskan masalah pada soal ini agar admin bisa meninjau dengan
-              tepat.
+        <DialogContent className="max-w-md rounded-4xl border-none shadow-2xl p-0 overflow-hidden">
+          <div className="bg-slate-900 p-6 text-white text-center">
+            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Flag size={20} className="text-rose-400" />
+            </div>
+            <DialogTitle className="text-xl font-semibold">
+              Report Masalah
+            </DialogTitle>
+            <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">
+              Soal ID: {reportingQuestion?.questionId}
             </p>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-              {reportingQuestion?.questionText ?? "-"}
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-tight mb-1">
+                Isi Soal:
+              </p>
+              <p className="text-sm text-slate-700 leading-relaxed italic line-clamp-3">
+                "{reportingQuestion?.questionText}"
+              </p>
             </div>
             <Textarea
               value={reportText}
-              onChange={(event) => setReportText(event.target.value)}
-              placeholder="Contoh: opsi jawaban tidak sesuai, pembahasan kurang tepat, atau ada typo penting."
-              className="min-h-32"
+              onChange={(e) => setReportText(e.target.value)}
+              placeholder="Jelaskan detail masalah (typo, kunci salah, dll)..."
+              className="min-h-32 rounded-2xl border-slate-200 focus:ring-primary focus:border-primary"
             />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReportOpen(false)}>
+          <DialogFooter className="p-6 pt-0 flex gap-2">
+            <Button
+              variant="ghost"
+              className="flex-1 rounded-xl font-bold text-xs uppercase"
+              onClick={() => setReportOpen(false)}
+            >
               Batal
             </Button>
             <Button
+              className="flex-1 rounded-xl font-bold text-xs uppercase tracking-widest bg-slate-900 shadow-lg shadow-slate-200"
               onClick={() => void handleSubmitReport()}
               disabled={submittingReport || !reportText.trim()}
             >
-              {submittingReport ? "Mengirim..." : "Kirim Report"}
+              {submittingReport ? "Mengirim..." : "Kirim Laporan"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function SessionList({ sessions }: { sessions: ExamSessionSummary[] }) {
-  if (sessions.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Belum Ada Riwayat Ujian</CardTitle>
-          <CardDescription>
-            Selesaikan ujian terlebih dahulu untuk melihat histori per sesi.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex gap-3">
-          <Link href="/apoteker/dashboard">
-            <Button>
-              <RefreshCw size={16} className="mr-2" /> Pilih Paket Ujian
-            </Button>
-          </Link>
-          <Link href="/apoteker/dashboard">
-            <Button variant="outline">
-              <Home size={16} className="mr-2" /> Dashboard
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-            Hasil Ujian
-          </h1>
-          <p className="text-slate-500">
-            Riwayat hasil ujian Anda tersimpan per sesi/attempt.
-          </p>
-        </div>
-        <Link href="/apoteker/dashboard">
-          <Button>
-            <RefreshCw size={16} className="mr-2" /> Ujian Baru
-          </Button>
-        </Link>
-      </div>
-
-      <Card className="border border-slate-200">
-        <CardHeader>
-          <CardTitle>Daftar Sesi Ujian</CardTitle>
-          <CardDescription>
-            Klik salah satu sesi untuk melihat detail hasil dan pembahasan.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {sessions.map((session) => (
-            <Card key={session.session_id} className="border border-slate-200">
-              <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-slate-900">
-                    Sesi #{session.session_id}
-                    {session.package_name ? ` • ${session.package_name}` : ""}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    Attempt #{session.attempt_number} • Status: {session.status}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    Mulai:{" "}
-                    {session.start_time
-                      ? new Date(session.start_time).toLocaleString("id-ID")
-                      : "-"}
-                    {" • "}
-                    Submit:{" "}
-                    {session.end_time
-                      ? new Date(session.end_time).toLocaleString("id-ID")
-                      : "-"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="text-xs uppercase tracking-wide text-slate-400">
-                      Skor
-                    </p>
-                    <p className="text-2xl font-bold text-slate-900">
-                      {session.score}
-                    </p>
-                  </div>
-                  <Link
-                    href={`/apoteker/results?sessionId=${session.session_id}`}
-                  >
-                    <Button variant="outline">Lihat Detail</Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -312,218 +220,406 @@ function ResultDetail({
   onOpenReport,
 }: {
   result: ExamResultResponse;
-  onOpenReport: (question: ExamResultQuestion) => void;
+  onOpenReport: (q: ExamResultQuestion) => void;
 }) {
+  const [activeIdx, setActiveIdx] = useState(0);
   const passed = result.score >= 60;
+  const currentQuestion = result.questions[activeIdx];
 
   return (
-    <>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-            Detail Hasil Ujian
+    <div className="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
+      <div className="flex items-center">
+        <Link
+          href="/apoteker/results"
+          className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors group"
+        >
+          <div className="p-2 bg-white border border-slate-200 rounded-lg group-hover:border-slate-300 shadow-sm">
+            <ArrowLeft size={16} />
+          </div>
+          Kembali ke Daftar Hasil
+        </Link>
+      </div>
+
+      {/* Top Header: Statistik Ringkas */}
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="space-y-1">
+          <h1 className="text-xl font-bold text-slate-900">
+            {result.package_name || "Hasil Try Out Apoteker"}
           </h1>
-          <p className="text-slate-500">
-            Session #{result.sessionId}
-            {result.package_name ? ` • ${result.package_name}` : ""}
-            {" • "}Attempt #{result.attempt_number ?? 1}
-          </p>
+          <div className="flex items-center gap-4 text-sm text-slate-500">
+            <span className="flex items-center gap-1">
+              <Calendar size={14} />{" "}
+              {new Date(result.startedAt ?? "").toLocaleDateString("id-ID")}
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock size={14} /> {result.totalQuestions} Soal
+            </span>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Link href="/apoteker/results">
-            <Button variant="outline">Kembali ke Daftar Sesi</Button>
-          </Link>
-          <Link href="/apoteker/dashboard">
-            <Button>
-              <RefreshCw size={16} className="mr-2" /> Ujian Baru
-            </Button>
-          </Link>
+        <div className="flex items-center gap-6">
+          <div className="text-center">
+            <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">
+              Skor Akhir
+            </p>
+            <p
+              className={cn(
+                "text-3xl font-semibold",
+                passed ? "text-emerald-600" : "text-rose-600",
+              )}
+            >
+              {result.score}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <Card className="lg:col-span-8 border-none shadow-xl overflow-hidden bg-white">
-          <div
-            className={cn(
-              "h-2 w-full",
-              passed ? "bg-emerald-500" : "bg-rose-500",
-            )}
-          />
-          <CardHeader>
-            <CardTitle>Ringkasan Skor</CardTitle>
-            <CardDescription>
-              Hasil dihitung dari mapping opsi acak pada sesi ini.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            <div className="flex flex-col items-center justify-center py-4 bg-slate-50/70 rounded-3xl border border-dashed border-slate-200">
-              <span className="text-slate-400 text-xs font-bold uppercase tracking-[0.2em] mb-1">
-                Skor Akhir
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Kiri: Detail Soal & Pembahasan */}
+        <div className="lg:col-span-8 space-y-4">
+          <Card className="border-slate-200 shadow-sm overflow-hidden bg-white">
+            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex justify-between items-center">
+              <span className="text-sm font-bold text-slate-700">
+                Pertanyaan Ke-{activeIdx + 1}
               </span>
-              <div
-                className={cn(
-                  "text-8xl font-semibold tracking-tighter",
-                  passed ? "text-emerald-600" : "text-rose-600",
-                )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 gap-2"
+                onClick={() => onOpenReport(currentQuestion)}
               >
-                {result.score}
+                <Flag size={14} />{" "}
+                <span className="text-xs font-bold uppercase">
+                  Laporkan Soal
+                </span>
+              </Button>
+            </div>
+
+            <div className="p-6 md:p-8 space-y-8">
+              <div className="text-slate-800 font-medium leading-relaxed">
+                {currentQuestion.questionText}
               </div>
-              <p className="text-slate-500 text-sm mt-1">
-                {passed ? "Lulus" : "Belum Lulus"} • Target minimum 60
-              </p>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <StatCard
-                icon={<CheckCircle2 className="text-emerald-600" />}
-                label="Jawaban Benar"
-                value={String(result.correctAnswers)}
-              />
-              <StatCard
-                icon={<XCircle className="text-rose-600" />}
-                label="Jawaban Salah"
-                value={String(result.totalQuestions - result.correctAnswers)}
-              />
-              <StatCard
-                icon={<BarChart3 className="text-sky-600" />}
-                label="Total Soal"
-                value={String(result.totalQuestions)}
-              />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="grid gap-3">
+                {(["a", "b", "c", "d", "e"] as const).map((key) => {
+                  const isCorrect = currentQuestion.correctAnswer === key;
+                  const isSelected = currentQuestion.selectedOption === key;
 
-        <Card className="lg:col-span-4 border-none shadow-lg bg-sky-600 text-white">
-          <CardHeader>
-            <CardTitle>Analisis Cepat</CardTitle>
-            <CardDescription className="text-sky-100">
-              Pembahasan soal tersedia setelah sesi selesai.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm leading-relaxed text-sky-50">
-              {passed
-                ? "Performa Anda sudah melampaui ambang batas. Lanjutkan latihan untuk menjaga konsistensi."
-                : "Tinjau kembali pembahasan tiap soal untuk memperbaiki area yang belum optimal."}
-            </p>
-            <p className="text-xs text-sky-100">
-              Mulai:{" "}
-              {result.startedAt
-                ? new Date(result.startedAt).toLocaleString("id-ID")
-                : "-"}
-            </p>
-            <p className="text-xs text-sky-100">
-              Submit:{" "}
-              {result.submittedAt
-                ? new Date(result.submittedAt).toLocaleString("id-ID")
-                : "-"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="border border-slate-200">
-        <CardHeader>
-          <CardTitle>Review Soal</CardTitle>
-          <CardDescription>
-            Menampilkan jawaban Anda, jawaban benar, pembahasan, dan tombol
-            report soal.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {result.questions.length === 0 ? (
-            <p className="text-sm text-slate-500">
-              Detail soal tidak tersedia.
-            </p>
-          ) : (
-            result.questions.map((question, index) => (
-              <div
-                key={`${question.questionId}-${index}`}
-                className="rounded-xl border border-slate-200 bg-white p-4 space-y-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {index + 1}. {question.questionText}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span
+                  return (
+                    <div
+                      key={key}
                       className={cn(
-                        "text-[10px] font-bold uppercase px-2 py-1 rounded-full",
-                        question.isCorrect
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-rose-100 text-rose-700",
+                        "flex items-start gap-4 p-4 rounded-lg border-2 transition-all",
+                        isCorrect
+                          ? "border-emerald-500 bg-emerald-50"
+                          : isSelected
+                            ? "border-rose-500 bg-rose-50"
+                            : "border-slate-100 bg-white",
                       )}
                     >
-                      {question.isCorrect ? "Benar" : "Salah"}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onOpenReport(question)}
-                    >
-                      <Flag size={14} className="mr-2" />
-                      Report Soal
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                  {(["a", "b", "c", "d", "e"] as const).map((key) => {
-                    const isSelected = question.selectedOption === key;
-                    const isCorrect = question.correctAnswer === key;
-
-                    return (
                       <div
-                        key={key}
                         className={cn(
-                          "rounded-md border px-3 py-2",
+                          "shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold uppercase",
                           isCorrect
-                            ? "border-emerald-300 bg-emerald-50"
+                            ? "bg-emerald-500 border-emerald-500 text-white"
                             : isSelected
-                              ? "border-rose-200 bg-rose-50"
-                              : "border-slate-200 bg-slate-50",
+                              ? "bg-rose-500 border-rose-500 text-white"
+                              : "border-slate-200 text-slate-400",
                         )}
                       >
-                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                          {key}
-                        </p>
-                        <p className="text-slate-700">
-                          {question.options[key]}
-                        </p>
+                        {key}
                       </div>
-                    );
-                  })}
-                </div>
+                      <div
+                        className={cn(
+                          "pt-1.5 text-sm",
+                          isCorrect
+                            ? "text-emerald-900 font-semibold"
+                            : isSelected
+                              ? "text-rose-900 font-semibold"
+                              : "text-slate-600",
+                        )}
+                      >
+                        {currentQuestion.options[key]}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
-                <div className="text-xs text-slate-600 bg-slate-50 rounded-md p-3">
-                  <span className="font-semibold">Pembahasan: </span>
-                  {question.explanation || "Tidak tersedia."}
+              <div className="mt-8 rounded-xl border-2 border-dashed border-slate-200 p-6 bg-slate-50/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <LayoutGrid size={16} className="text-slate-400" />
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Pembahasan & Analisis
+                  </h4>
+                </div>
+                <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                  {currentQuestion.explanation ||
+                    "Pembahasan untuk soal ini sedang dalam proses update oleh tim ahli."}
                 </div>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </>
+            </div>
+
+            <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={activeIdx === 0}
+                onClick={() => setActiveIdx((prev) => prev - 1)}
+                className="font-bold border-slate-300 text-slate-600"
+              >
+                <ChevronLeft size={16} className="mr-1" /> SEBELUMNYA
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={activeIdx === result.questions.length - 1}
+                onClick={() => setActiveIdx((prev) => prev + 1)}
+                className="font-bold border-slate-300 text-slate-600"
+              >
+                SELANJUTNYA <ChevronRight size={16} className="ml-1" />
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-4 space-y-4 sticky top-6">
+          <Card className="border-slate-200 shadow-sm p-5 pb-1 bg-white">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                Navigasi Nomor
+              </h3>
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                {result.questions.length} Soal
+              </span>
+            </div>
+
+            <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-5 gap-2 max-h-50 overflow-y-auto pr-2 pt-2 no-scrollbar">
+              {result.questions.slice(0, 100).map((q, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setActiveIdx(idx);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className={cn(
+                    "aspect-square cursor-pointer w-full rounded-md border-2 text-xs font-bold transition-all flex items-center justify-center",
+                    activeIdx === idx
+                      ? "border-primary-700 bg-primary-700 text-white shadow-md scale-105 z-10"
+                      : q.isCorrect
+                        ? "border-emerald-100 bg-emerald-50 text-emerald-600 hover:border-emerald-300"
+                        : "border-rose-100 bg-rose-50 text-rose-600 hover:border-rose-300",
+                  )}
+                >
+                  {idx + 1}
+                </button>
+              ))}
+            </div>
+            <div className="py-2 border-t border-slate-100 grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-emerald-500" />
+                <span className="text-xs text-slate-500">
+                  Benar: <b>{result.correctAnswers}</b>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-rose-500" />
+                <span className="text-xs text-slate-500">
+                  Salah: <b>{result.totalQuestions - result.correctAnswers}</b>
+                </span>
+              </div>
+            </div>
+          </Card>
+
+          <div className="bg-sky-50 border border-sky-100 p-4 rounded-xl">
+            <h4 className="text-xs font-bold text-sky-700 uppercase mb-2">
+              Tips
+            </h4>
+            <p className="text-xs text-sky-600 leading-relaxed italic">
+              "Fokuslah pada pembahasan soal yang salah. Biasanya pola soal UKAI
+              sering muncul pada materi Farmakoterapi dan Manajerial."
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
+function SessionList({ sessions }: { sessions: ExamSessionSummary[] }) {
+  if (sessions.length === 0) {
+    return (
+      <Card className="rounded-2xl border-2 border-dashed border-slate-200 p-16 text-center bg-slate-50/50">
+        <div className="w-20 h-20 bg-white border-2 border-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-300 shadow-sm">
+          <BarChart3 size={40} />
+        </div>
+        <CardTitle className="text-2xl font-bold text-slate-900">
+          Belum Ada Riwayat Ujian
+        </CardTitle>
+        <CardDescription className="max-w-xs mx-auto mt-3 text-slate-500 font-medium">
+          Data hasil try out Anda akan muncul di sini setelah Anda menyelesaikan
+          minimal satu sesi ujian.
+        </CardDescription>
+        <div className="mt-8">
+          <Link href="/apoteker/dashboard">
+            <Button className="rounded-xl h-12 px-10 font-bold text-xs uppercase tracking-widest bg-slate-900 hover:bg-slate-800 shadow-lg transition-all active:scale-95">
+              Mulai Sesi Pertama
+            </Button>
+          </Link>
+        </div>
+      </Card>
+    );
+  }
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-2">{icon}</div>
-      <p className="text-xs text-slate-500 mt-2 uppercase tracking-wide">
-        {label}
-      </p>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-100">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-[0.2em]">
+            <Trophy size={14} /> Performance Tracking
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+            Riwayat Test
+          </h1>
+          <p className="text-sm text-slate-500 font-medium leading-relaxed">
+            Review kembali jawaban dan pelajari pembahasan di setiap sesi.
+          </p>
+        </div>
+        <Link href="/apoteker/dashboard">
+          <Button
+            variant="outline"
+            className="rounded-xl h-11 border-slate-200 font-bold text-[10px] uppercase tracking-widest text-slate-600 hover:text-primary hover:bg-sky-50 transition-all"
+          >
+            <RefreshCw size={14} className="mr-2" /> Latihan lagi
+          </Button>
+        </Link>
+      </div>
+
+      <div className="grid gap-4">
+        {sessions.map((session) => {
+          const isPassed = session.score >= 60;
+          const isCompleted = session.status?.toLowerCase() === "completed";
+
+          return (
+            <div
+              key={session.session_id}
+              className={cn(
+                "group relative bg-white rounded-2xl border p-5 md:p-6 transition-all duration-200",
+                isCompleted
+                  ? "border-slate-200 hover:border-slate-400 hover:shadow-md"
+                  : "border-slate-100 opacity-80",
+              )}
+            >
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex gap-6 items-center">
+                  <div className="relative shrink-0">
+                    <div
+                      className={cn(
+                        "w-16 h-16 rounded-xl flex flex-col items-center justify-center border-2 transition-transform",
+                        !isCompleted
+                          ? "bg-slate-50 border-slate-200 text-slate-400"
+                          : isPassed
+                            ? "bg-emerald-50 border-emerald-500/20 text-emerald-600 group-hover:scale-105"
+                            : "bg-rose-50 border-rose-500/20 text-rose-600 group-hover:scale-105",
+                      )}
+                    >
+                      <span className="text-2xl font-black leading-none">
+                        {isCompleted ? session.score : "—"}
+                      </span>
+                      <span className="text-[8px] font-bold uppercase tracking-widest mt-1">
+                        {isCompleted ? "Score" : "N/A"}
+                      </span>
+                    </div>
+
+                    {isCompleted &&
+                      (isPassed ? (
+                        <div className="absolute -top-2 -right-2 bg-emerald-500 text-white rounded-full p-1 border-4 border-white">
+                          <CheckCircle2 size={12} />
+                        </div>
+                      ) : (
+                        <div className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 border-4 border-white">
+                          <AlertCircle size={12} />
+                        </div>
+                      ))}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <h3 className="text-lg font-bold text-slate-900 group-hover:text-slate-700 transition-colors leading-tight">
+                      {session.package_name ||
+                        `Simulasi Paket #${session.session_id}`}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                        <Calendar size={12} className="text-slate-400" />{" "}
+                        {session.start_time
+                          ? new Date(session.start_time).toLocaleDateString(
+                              "id-ID",
+                              { day: "numeric", month: "short" },
+                            )
+                          : "-"}
+                      </span>
+
+                      <span
+                        className={cn(
+                          "flex items-center gap-1.5 px-2 py-1 rounded-md border",
+                          isCompleted
+                            ? "bg-slate-50 border-slate-100 text-slate-500"
+                            : "bg-amber-50 border-amber-100 text-amber-600 animate-pulse",
+                        )}
+                      >
+                        <Clock size={12} /> {session.status?.toUpperCase()}
+                      </span>
+
+                      <Badge
+                        variant="secondary"
+                        className="bg-slate-900 text-white rounded-md h-5 px-2 text-[9px]"
+                      >
+                        ATTEMPT {session.attempt_number}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-2 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0">
+                  {isCompleted ? (
+                    <Link
+                      href={`/apoteker/results?sessionId=${session.session_id}`}
+                      className="w-full md:w-auto"
+                    >
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full md:w-auto rounded-xl h-11 px-8 font-black text-[10px] uppercase tracking-widest transition-all duration-300",
+                          "bg-white border-2 border-slate-200 text-slate-600 shadow-sm",
+                          "hover:border-primary hover:text-primary hover:bg-primary/5 hover:-translate-y-0.5 active:scale-95",
+                          "group/btn",
+                        )}
+                      >
+                        Review Pembahasan
+                        <ChevronRight
+                          size={14}
+                          className="ml-2 group-hover/btn:translate-x-1 transition-transform"
+                        />
+                      </Button>
+                    </Link>
+                  ) : (
+                    <div className="space-y-2 w-full md:w-auto text-right">
+                      <Button
+                        disabled
+                        className="w-full md:w-auto rounded-xl h-11 px-8 font-black text-[10px] uppercase tracking-widest bg-slate-100 text-slate-400 border-2 border-slate-200 cursor-not-allowed"
+                      >
+                        Belum Selesai
+                      </Button>
+                      <p className="text-[9px] font-bold text-amber-600 uppercase tracking-tight">
+                        Selesaikan ujian untuk melihat hasil
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import {
   Eye,
   Pencil,
@@ -13,10 +12,11 @@ import {
   BookOpen,
   ChevronDown,
   Search,
+  Layers,
+  RefreshCw,
 } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
-// UI Components
 import AdminPageHeader from "@/components/admin/admin-page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,10 +29,20 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+import {
+  adminApi,
+  type AdminQuestion,
+  type AdminQuestionPayload,
+  type ExamPackage,
+} from "@/lib/api/client";
+import { useAuthStore } from "@/lib/store/auth";
+import { cn } from "@/lib/utils";
+import { Table } from "@/components/data-table";
+import { ModalPreview } from "@/components/preview-modal";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -41,22 +51,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
-// API & Utils
-import {
-  adminApi,
-  type AdminQuestion,
-  type AdminQuestionPayload,
-  type ExamPackage,
-} from "@/lib/api/client";
-import { useAuthStore } from "@/lib/store/auth";
-import type { OptionKey } from "@/lib/types";
-import { cn } from "@/lib/utils";
-import { Table } from "@/components/data-table";
-import { ModalPreview } from "@/components/preview-modal";
-import { Badge } from "@/components/ui/badge";
-
-// --- Helpers ---
 const createEmptyQuestionDraft = (packageId = 0): AdminQuestionPayload => ({
   package_id: packageId,
   question_text: "",
@@ -77,16 +73,14 @@ const truncateText = (value: string, maxLength: number): string => {
 
 export default function AdminBankSoalPage() {
   const token = useAuthStore((state) => state.token);
-
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [packageFilter, setPackageFilter] = useState<number>(0);
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">(
     "",
   );
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [rows, setRows] = useState<AdminQuestion[]>([]);
   const [packages, setPackages] = useState<ExamPackage[]>([]);
   const [previewQuestion, setPreviewQuestion] = useState<AdminQuestion | null>(
@@ -100,12 +94,16 @@ export default function AdminBankSoalPage() {
   );
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminQuestion | null>(null);
-  const [inlineActionId, setInlineActionId] = useState<number | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+  const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+
+  const selectedCount = Object.keys(rowSelection).length;
 
   const loadData = async () => {
     if (!token) return;
     setLoading(true);
-    setError("");
     try {
       const [questionRows, packageRows] = await Promise.all([
         adminApi.questions(token, {
@@ -117,11 +115,12 @@ export default function AdminBankSoalPage() {
       setRows(questionRows);
       setPackages(packageRows);
     } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Gagal memuat bank soal.",
-      );
+      toast.error("Gagal Memuat Data", {
+        description:
+          loadError instanceof Error
+            ? loadError.message
+            : "Gagal memuat bank soal.",
+      });
     } finally {
       setLoading(false);
     }
@@ -131,152 +130,15 @@ export default function AdminBankSoalPage() {
     void loadData();
   }, [token, packageFilter, statusFilter]);
 
-  const filteredRows = useMemo(() => {
-    if (!search.trim()) return rows;
-    const query = search.toLowerCase();
-
-    return rows.filter((item) => {
-      const haystacks = [
-        item.question_text,
-        item.explanation,
-        item.option_a,
-        item.option_b,
-        item.option_c,
-        item.option_d,
-        item.option_e,
-        item.package_name ?? "",
-      ];
-
-      return haystacks.some((value) => value.toLowerCase().includes(query));
-    });
-  }, [rows, search]);
-
   const resetForm = () => {
     setEditingQuestionId(null);
     setQuestionDraft(createEmptyQuestionDraft(packages[0]?.id ?? 0));
   };
 
-  const handleCreate = () => {
-    resetForm();
-    setFormOpen(true);
-  };
-
-  const handleInlineUpdate = async (
-    questionId: number,
-    payload: Partial<AdminQuestionPayload>,
-    successMessage: string,
-  ) => {
-    if (!token) return;
-
-    setInlineActionId(questionId);
-    setError("");
-    setMessage("");
-
-    try {
-      const updated = await adminApi.updateQuestion(token, questionId, payload);
-      setRows((prev) =>
-        prev.map((item) => (item.id === updated.id ? updated : item)),
-      );
-      if (previewQuestion?.id === updated.id) {
-        setPreviewQuestion(updated);
-      }
-
-      setMessage(successMessage);
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal memperbarui soal.",
-      );
-    } finally {
-      setInlineActionId(null);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!token) return;
-
-    if (
-      !Number.isInteger(questionDraft.package_id) ||
-      questionDraft.package_id <= 0
-    ) {
-      setError("Kategori soal wajib dipilih.");
-      return;
-    }
-
-    const hasEmptyField = [
-      questionDraft.question_text,
-      questionDraft.option_a,
-      questionDraft.option_b,
-      questionDraft.option_c,
-      questionDraft.option_d,
-      questionDraft.option_e,
-      questionDraft.explanation,
-    ].some((value) => !value.trim());
-
-    if (hasEmptyField) {
-      setError("Pertanyaan, semua opsi, dan pembahasan wajib diisi.");
-      return;
-    }
-
-    setActionLoading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      if (editingQuestionId) {
-        await adminApi.updateQuestion(token, editingQuestionId, questionDraft);
-        setMessage("Soal berhasil diperbarui.");
-      } else {
-        await adminApi.createQuestion(token, questionDraft);
-        setMessage("Soal berhasil ditambahkan.");
-      }
-
-      setFormOpen(false);
-      resetForm();
-      await loadData();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal menyimpan soal.",
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!token || !deleteTarget) return;
-
-    setActionLoading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      await adminApi.deleteQuestion(token, deleteTarget.id);
-      setMessage(`Soal #${deleteTarget.id} berhasil dihapus.`);
-      setDeleteTarget(null);
-      if (previewQuestion?.id === deleteTarget.id) {
-        setPreviewQuestion(null);
-      }
-      await loadData();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal menghapus soal.",
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // 2. Column Definitions
   const columns = useMemo<ColumnDef<AdminQuestion>[]>(
     () => [
       {
-        id: "select",
+        id: "checkbox",
         header: ({ table }) => (
           <Checkbox
             checked={
@@ -322,7 +184,7 @@ export default function AdminBankSoalPage() {
               </span>
               <button
                 onClick={() => setPreviewQuestion(row.original)}
-                className="text-[10px] font-bold text-sky-600 hover:underline uppercase"
+                className="text-[10px] font-bold text-primary-600 hover:underline uppercase"
               >
                 Detail Soal
               </button>
@@ -342,18 +204,29 @@ export default function AdminBankSoalPage() {
       {
         accessorKey: "is_active",
         header: "Status",
+        enableSorting: false,
         cell: ({ row }) => (
           <Switch
             checked={row.original.is_active}
             onCheckedChange={async (checked) => {
-              await adminApi.updateQuestion(token!, row.original.id, {
+              const promise = adminApi.updateQuestion(token!, row.original.id, {
                 is_active: checked,
               });
-              setRows((prev) =>
-                prev.map((r) =>
-                  r.id === row.original.id ? { ...r, is_active: checked } : r,
-                ),
-              );
+
+              toast.promise(promise, {
+                loading: "Memperbarui status...",
+                success: () => {
+                  setRows((prev) =>
+                    prev.map((r) =>
+                      r.id === row.original.id
+                        ? { ...r, is_active: checked }
+                        : r,
+                    ),
+                  );
+                  return `Soal berhasil ${checked ? "diaktifkan" : "dinonaktifkan"}.`;
+                },
+                error: "Gagal mengubah status soal.",
+              });
             }}
           />
         ),
@@ -366,7 +239,7 @@ export default function AdminBankSoalPage() {
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8 text-slate-400 hover:text-sky-600"
+              className="h-8 w-8 text-slate-400 hover:text-primary-600 hover:bg-white"
               onClick={() => setPreviewQuestion(row.original)}
             >
               <Eye size={16} />
@@ -374,7 +247,7 @@ export default function AdminBankSoalPage() {
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8 text-slate-400 hover:text-amber-600"
+              className="h-8 w-8 text-slate-400 hover:text-amber-600 hover:bg-white"
               onClick={() => {
                 setEditingQuestionId(row.original.id);
                 setQuestionDraft({
@@ -397,7 +270,7 @@ export default function AdminBankSoalPage() {
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8 text-slate-400 hover:text-rose-600"
+              className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-white"
               onClick={() => setDeleteTarget(row.original)}
             >
               <Trash2 size={16} />
@@ -409,20 +282,145 @@ export default function AdminBankSoalPage() {
     [token],
   );
 
-  const handleBulkUpdate = async (selectedRows: AdminQuestion[]) => {
+  const handleSave = async () => {
     if (!token) return;
+
+    if (
+      !Number.isInteger(questionDraft.package_id) ||
+      questionDraft.package_id <= 0
+    ) {
+      toast.error("Gagal", { description: "Kategori soal wajib dipilih." });
+      return;
+    }
+
+    const hasEmptyField = [
+      questionDraft.question_text,
+      questionDraft.option_a,
+      questionDraft.option_b,
+      questionDraft.option_c,
+      questionDraft.option_d,
+      questionDraft.option_e,
+      questionDraft.explanation,
+    ].some((value) => !value.trim());
+
+    if (hasEmptyField) {
+      toast.warning("Form Belum Lengkap", {
+        description: "Pertanyaan, semua opsi, dan pembahasan wajib diisi.",
+      });
+      return;
+    }
+
     setActionLoading(true);
     try {
-      // Contoh: Mengaktifkan semua yang terpilih
-      await Promise.all(
-        selectedRows.map((q) =>
-          adminApi.updateQuestion(token, q.id, { is_active: true }),
-        ),
-      );
+      if (editingQuestionId) {
+        await adminApi.updateQuestion(token, editingQuestionId, questionDraft);
+        toast.success("Berhasil", { description: "Soal berhasil diperbarui." });
+      } else {
+        await adminApi.createQuestion(token, questionDraft);
+        toast.success("Berhasil", {
+          description: "Soal baru berhasil ditambahkan.",
+        });
+      }
+      setFormOpen(false);
+      resetForm();
       await loadData();
+    } catch (err) {
+      toast.error("Oops!", {
+        description:
+          err instanceof Error ? err.message : "Gagal menyimpan soal.",
+      });
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleDelete = async () => {
+    if (!token || !deleteTarget) return;
+    setActionLoading(true);
+    try {
+      await adminApi.deleteQuestion(token, deleteTarget.id);
+      toast.success("Terhapus", {
+        description: `Soal #${deleteTarget.id} berhasil dihapus.`,
+      });
+      setDeleteTarget(null);
+      await loadData();
+    } catch (err) {
+      toast.error("Gagal Hapus", { description: "Gagal menghapus soal." });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBulkStatusUpdate = async (active: boolean) => {
+    if (!token || selectedCount === 0) return;
+    setActionLoading(true);
+
+    const selectedIds = Object.keys(rowSelection);
+    const promise = Promise.all(
+      selectedIds.map((id) =>
+        adminApi.updateQuestion(token, Number(id), { is_active: active }),
+      ),
+    );
+
+    toast.promise(promise, {
+      loading: "Memperbarui status soal...",
+      success: () => {
+        setRowSelection({});
+        loadData();
+        return `${selectedIds.length} soal berhasil ${active ? "diaktifkan" : "dinonaktifkan"}.`;
+      },
+      error: "Gagal memperbarui beberapa soal.",
+      finally: () => setActionLoading(false),
+    });
+  };
+
+  const handleBulkCategoryUpdate = async () => {
+    if (!token || !selectedCategoryId || selectedCount === 0) return;
+    setIsUpdatingCategory(true);
+
+    const selectedIds = Object.keys(rowSelection);
+    const promise = Promise.all(
+      selectedIds.map((id) =>
+        adminApi.updateQuestion(token, Number(id), {
+          package_id: Number(selectedCategoryId),
+        }),
+      ),
+    );
+
+    toast.promise(promise, {
+      loading: "Memindahkan kategori...",
+      success: () => {
+        setRowSelection({});
+        setBulkCategoryOpen(false);
+        setSelectedCategoryId("");
+        loadData();
+        return `${selectedIds.length} soal berhasil dipindahkan.`;
+      },
+      error: "Gagal memindahkan soal.",
+      finally: () => setIsUpdatingCategory(false),
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (!token || selectedCount === 0) return;
+    setActionLoading(true);
+
+    const selectedIds = Object.keys(rowSelection).map(Number);
+    const promise = Promise.all(
+      selectedIds.map((id) => adminApi.deleteQuestion(token, id)),
+    );
+
+    toast.promise(promise, {
+      loading: "Menghapus soal secara permanen...",
+      success: () => {
+        setRowSelection({});
+        setBulkDeleteOpen(false);
+        loadData();
+        return `${selectedIds.length} soal berhasil dihapus.`;
+      },
+      error: "Gagal menghapus beberapa soal.",
+      finally: () => setActionLoading(false),
+    });
   };
 
   const filteredData = useMemo(() => {
@@ -440,14 +438,67 @@ export default function AdminBankSoalPage() {
         icon={<ShieldCheck size={20} />}
       />
 
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm font-medium">
-          {error}
-        </div>
-      )}
-      {message && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-3 text-sm font-medium">
-          {message}
+      {selectedCount > 0 && (
+        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-10 duration-500 ease-out">
+          <div className="flex items-center justify-between min-w-135 bg-white backdrop-blur-md border border-slate-200/60 p-2.5 pl-8 rounded-[3rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15),0_0_20px_rgba(0,0,0,0.02)] ring-1 ring-slate-900/5">
+            <div className="flex items-center gap-5 mr-8 border-r border-slate-100 pr-10">
+              <div className="relative p-3 rounded-full bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+                <span className="text-base font-semibold leading-none">
+                  {selectedCount}
+                </span>
+                <div className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 bg-emerald-500 rounded-full border-2 border-white animate-pulse" />
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-slate-800 leading-none">
+                  Soal Terpilih
+                </span>
+                <button
+                  onClick={() => setRowSelection({})}
+                  className="text-[10px] cursor-pointer font-bold text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-widest mt-2 text-left"
+                >
+                  Batal Pilih
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pr-2">
+              <div className="flex items-center bg-slate-50/80 p-1.5 rounded-[1.5rem] border border-slate-100">
+                <button
+                  onClick={() => handleBulkStatusUpdate(true)}
+                  className="h-10 px-6 rounded-xl cursor-pointer text-[10px] font-bold uppercase tracking-widest text-emerald-600 hover:bg-white hover:shadow-sm hover:text-emerald-700 transition-all flex items-center gap-2"
+                >
+                  Aktifkan
+                </button>
+                <button
+                  onClick={() => handleBulkStatusUpdate(false)}
+                  className="h-10 px-6 rounded-xl cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-white hover:shadow-sm hover:text-slate-800 transition-all"
+                >
+                  Nonaktifkan
+                </button>
+                <div className="w-px h-6 bg-slate-200 mx-1" />
+                <button
+                  onClick={() => setBulkCategoryOpen(true)}
+                  className="h-10 px-6 rounded-xl cursor-pointer text-[10px] font-bold uppercase tracking-widest text-sky-600 hover:bg-white hover:shadow-sm hover:text-sky-700 transition-all flex items-center gap-2"
+                >
+                  <Layers size={14} />
+                  Ubah Kategori
+                </button>
+              </div>
+
+              <Button
+                size="sm"
+                onClick={() => setBulkDeleteOpen(true)}
+                className="h-12 rounded-[1.5rem] bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border-none font-bold text-[10px] uppercase tracking-widest px-8 transition-all duration-300 shadow-none active:scale-95 group"
+              >
+                <Trash2
+                  size={16}
+                  className="mr-2 group-hover:rotate-12 transition-transform"
+                />
+                Hapus Masal
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -462,13 +513,13 @@ export default function AdminBankSoalPage() {
             />
             <Search
               size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary-500 transition-colors"
             />
           </div>
 
           <div className="relative group">
             <select
-              className="h-9 min-w-[140px] appearance-none rounded-xl border border-slate-100 bg-slate-50/50 pl-3 pr-8 text-[11px] font-semibold uppercase tracking-tight text-slate-600 outline-none focus:ring-2 focus:ring-sky-500/20 focus:bg-white transition-all cursor-pointer"
+              className="h-9 min-w-35 appearance-none rounded-xl border border-slate-100 bg-slate-50/50 pl-3 pr-8 text-[11px] font-semibold uppercase tracking-tight text-slate-600 outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white transition-all cursor-pointer"
               value={packageFilter}
               onChange={(e) => setPackageFilter(Number(e.target.value))}
             >
@@ -515,7 +566,8 @@ export default function AdminBankSoalPage() {
       <Table
         columns={columns}
         data={filteredData}
-        onBulkUpdate={handleBulkUpdate}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
       />
 
       <ModalPreview
@@ -537,14 +589,14 @@ export default function AdminBankSoalPage() {
               <Button
                 variant="ghost"
                 onClick={() => setFormOpen(false)}
-                className="rounded-xl font-bold text-xs uppercase tracking-widest text-slate-500"
+                className="rounded-xl font-bold text-xs uppercase tracking-widest text-red-500 hover:bg-red-500"
               >
                 Batal
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={actionLoading}
-                className="text-white rounded-xl px-6 font-bold shadow-lg shadow-sky-100 min-w-35"
+                className="text-white rounded-xl px-6 font-bold shadow-lg shadow-primary-100 min-w-35"
               >
                 {actionLoading ? "Menyimpan..." : "Simpan Soal"}
               </Button>
@@ -560,7 +612,7 @@ export default function AdminBankSoalPage() {
                 Kategori / Paket Soal
               </label>
               <select
-                className="w-full h-11 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium focus:ring-2 focus:ring-sky-500 outline-none transition-all shadow-sm"
+                className="w-full h-11 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm"
                 value={questionDraft.package_id}
                 onChange={(e) =>
                   setQuestionDraft((p) => ({
@@ -578,7 +630,7 @@ export default function AdminBankSoalPage() {
             </div>
 
             <div className="md:col-span-4 space-y-2">
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-sky-600 ml-1">
+              <label className="text-[10px] font-semibold uppercase tracking-widest text-primary-600 ml-1">
                 Kunci Jawaban
               </label>
               <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
@@ -595,7 +647,7 @@ export default function AdminBankSoalPage() {
                     className={cn(
                       "flex-1 h-9 rounded-lg text-xs font-semibold uppercase transition-all",
                       questionDraft.correct_answer === o
-                        ? "bg-sky-600 text-white shadow-md shadow-sky-200 scale-105 z-10"
+                        ? "bg-primary-600 text-white shadow-md shadow-primary-200 scale-105 z-10"
                         : "text-slate-400 hover:bg-slate-50",
                     )}
                   >
@@ -620,7 +672,7 @@ export default function AdminBankSoalPage() {
                   question_text: e.target.value,
                 }))
               }
-              className="min-h-30 rounded-2xl border-slate-200 focus:ring-sky-500 text-base leading-relaxed p-4"
+              className="min-h-30 rounded-2xl border-slate-200 focus:ring-primary-500 text-base leading-relaxed p-4"
             />
           </div>
 
@@ -638,8 +690,8 @@ export default function AdminBankSoalPage() {
                       className={cn(
                         "absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-semibold border transition-all",
                         isCorrect
-                          ? "bg-sky-600 border-sky-600 text-white shadow-lg shadow-sky-100"
-                          : "bg-slate-100 border-slate-200 text-slate-400 group-focus-within:border-sky-300",
+                          ? "bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-100"
+                          : "bg-slate-100 border-slate-200 text-slate-400 group-focus-within:border-primary-300",
                       )}
                     >
                       {key.toUpperCase()}
@@ -649,7 +701,7 @@ export default function AdminBankSoalPage() {
                       className={cn(
                         "pl-12 h-12 rounded-xl border-slate-200 transition-all",
                         isCorrect &&
-                          "border-sky-300 bg-sky-50/30 ring-1 ring-sky-100",
+                          "border-primary-300 bg-primary-50/30 ring-1 ring-primary-100",
                       )}
                       value={(questionDraft as any)[`option_${key}`]}
                       onChange={(e) =>
@@ -715,7 +767,7 @@ export default function AdminBankSoalPage() {
               <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">
                 Pertanyaan
               </h4>
-              <div className="text-xs font-medium text-slate-800 leading-snug border-l-2 border-sky-400 pl-3">
+              <div className="text-xs font-medium text-slate-800 leading-snug border-l-2 border-primary-400 pl-3">
                 {previewQuestion.question_text}
               </div>
             </section>
@@ -835,6 +887,147 @@ export default function AdminBankSoalPage() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent className="p-0 overflow-hidden border-none shadow-2xl max-w-md rounded-[2.5rem] bg-white">
+          <div className="p-10 pb-6 flex flex-col items-center text-center space-y-5">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-4xl bg-rose-50 flex items-center justify-center animate-in zoom-in duration-500">
+                <Trash2 className="w-10 h-10 text-rose-600" strokeWidth={1.5} />
+              </div>
+              <div className="absolute -bottom-2 -right-2 bg-white p-2 rounded-full shadow-sm">
+                <div className="bg-rose-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                  {selectedCount}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <AlertDialogTitle className="text-2xl font-semibold text-slate-900 tracking-tight">
+                Hapus Masal?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm font-medium text-slate-500 leading-relaxed px-4">
+                Kamu akan menghapus{" "}
+                <span className="text-rose-600 font-semibold">
+                  {selectedCount} soal
+                </span>{" "}
+                secara permanen dari database. Tindakan ini tidak dapat
+                dibatalkan.
+              </AlertDialogDescription>
+            </div>
+          </div>
+
+          <div className="p-8 pt-0 flex flex-col gap-3">
+            <Button
+              className="w-full h-14 bg-rose-600 text-white hover:bg-rose-700 rounded-2xl font-semibold text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-rose-200 transition-all active:scale-[0.98] border-none"
+              onClick={handleBulkDelete}
+              disabled={actionLoading}
+            >
+              {actionLoading ? "Mengeksekusi..." : "Ya, Hapus Semua"}
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full h-12 text-slate-400 font-bold text-[11px] uppercase tracking-widest transition-all"
+              onClick={() => setBulkDeleteOpen(false)}
+            >
+              Batalkan
+            </Button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={bulkCategoryOpen} onOpenChange={setBulkCategoryOpen}>
+        <DialogContent className="sm:max-w-105 rounded-[2.5rem] p-10 border-none shadow-2xl bg-white outline-none">
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-4xl bg-sky-50 flex items-center justify-center text-sky-600 mb-6 border border-sky-100 shadow-sm transition-transform hover:scale-105 duration-300">
+              <Layers size={30} />
+            </div>
+
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-2xl font-semibold text-slate-900 tracking-tight leading-none">
+                Pindahkan Kategori
+              </DialogTitle>
+              <DialogDescription className="text-slate-500 font-medium leading-relaxed px-2">
+                Kamu akan memindahkan{" "}
+                <span className="text-primary-600 font-semibold px-2 py-0.5 bg-primary-50 rounded-lg">
+                  {Object.keys(rowSelection).length} soal
+                </span>{" "}
+                sekaligus. Pastikan kategori tujuan sudah benar.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="w-full space-y-3 pt-8">
+              <div className="flex items-center justify-between px-1">
+                <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Kategori Tujuan
+                </label>
+                {selectedCategoryId && (
+                  <span className="text-[9px] font-semibold text-emerald-500 uppercase tracking-widest animate-pulse">
+                    Ready to Move
+                  </span>
+                )}
+              </div>
+
+              <div className="relative group">
+                <select
+                  value={selectedCategoryId}
+                  onChange={(e) => setSelectedCategoryId(e.target.value)}
+                  disabled={isUpdatingCategory}
+                  className={cn(
+                    "w-full h-14 rounded-2xl border-2 px-6 text-sm font-bold transition-all outline-none appearance-none cursor-pointer shadow-xs",
+                    selectedCategoryId
+                      ? "border-sky-600 bg-white text-slate-900 shadow-sky-100/50"
+                      : "border-slate-100 bg-slate-50/50 text-slate-400 hover:border-slate-200",
+                  )}
+                >
+                  <option value="" disabled>
+                    Pilih kategori...
+                  </option>
+                  {packages.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-sky-600 transition-colors">
+                  <ChevronDown size={18} />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="flex flex-col sm:flex-row gap-3 w-full pt-10">
+              <Button
+                variant="ghost"
+                disabled={isUpdatingCategory}
+                onClick={() => setBulkCategoryOpen(false)}
+                className="flex-1 rounded-2xl h-14 font-bold text-red-400 hover:text-red-600 hover:bg-red-50 transition-all"
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={handleBulkCategoryUpdate}
+                disabled={isUpdatingCategory || !selectedCategoryId}
+                className={cn(
+                  "flex-[2.5] rounded-2xl h-14 font-semibold text-[10px] uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95",
+                  selectedCategoryId
+                    ? "bg-primary-900 text-white shadow-primary-200 hover:bg-primary-800"
+                    : "bg-slate-100 text-slate-300 shadow-none cursor-not-allowed",
+                )}
+              >
+                {isUpdatingCategory ? (
+                  <div className="flex items-center gap-2">
+                    <RefreshCw size={16} className="animate-spin" />
+                    <span>Memproses...</span>
+                  </div>
+                ) : (
+                  "Konfirmasi Pindah"
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

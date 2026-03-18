@@ -72,7 +72,7 @@ export default function TestQuestion({
   if (!mounted) {
     return (
       <div className="h-125 w-full flex items-center justify-center">
-        <div className="h-10 w-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
+        <div className="h-10 w-10 border-4 border-slate-200 border-t-primary-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -96,7 +96,7 @@ export default function TestQuestion({
               "h-9 gap-2 font-bold transition-all border-2",
               isDoubtful
                 ? "bg-amber-500 border-amber-600 text-white hover:bg-amber-600"
-                : "text-slate-500 border-slate-200 hover:border-amber-500 hover:text-amber-600",
+                : "text-slate-500 hover:bg-white border-slate-200 hover:border-amber-500 hover:text-amber-600",
             )}
           >
             <HelpCircle size={18} />
@@ -122,7 +122,7 @@ export default function TestQuestion({
                 isActive
                   ? isDoubtful
                     ? "border-amber-400 bg-amber-50/50 ring-2 ring-amber-200"
-                    : "border-blue-600 bg-blue-50/30 ring-2 ring-blue-100"
+                    : "border-primary-600 bg-primary-50/30 ring-2 ring-primary-100"
                   : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
               )}
             >
@@ -132,7 +132,7 @@ export default function TestQuestion({
                   isActive
                     ? isDoubtful
                       ? "bg-amber-500 text-white"
-                      : "bg-blue-600 text-white"
+                      : "bg-primary-600 text-white"
                     : "bg-slate-100 text-slate-500 group-hover:bg-slate-200",
                 )}
               >
@@ -152,7 +152,7 @@ export default function TestQuestion({
                 <div
                   className={cn(
                     "shrink-0",
-                    isDoubtful ? "text-amber-600" : "text-blue-600",
+                    isDoubtful ? "text-amber-600" : "text-primary-600",
                   )}
                 >
                   {isDoubtful ? (

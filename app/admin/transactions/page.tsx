@@ -157,7 +157,7 @@ export default function AdminTransactionsPage() {
               "h-7 px-3 rounded-lg text-[10px] font-semibold uppercase tracking-widest",
               selected?.id === row.original.id
                 ? "bg-primary text-white"
-                : "text-primary hover:bg-primary-50",
+                : "text-primary hover:bg-primary-50 hover:text-primary",
             )}
             onClick={() => void handleSelect(row.original.id)}
           >
@@ -238,9 +238,9 @@ export default function AdminTransactionsPage() {
           )}
         </div>
 
-        <Card className="rounded-[2.5rem] border-slate-100 shadow-sm flex flex-col h-[calc(100vh-160px)] overflow-hidden bg-slate-50/40">
-          <CardHeader className="bg-white flex items-center border-b border-slate-100 py-2 shrink-0 z-10">
-            <CardTitle className="text-[14px] h-full font-semibold uppercase tracking-[0.15em] flex items-center gap-3">
+        <Card className="rounded-[2.5rem] border-slate-100 shadow-sm flex flex-col h-[calc(100vh-160px)] overflow-hidden bg-slate-50/40 p-0 m-1">
+          <CardHeader className="bg-white flex items-center border-b [.border-b]:pb-5 border-slate-100 py-5 shrink-0 z-10">
+            <CardTitle className="text-[14px] h-full font-bold uppercase tracking-[0.15em] flex items-center gap-3">
               <Receipt size={18} className="text-primary" /> Detail Transaksi
             </CardTitle>
           </CardHeader>

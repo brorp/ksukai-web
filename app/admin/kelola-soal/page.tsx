@@ -1,14 +1,31 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileUp, ShieldCheck } from "lucide-react";
+import {
+  FileUp,
+  ShieldCheck,
+  Plus,
+  Pencil,
+  RotateCcw,
+  Save,
+  Trash2,
+  ListChecks,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import AdminPageHeader from "@/components/admin/admin-page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   adminApi,
   type AdminQuestion,
@@ -17,6 +34,7 @@ import {
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import type { OptionKey } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const createDefaultQuestionDraft = (packageId = 0): AdminQuestionPayload => ({
   package_id: packageId,
@@ -35,13 +53,14 @@ export default function AdminKelolaSoalPage() {
   const token = useAuthStore((state) => state.token);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [questions, setQuestions] = useState<AdminQuestion[]>([]);
   const [packages, setPackages] = useState<ExamPackage[]>([]);
-  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
-  const [questionDraft, setQuestionDraft] =
-    useState<AdminQuestionPayload>(createDefaultQuestionDraft());
+  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(
+    null,
+  );
+  const [questionDraft, setQuestionDraft] = useState<AdminQuestionPayload>(
+    createDefaultQuestionDraft(),
+  );
   const [batchInput, setBatchInput] = useState("");
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importFileInputKey, setImportFileInputKey] = useState(0);
@@ -51,7 +70,6 @@ export default function AdminKelolaSoalPage() {
   const loadData = async () => {
     if (!token) return;
     setLoading(true);
-    setError("");
     try {
       const [questionRows, packageRows] = await Promise.all([
         adminApi.questions(token),
@@ -65,12 +83,11 @@ export default function AdminKelolaSoalPage() {
           : createDefaultQuestionDraft(packageRows[0]?.id ?? 0),
       );
       setImportPackageId((prev) => prev || packageRows[0]?.id || 0);
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Gagal memuat data soal.",
-      );
+    } catch (err) {
+      toast.error("Gagal Memuat Data", {
+        description:
+          err instanceof Error ? err.message : "Terjadi kesalahan koneksi.",
+      });
     } finally {
       setLoading(false);
     }
@@ -102,36 +119,39 @@ export default function AdminKelolaSoalPage() {
       explanation: selected.explanation,
       is_active: selected.is_active,
     });
+    toast.info("Mode Edit Aktif", {
+      description: `Mengedit soal #${selected.id}`,
+    });
   };
 
   const handleSaveQuestion = async () => {
     if (!token) return;
 
-    if (!Number.isInteger(questionDraft.package_id) || questionDraft.package_id <= 0) {
-      setError("Kategori soal wajib dipilih.");
+    if (
+      !Number.isInteger(questionDraft.package_id) ||
+      questionDraft.package_id <= 0
+    ) {
+      toast.warning("Kategori soal wajib dipilih.");
       return;
     }
 
     setActionLoading(true);
-    setError("");
-    setMessage("");
     try {
       if (editingQuestionId) {
         await adminApi.updateQuestion(token, editingQuestionId, questionDraft);
-        setMessage("Soal berhasil diperbarui.");
+        toast.success("Berhasil", { description: "Soal berhasil diperbarui." });
       } else {
         await adminApi.createQuestion(token, questionDraft);
-        setMessage("Soal berhasil ditambahkan.");
+        toast.success("Berhasil", {
+          description: "Soal baru telah ditambahkan.",
+        });
       }
-
       resetQuestionForm();
       await loadData();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal menyimpan soal.",
-      );
+    } catch (err) {
+      toast.error("Gagal menyimpan soal", {
+        description: err instanceof Error ? err.message : "Silakan coba lagi.",
+      });
     } finally {
       setActionLoading(false);
     }
@@ -140,34 +160,27 @@ export default function AdminKelolaSoalPage() {
   const handleImportQuestions = async () => {
     if (!token || !importFile) return;
     if (!Number.isInteger(importPackageId) || importPackageId <= 0) {
-      setError("Pilih kategori package untuk hasil import.");
+      toast.warning("Pilih kategori package untuk hasil import.");
       return;
     }
+
     setActionLoading(true);
-    setError("");
-    setMessage("");
-    try {
-      const result = await adminApi.importQuestions(token, importFile, {
-        packageId: importPackageId,
-        isActive: importAsActive,
-      });
-      const importedCountText =
-        typeof result.imported_count === "number"
-          ? ` ${result.imported_count} soal berhasil diimpor.`
-          : "";
-      setMessage((result.message ?? "Import soal selesai.") + importedCountText);
-      setImportFile(null);
-      setImportFileInputKey((prev) => prev + 1);
-      await loadData();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal import soal.",
-      );
-    } finally {
-      setActionLoading(false);
-    }
+    const promise = adminApi.importQuestions(token, importFile, {
+      packageId: importPackageId,
+      isActive: importAsActive,
+    });
+
+    toast.promise(promise, {
+      loading: "Sedang mengimpor file .docx...",
+      success: (result) => {
+        setImportFile(null);
+        setImportFileInputKey((prev) => prev + 1);
+        loadData();
+        return `${result.imported_count ?? 0} soal berhasil diimpor ke kategori ${packages.find((p) => p.id === importPackageId)?.name}.`;
+      },
+      error: "Gagal import soal. Periksa kembali format template.",
+      finally: () => setActionLoading(false),
+    });
   };
 
   const handleSelectBatch = async () => {
@@ -178,244 +191,293 @@ export default function AdminKelolaSoalPage() {
       .filter((item) => Number.isFinite(item) && item > 0);
 
     if (ids.length === 0) {
-      setError("Masukkan daftar ID soal dipisahkan koma.");
+      toast.warning("Input tidak valid", {
+        description: "Masukkan daftar ID soal dipisahkan koma.",
+      });
       return;
     }
 
     setActionLoading(true);
-    setError("");
-    setMessage("");
-    try {
-      const result = await adminApi.selectBatch(token, ids);
-      setMessage(result.message ?? "Batch soal aktif berhasil diperbarui.");
-      await loadData();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal memilih batch soal.",
-      );
-    } finally {
-      setActionLoading(false);
-    }
+    const promise = adminApi.selectBatch(token, ids);
+
+    toast.promise(promise, {
+      loading: "Memperbarui batch soal aktif...",
+      success: () => {
+        setBatchInput("");
+        loadData();
+        return "Batch soal aktif berhasil diperbarui.";
+      },
+      error: "Gagal memilih batch soal.",
+      finally: () => setActionLoading(false),
+    });
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 pb-20">
       <AdminPageHeader
-        title="Kelola Soal"
-        description="Tambah, ubah, import template Word, dan pilih batch soal aktif."
-        icon={<ShieldCheck size={20} />}
-        actionLabel="Refresh Soal"
+        title="Bank & Kelola Soal"
+        description="Pusat kendali bank soal: edit manual, import massal, dan aktivasi batch."
+        icon={<ShieldCheck className="text-primary-600" size={24} />}
+        actionLabel="Refresh Data"
         onAction={() => void loadData()}
         actionDisabled={loading}
       />
 
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm font-medium">
-          {error}
-        </div>
-      )}
-      {message && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-3 text-sm font-medium">
-          {message}
-        </div>
-      )}
-
-      <Card className="border border-slate-200">
-        <CardHeader>
-          <CardTitle>{editingQuestionId ? "Edit Soal" : "Tambah Soal"}</CardTitle>
-          <CardDescription>
-            Gunakan form ini untuk menambah atau memperbarui bank soal.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Kategori Soal</label>
-              <select
-                className="h-10 w-full border border-slate-200 rounded-md px-3 text-sm bg-white"
-                value={questionDraft.package_id}
-                onChange={(event) =>
-                  setQuestionDraft((prev) => ({
-                    ...prev,
-                    package_id: Number(event.target.value),
-                  }))
-                }
-              >
-                <option value={0}>Pilih kategori soal</option>
-                {packages.map((pkg) => (
-                  <option key={pkg.id} value={pkg.id}>
-                    {pkg.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Pilih Soal</label>
-              <select
-                className="h-10 w-full border border-slate-200 rounded-md px-3 text-sm bg-white"
-                value={editingQuestionId ?? ""}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  if (!value) {
-                    resetQuestionForm();
-                    return;
-                  }
-                  handleEditQuestion(value);
-                }}
-              >
-                <option value="">Pilih soal untuk diedit (opsional)</option>
-                {questions.map((question) => (
-                  <option key={question.id} value={question.id}>
-                    #{question.id} - {question.question_text.slice(0, 80)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <Input
-            placeholder="Pertanyaan"
-            value={questionDraft.question_text}
-            onChange={(event) =>
-              setQuestionDraft((prev) => ({
-                ...prev,
-                question_text: event.target.value,
-              }))
-            }
-          />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Input
-              placeholder="Option A"
-              value={questionDraft.option_a}
-              onChange={(event) =>
-                setQuestionDraft((prev) => ({ ...prev, option_a: event.target.value }))
-              }
-            />
-            <Input
-              placeholder="Option B"
-              value={questionDraft.option_b}
-              onChange={(event) =>
-                setQuestionDraft((prev) => ({ ...prev, option_b: event.target.value }))
-              }
-            />
-            <Input
-              placeholder="Option C"
-              value={questionDraft.option_c}
-              onChange={(event) =>
-                setQuestionDraft((prev) => ({ ...prev, option_c: event.target.value }))
-              }
-            />
-            <Input
-              placeholder="Option D"
-              value={questionDraft.option_d}
-              onChange={(event) =>
-                setQuestionDraft((prev) => ({ ...prev, option_d: event.target.value }))
-              }
-            />
-          </div>
-          <Input
-            placeholder="Option E"
-            value={questionDraft.option_e}
-            onChange={(event) =>
-              setQuestionDraft((prev) => ({ ...prev, option_e: event.target.value }))
-            }
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <select
-              className="h-10 border border-slate-200 rounded-md px-3 text-sm bg-white"
-              value={questionDraft.correct_answer}
-              onChange={(event) =>
-                setQuestionDraft((prev) => ({
-                  ...prev,
-                  correct_answer: event.target.value as OptionKey,
-                }))
-              }
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Kolom Kiri & Tengah: Form Editor */}
+        <div className="xl:col-span-2 space-y-8">
+          <Card className="border-slate-200 shadow-sm overflow-hidden">
+            <CardHeader
+              className={cn(
+                "border-b transition-colors",
+                editingQuestionId ? "bg-amber-50/50" : "bg-slate-50/50",
+              )}
             >
-              {(["a", "b", "c", "d", "e"] as const).map((item) => (
-                <option key={item} value={item}>
-                  Kunci Jawaban: {item.toUpperCase()}
-                </option>
-              ))}
-            </select>
-            <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
-              <Switch
-                checked={questionDraft.is_active}
-                onCheckedChange={(checked) =>
-                  setQuestionDraft((prev) => ({
-                    ...prev,
-                    is_active: checked,
-                  }))
-                }
-              />
-              <span>{questionDraft.is_active ? "Soal aktif" : "Soal nonaktif"}</span>
-            </div>
-          </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      "p-2 rounded-lg",
+                      editingQuestionId
+                        ? "bg-amber-100 text-amber-600"
+                        : "bg-primary-100 text-primary-600",
+                    )}
+                  >
+                    {editingQuestionId ? (
+                      <Pencil size={20} />
+                    ) : (
+                      <Plus size={20} />
+                    )}
+                  </div>
+                  <div>
+                    <CardTitle>
+                      {editingQuestionId
+                        ? `Edit Soal #${editingQuestionId}`
+                        : "Buat Soal Baru"}
+                    </CardTitle>
+                    <CardDescription>
+                      Isi detail pertanyaan dan pilihan jawaban secara manual.
+                    </CardDescription>
+                  </div>
+                </div>
+                {editingQuestionId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetQuestionForm}
+                    className="text-amber-700 hover:bg-amber-100"
+                  >
+                    <RotateCcw size={14} className="mr-2" /> Batal Edit
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 ml-1">
+                    Kategori Package
+                  </label>
+                  <select
+                    className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                    value={questionDraft.package_id}
+                    onChange={(e) =>
+                      setQuestionDraft((prev) => ({
+                        ...prev,
+                        package_id: Number(e.target.value),
+                      }))
+                    }
+                  >
+                    <option value={0}>Pilih kategori...</option>
+                    {packages.map((pkg) => (
+                      <option key={pkg.id} value={pkg.id}>
+                        {pkg.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 ml-1">
+                    Pilih Cepat (Edit)
+                  </label>
+                  <select
+                    className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                    value={editingQuestionId ?? ""}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      val ? handleEditQuestion(val) : resetQuestionForm();
+                    }}
+                  >
+                    <option value="">-- Cari ID Soal untuk Diedit --</option>
+                    {questions.slice(0, 50).map((q) => (
+                      <option key={q.id} value={q.id}>
+                        #{q.id} - {q.question_text.slice(0, 50)}...
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-          <Input
-            placeholder="Pembahasan"
-            value={questionDraft.explanation}
-            onChange={(event) =>
-              setQuestionDraft((prev) => ({
-                ...prev,
-                explanation: event.target.value,
-              }))
-            }
-          />
-
-          <div className="flex gap-2">
-            <Button onClick={() => void handleSaveQuestion()} disabled={actionLoading}>
-              {actionLoading
-                ? "Menyimpan..."
-                : editingQuestionId
-                  ? "Update Soal"
-                  : "Tambah Soal"}
-            </Button>
-            {editingQuestionId && (
-              <Button variant="outline" onClick={resetQuestionForm}>
-                Batal Edit
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-slate-200">
-        <CardHeader>
-          <CardTitle>Import `.docx` dan Select Batch</CardTitle>
-          <CardDescription>
-            Pilih kategori/package terlebih dahulu, lalu upload template Word agar seluruh soal
-            hasil import otomatis masuk ke kategori tersebut.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            <div className="flex items-center gap-2 font-medium text-slate-900">
-              <FileUp className="size-4" />
-              Format template import
-            </div>
-            <ul className="mt-3 list-disc space-y-1 pl-5">
-              <li>File harus berformat `.docx`.</li>
-              <li>Kolom `No` hanya nomor urut dan tidak disimpan.</li>
-              <li>Kolom `Soal` berisi teks soal lalu 5 opsi berurutan untuk A sampai E.</li>
-              <li>Kolom `Jawaban` dimulai dengan format `Jawaban: E`.</li>
-              <li>Baris setelah `Jawaban: X` akan disimpan sebagai pembahasan.</li>
-            </ul>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Kategori Import</label>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 ml-1">
+                  Pertanyaan
+                </label>
+                <TextareaCustom
+                  placeholder="Tuliskan teks pertanyaan di sini..."
+                  value={questionDraft.question_text}
+                  onChange={(val) =>
+                    setQuestionDraft((prev) => ({
+                      ...prev,
+                      question_text: val,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(["a", "b", "c", "d", "e"] as const).map((key) => (
+                  <div key={key} className="space-y-1.5">
+                    <div className="flex items-center justify-between px-1">
+                      <label className="text-[10px] font-bold uppercase text-slate-400">
+                        Opsi {key.toUpperCase()}
+                      </label>
+                      {questionDraft.correct_answer === key && (
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] bg-emerald-50 text-emerald-600 border-emerald-200"
+                        >
+                          Kunci Jawaban
+                        </Badge>
+                      )}
+                    </div>
+                    <Input
+                      className="rounded-xl h-10 bg-slate-50/50 border-slate-200 focus:bg-white transition-all"
+                      placeholder={`Isi pilihan ${key.toUpperCase()}`}
+                      value={
+                        questionDraft[
+                          `option_${key}` as keyof AdminQuestionPayload
+                        ] as string
+                      }
+                      onChange={(e) =>
+                        setQuestionDraft((prev) => ({
+                          ...prev,
+                          [`option_${key}`]: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <hr className="border-slate-100" />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 ml-1">
+                    Kunci Jawaban & Status
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <select
+                      className="h-11 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-primary-600 outline-none focus:ring-2 focus:ring-primary-500"
+                      value={questionDraft.correct_answer}
+                      onChange={(e) =>
+                        setQuestionDraft((prev) => ({
+                          ...prev,
+                          correct_answer: e.target.value as OptionKey,
+                        }))
+                      }
+                    >
+                      {(["a", "b", "c", "d", "e"] as const).map((item) => (
+                        <option key={item} value={item}>
+                          KUNCI: {item.toUpperCase()}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="h-11 flex items-center gap-3 px-4 rounded-xl border border-slate-200 bg-white">
+                      <Switch
+                        checked={questionDraft.is_active}
+                        onCheckedChange={(checked) =>
+                          setQuestionDraft((prev) => ({
+                            ...prev,
+                            is_active: checked,
+                          }))
+                        }
+                      />
+                      <span className="text-xs font-bold text-slate-500 uppercase">
+                        {questionDraft.is_active ? "Aktif" : "Draft"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 ml-1">
+                    Pembahasan (Eksplanasi)
+                  </label>
+                  <Input
+                    className="h-11 rounded-xl border-slate-200"
+                    placeholder="Kenapa jawaban tersebut benar?"
+                    value={questionDraft.explanation}
+                    onChange={(e) =>
+                      setQuestionDraft((prev) => ({
+                        ...prev,
+                        explanation: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <Button
+                onClick={() => void handleSaveQuestion()}
+                disabled={actionLoading}
+                className="w-full h-12 rounded-xl bg-primary-600 hover:bg-primary-700 shadow-lg shadow-primary-100 font-bold"
+              >
+                {actionLoading ? (
+                  "Memproses..."
+                ) : (
+                  <>
+                    <Save size={18} className="mr-2" />
+                    {editingQuestionId
+                      ? "Update Data Soal"
+                      : "Simpan ke Bank Soal"}
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Kolom Kanan: Import & Batch */}
+        <div className="space-y-8">
+          <Card className="border-slate-200 shadow-sm overflow-hidden m-0 p-0">
+            <CardHeader className="bg-primary-900 text-white">
+              <div className="flex items-center gap-3 pt-3">
+                <FileUp size={20} className="text-primary-400" />
+                <div>
+                  <CardTitle className="text-lg">Import Massal</CardTitle>
+                  <CardDescription className="text-slate-400">
+                    Upload template .docx
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-5">
+              <div className="p-4 rounded-xl bg-primary-50 border border-primary-100 text-[12px] leading-relaxed text-primary-900">
+                <strong>💡 Info Template:</strong> Kolom Soal berisi teks + 5
+                opsi. Baris Jawaban harus format <br />
+                Jawaban: E.
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">
+                  Target Kategori
+                </label>
                 <select
-                  className="h-10 w-full border border-slate-200 rounded-md px-3 text-sm bg-white"
+                  className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none"
                   value={importPackageId}
-                  onChange={(event) => setImportPackageId(Number(event.target.value))}
+                  onChange={(e) => setImportPackageId(Number(e.target.value))}
                 >
-                  <option value={0}>Pilih kategori import</option>
+                  <option value={0}>Pilih kategori import...</option>
                   {packages.map((pkg) => (
                     <option key={pkg.id} value={pkg.id}>
                       {pkg.name}
@@ -423,60 +485,100 @@ export default function AdminKelolaSoalPage() {
                   ))}
                 </select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">File Template `.docx`</label>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">
+                  Pilih File .docx
+                </label>
                 <Input
                   key={importFileInputKey}
                   type="file"
-                  accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  className="rounded-lg h-auto py-2"
+                  accept=".docx"
                   disabled={importPackageId <= 0}
-                  onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
+                  onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
                 />
               </div>
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => void handleImportQuestions()}
-              disabled={!importFile || actionLoading || importPackageId <= 0}
-            >
-              {actionLoading ? "Mengimpor..." : "Import Bank Soal"}
-            </Button>
-          </div>
 
-          <p className="text-sm text-slate-600">
-            Semua soal yang dibaca dari file `.docx` akan otomatis memakai kategori yang dipilih
-            di form import ini.
-          </p>
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50 cursor-pointer transition-all hover:bg-white">
+                <Checkbox
+                  checked={importAsActive}
+                  onCheckedChange={(v) => setImportAsActive(Boolean(v))}
+                />
+                <span className="text-xs font-semibold text-slate-700">
+                  Otomatis Aktifkan Hasil Import
+                </span>
+              </label>
 
-          <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm">
-            <Checkbox
-              checked={importAsActive}
-              onCheckedChange={(checked) => setImportAsActive(Boolean(checked))}
-              className="mt-0.5"
-            />
-            <span className="space-y-1">
-              <span className="block font-medium text-slate-900">
-                Aktifkan semua soal hasil import
-              </span>
-              <span className="block text-slate-600">
-                Jika dinonaktifkan, soal tetap masuk ke bank soal tetapi belum dipakai untuk sesi
-                ujian sampai kamu memilih batch aktif.
-              </span>
-            </span>
-          </label>
+              <Button
+                variant="outline"
+                className="w-full h-11 rounded-xl border-primary-200 text-primary-700 hover:bg-primary-50 font-bold"
+                onClick={() => void handleImportQuestions()}
+                disabled={!importFile || actionLoading || importPackageId <= 0}
+              >
+                {actionLoading ? "Processing..." : "Jalankan Import"}
+              </Button>
+            </CardContent>
+          </Card>
 
-          <div className="space-y-2">
-            <Input
-              placeholder="ID soal, contoh: 1,2,3,...,200"
-              value={batchInput}
-              onChange={(event) => setBatchInput(event.target.value)}
-            />
-            <Button onClick={() => void handleSelectBatch()} disabled={actionLoading}>
-              Simpan Batch Aktif
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          <Card className="border-slate-200 shadow-sm overflow-hidden">
+            <CardHeader className="bg-slate-50 border-b">
+              <div className="flex items-center gap-3">
+                <ListChecks size={20} className="text-emerald-600" />
+                <div>
+                  <CardTitle className="text-lg">Aktivasi Batch</CardTitle>
+                  <CardDescription className="text-slate-500">
+                    Pilih ID soal yang ingin diaktifkan.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">
+                  Daftar ID (Koma)
+                </label>
+                <Input
+                  placeholder="Contoh: 1, 2, 15, 20-50"
+                  className="rounded-xl h-11"
+                  value={batchInput}
+                  onChange={(e) => setBatchInput(e.target.value)}
+                />
+              </div>
+              <Button
+                onClick={() => void handleSelectBatch()}
+                disabled={actionLoading}
+                className="w-full bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold"
+              >
+                Setel Sebagai Batch Aktif
+              </Button>
+              <p className="text-[11px] text-slate-400 text-center leading-tight">
+                Hanya soal-soal di dalam batch ini yang akan muncul pada paket
+                ujian user.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function TextareaCustom({
+  placeholder,
+  value,
+  onChange,
+}: {
+  placeholder: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <textarea
+      className="w-full min-h-[120px] rounded-xl border border-slate-200 bg-white p-4 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition-all resize-y"
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
   );
 }
