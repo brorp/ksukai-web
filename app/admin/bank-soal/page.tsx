@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Eye,
   Pencil,
@@ -12,6 +12,8 @@ import {
   BookOpen,
   ChevronDown,
   Search,
+  Layers,
+  RefreshCw,
 } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
@@ -41,8 +43,15 @@ import { cn } from "@/lib/utils";
 import { Table } from "@/components/data-table";
 import { ModalPreview } from "@/components/preview-modal";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-// --- Helpers ---
 const createEmptyQuestionDraft = (packageId = 0): AdminQuestionPayload => ({
   package_id: packageId,
   question_text: "",
@@ -88,6 +97,9 @@ export default function AdminBankSoalPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminQuestion | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+  const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
 
   const selectedCount = Object.keys(rowSelection).length;
 
@@ -123,85 +135,6 @@ export default function AdminBankSoalPage() {
   const resetForm = () => {
     setEditingQuestionId(null);
     setQuestionDraft(createEmptyQuestionDraft(packages[0]?.id ?? 0));
-  };
-
-  const handleSave = async () => {
-    if (!token) return;
-
-    if (
-      !Number.isInteger(questionDraft.package_id) ||
-      questionDraft.package_id <= 0
-    ) {
-      setError("Kategori soal wajib dipilih.");
-      return;
-    }
-
-    const hasEmptyField = [
-      questionDraft.question_text,
-      questionDraft.option_a,
-      questionDraft.option_b,
-      questionDraft.option_c,
-      questionDraft.option_d,
-      questionDraft.option_e,
-      questionDraft.explanation,
-    ].some((value) => !value.trim());
-
-    if (hasEmptyField) {
-      setError("Pertanyaan, semua opsi, dan pembahasan wajib diisi.");
-      return;
-    }
-
-    setActionLoading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      if (editingQuestionId) {
-        await adminApi.updateQuestion(token, editingQuestionId, questionDraft);
-        setMessage("Soal berhasil diperbarui.");
-      } else {
-        await adminApi.createQuestion(token, questionDraft);
-        setMessage("Soal berhasil ditambahkan.");
-      }
-
-      setFormOpen(false);
-      resetForm();
-      await loadData();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal menyimpan soal.",
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!token || !deleteTarget) return;
-
-    setActionLoading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      await adminApi.deleteQuestion(token, deleteTarget.id);
-      setMessage(`Soal #${deleteTarget.id} berhasil dihapus.`);
-      setDeleteTarget(null);
-      if (previewQuestion?.id === deleteTarget.id) {
-        setPreviewQuestion(null);
-      }
-      await loadData();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal menghapus soal.",
-      );
-    } finally {
-      setActionLoading(false);
-    }
   };
 
   const columns = useMemo<ColumnDef<AdminQuestion>[]>(
@@ -341,17 +274,80 @@ export default function AdminBankSoalPage() {
     [token],
   );
 
-  const handleBulkUpdate = async (selectedRows: AdminQuestion[]) => {
+  const handleSave = async () => {
     if (!token) return;
+
+    if (
+      !Number.isInteger(questionDraft.package_id) ||
+      questionDraft.package_id <= 0
+    ) {
+      setError("Kategori soal wajib dipilih.");
+      return;
+    }
+
+    const hasEmptyField = [
+      questionDraft.question_text,
+      questionDraft.option_a,
+      questionDraft.option_b,
+      questionDraft.option_c,
+      questionDraft.option_d,
+      questionDraft.option_e,
+      questionDraft.explanation,
+    ].some((value) => !value.trim());
+
+    if (hasEmptyField) {
+      setError("Pertanyaan, semua opsi, dan pembahasan wajib diisi.");
+      return;
+    }
+
     setActionLoading(true);
+    setError("");
+    setMessage("");
+
     try {
-      // Contoh: Mengaktifkan semua yang terpilih
-      await Promise.all(
-        selectedRows.map((q) =>
-          adminApi.updateQuestion(token, q.id, { is_active: true }),
-        ),
-      );
+      if (editingQuestionId) {
+        await adminApi.updateQuestion(token, editingQuestionId, questionDraft);
+        setMessage("Soal berhasil diperbarui.");
+      } else {
+        await adminApi.createQuestion(token, questionDraft);
+        setMessage("Soal berhasil ditambahkan.");
+      }
+
+      setFormOpen(false);
+      resetForm();
       await loadData();
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Gagal menyimpan soal.",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!token || !deleteTarget) return;
+
+    setActionLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await adminApi.deleteQuestion(token, deleteTarget.id);
+      setMessage(`Soal #${deleteTarget.id} berhasil dihapus.`);
+      setDeleteTarget(null);
+      if (previewQuestion?.id === deleteTarget.id) {
+        setPreviewQuestion(null);
+      }
+      await loadData();
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Gagal menghapus soal.",
+      );
     } finally {
       setActionLoading(false);
     }
@@ -408,6 +404,35 @@ export default function AdminBankSoalPage() {
     }
   };
 
+  const handleBulkCategoryUpdate = async () => {
+    if (!token || !selectedCategoryId || selectedCount === 0) return;
+
+    setActionLoading(true);
+    try {
+      const selectedIds = Object.keys(rowSelection);
+
+      await Promise.all(
+        selectedIds.map((id) =>
+          adminApi.updateQuestion(token, Number(id), {
+            package_id: Number(selectedCategoryId),
+          }),
+        ),
+      );
+
+      setMessage(
+        `${selectedIds.length} soal berhasil dipindahkan ke kategori baru.`,
+      );
+      setRowSelection({});
+      setBulkCategoryOpen(false);
+      setSelectedCategoryId("");
+      await loadData();
+    } catch (err) {
+      setError("Gagal memindahkan beberapa soal.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const filteredData = useMemo(() => {
     if (!search) return rows;
     return rows.filter((r) =>
@@ -458,7 +483,6 @@ export default function AdminBankSoalPage() {
               </div>
             </div>
 
-            {/* Action Group dengan gap yang lebih lebar */}
             <div className="flex items-center gap-3 pr-2">
               <div className="flex items-center bg-slate-50/80 p-1.5 rounded-[1.5rem] border border-slate-100">
                 <button
@@ -467,12 +491,19 @@ export default function AdminBankSoalPage() {
                 >
                   Aktifkan
                 </button>
-
                 <button
                   onClick={() => handleBulkStatusUpdate(false)}
                   className="h-10 px-6 rounded-xl cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-white hover:shadow-sm hover:text-slate-800 transition-all"
                 >
                   Nonaktifkan
+                </button>
+                <div className="w-px h-6 bg-slate-200 mx-1" />
+                <button
+                  onClick={() => setBulkCategoryOpen(true)}
+                  className="h-10 px-6 rounded-xl cursor-pointer text-[10px] font-bold uppercase tracking-widest text-sky-600 hover:bg-white hover:shadow-sm hover:text-sky-700 transition-all flex items-center gap-2"
+                >
+                  <Layers size={14} />
+                  Ubah Kategori
                 </button>
               </div>
 
@@ -926,6 +957,98 @@ export default function AdminBankSoalPage() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={bulkCategoryOpen} onOpenChange={setBulkCategoryOpen}>
+        <DialogContent className="sm:max-w-105 rounded-[2.5rem] p-10 border-none shadow-2xl bg-white outline-none">
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-4xl bg-sky-50 flex items-center justify-center text-sky-600 mb-6 border border-sky-100 shadow-sm transition-transform hover:scale-105 duration-300">
+              <Layers size={30} />
+            </div>
+
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-2xl font-semibold text-slate-900 tracking-tight leading-none">
+                Pindahkan Kategori
+              </DialogTitle>
+              <DialogDescription className="text-slate-500 font-medium leading-relaxed px-2">
+                Kamu akan memindahkan{" "}
+                <span className="text-primary-600 font-semibold px-2 py-0.5 bg-primary-50 rounded-lg">
+                  {Object.keys(rowSelection).length} soal
+                </span>{" "}
+                sekaligus. Pastikan kategori tujuan sudah benar.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="w-full space-y-3 pt-8">
+              <div className="flex items-center justify-between px-1">
+                <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Kategori Tujuan
+                </label>
+                {selectedCategoryId && (
+                  <span className="text-[9px] font-semibold text-emerald-500 uppercase tracking-widest animate-pulse">
+                    Ready to Move
+                  </span>
+                )}
+              </div>
+
+              <div className="relative group">
+                <select
+                  value={selectedCategoryId}
+                  onChange={(e) => setSelectedCategoryId(e.target.value)}
+                  disabled={isUpdatingCategory}
+                  className={cn(
+                    "w-full h-14 rounded-2xl border-2 px-6 text-sm font-bold transition-all outline-none appearance-none cursor-pointer shadow-xs",
+                    selectedCategoryId
+                      ? "border-sky-600 bg-white text-slate-900 shadow-sky-100/50"
+                      : "border-slate-100 bg-slate-50/50 text-slate-400 hover:border-slate-200",
+                  )}
+                >
+                  <option value="" disabled>
+                    Pilih kategori...
+                  </option>
+                  {packages.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-sky-600 transition-colors">
+                  <ChevronDown size={18} />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="flex flex-col sm:flex-row gap-3 w-full pt-10">
+              <Button
+                variant="ghost"
+                disabled={isUpdatingCategory}
+                onClick={() => setBulkCategoryOpen(false)}
+                className="flex-1 rounded-2xl h-14 font-bold text-red-400 hover:text-red-600 hover:bg-red-50 transition-all"
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={handleBulkCategoryUpdate}
+                disabled={isUpdatingCategory || !selectedCategoryId}
+                className={cn(
+                  "flex-[2.5] rounded-2xl h-14 font-semibold text-[10px] uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95",
+                  selectedCategoryId
+                    ? "bg-primary-900 text-white shadow-primary-200 hover:bg-primary-800"
+                    : "bg-slate-100 text-slate-300 shadow-none cursor-not-allowed",
+                )}
+              >
+                {isUpdatingCategory ? (
+                  <div className="flex items-center gap-2">
+                    <RefreshCw size={16} className="animate-spin" />
+                    <span>Memproses...</span>
+                  </div>
+                ) : (
+                  "Konfirmasi Pindah"
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
