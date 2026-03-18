@@ -153,14 +153,14 @@ export default function DrawerLayout({
             }}
             variant="ghost"
             className={cn(
-              "w-full text-rose-500 hover:bg-rose-50 rounded-xl transition-all",
+              "w-full text-rose-500 hover:bg-rose-100 hover:text-rose-600 rounded-xl transition-all",
               isCollapsed ? "justify-center px-0" : "justify-start gap-3 px-4",
             )}
           >
             <LogOut size={isCollapsed ? 20 : 16} />
             {!isCollapsed && (
               <span className="text-xs font-bold uppercase tracking-widest">
-                Keluar
+                Logout
               </span>
             )}
           </Button>

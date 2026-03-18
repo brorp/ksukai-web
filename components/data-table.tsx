@@ -17,24 +17,27 @@ import { cn } from "@/lib/utils";
 export function Table<TData, TValue>({
   columns,
   data,
-  onBulkUpdate,
+  rowSelection = {},
+  onRowSelectionChange,
 }: {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  onBulkUpdate?: (selectedRows: TData[]) => void;
+  rowSelection?: Record<string, boolean>;
+  onRowSelectionChange?: React.Dispatch<React.SetStateAction<any>>;
 }) {
-  const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const table = useReactTable({
     data,
     columns,
     state: { rowSelection, sorting },
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: onRowSelectionChange,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getRowId: (row: any, index: number) =>
+      row.id ? row.id.toString() : index.toString(),
   });
 
   const currentPage = table.getState().pagination.pageIndex + 1;

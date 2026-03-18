@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import Link from "next/link";
 import {
   Eye,
   Pencil,
@@ -16,7 +15,6 @@ import {
 } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 
-// UI Components
 import AdminPageHeader from "@/components/admin/admin-page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,20 +27,9 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
-// API & Utils
 import {
   adminApi,
   type AdminQuestion,
@@ -50,7 +37,6 @@ import {
   type ExamPackage,
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
-import type { OptionKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Table } from "@/components/data-table";
 import { ModalPreview } from "@/components/preview-modal";
@@ -87,6 +73,7 @@ export default function AdminBankSoalPage() {
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">(
     "",
   );
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [rows, setRows] = useState<AdminQuestion[]>([]);
   const [packages, setPackages] = useState<ExamPackage[]>([]);
   const [previewQuestion, setPreviewQuestion] = useState<AdminQuestion | null>(
@@ -100,7 +87,9 @@ export default function AdminBankSoalPage() {
   );
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminQuestion | null>(null);
-  const [inlineActionId, setInlineActionId] = useState<number | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
+  const selectedCount = Object.keys(rowSelection).length;
 
   const loadData = async () => {
     if (!token) return;
@@ -131,66 +120,9 @@ export default function AdminBankSoalPage() {
     void loadData();
   }, [token, packageFilter, statusFilter]);
 
-  const filteredRows = useMemo(() => {
-    if (!search.trim()) return rows;
-    const query = search.toLowerCase();
-
-    return rows.filter((item) => {
-      const haystacks = [
-        item.question_text,
-        item.explanation,
-        item.option_a,
-        item.option_b,
-        item.option_c,
-        item.option_d,
-        item.option_e,
-        item.package_name ?? "",
-      ];
-
-      return haystacks.some((value) => value.toLowerCase().includes(query));
-    });
-  }, [rows, search]);
-
   const resetForm = () => {
     setEditingQuestionId(null);
     setQuestionDraft(createEmptyQuestionDraft(packages[0]?.id ?? 0));
-  };
-
-  const handleCreate = () => {
-    resetForm();
-    setFormOpen(true);
-  };
-
-  const handleInlineUpdate = async (
-    questionId: number,
-    payload: Partial<AdminQuestionPayload>,
-    successMessage: string,
-  ) => {
-    if (!token) return;
-
-    setInlineActionId(questionId);
-    setError("");
-    setMessage("");
-
-    try {
-      const updated = await adminApi.updateQuestion(token, questionId, payload);
-      setRows((prev) =>
-        prev.map((item) => (item.id === updated.id ? updated : item)),
-      );
-      if (previewQuestion?.id === updated.id) {
-        setPreviewQuestion(updated);
-      }
-
-      setMessage(successMessage);
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal memperbarui soal.",
-      );
-    } finally {
-      setInlineActionId(null);
-    }
   };
 
   const handleSave = async () => {
@@ -272,7 +204,6 @@ export default function AdminBankSoalPage() {
     }
   };
 
-  // 2. Column Definitions
   const columns = useMemo<ColumnDef<AdminQuestion>[]>(
     () => [
       {
@@ -322,7 +253,7 @@ export default function AdminBankSoalPage() {
               </span>
               <button
                 onClick={() => setPreviewQuestion(row.original)}
-                className="text-[10px] font-bold text-sky-600 hover:underline uppercase"
+                className="text-[10px] font-bold text-primary-600 hover:underline uppercase"
               >
                 Detail Soal
               </button>
@@ -342,6 +273,7 @@ export default function AdminBankSoalPage() {
       {
         accessorKey: "is_active",
         header: "Status",
+        enableSorting: false,
         cell: ({ row }) => (
           <Switch
             checked={row.original.is_active}
@@ -366,7 +298,7 @@ export default function AdminBankSoalPage() {
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8 text-slate-400 hover:text-sky-600"
+              className="h-8 w-8 text-slate-400 hover:text-primary-600 hover:bg-white"
               onClick={() => setPreviewQuestion(row.original)}
             >
               <Eye size={16} />
@@ -374,7 +306,7 @@ export default function AdminBankSoalPage() {
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8 text-slate-400 hover:text-amber-600"
+              className="h-8 w-8 text-slate-400 hover:text-amber-600 hover:bg-white"
               onClick={() => {
                 setEditingQuestionId(row.original.id);
                 setQuestionDraft({
@@ -397,7 +329,7 @@ export default function AdminBankSoalPage() {
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8 text-slate-400 hover:text-rose-600"
+              className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-white"
               onClick={() => setDeleteTarget(row.original)}
             >
               <Trash2 size={16} />
@@ -420,6 +352,57 @@ export default function AdminBankSoalPage() {
         ),
       );
       await loadData();
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBulkStatusUpdate = async (active: boolean) => {
+    if (!token || selectedCount === 0) return;
+    setActionLoading(true);
+    try {
+      const selectedIds = Object.keys(rowSelection);
+      await Promise.all(
+        selectedIds.map((id) =>
+          adminApi.updateQuestion(token, Number(id), { is_active: active }),
+        ),
+      );
+      setMessage(
+        `${selectedIds.length} soal berhasil ${active ? "diaktifkan" : "dinonaktifkan"}.`,
+      );
+      setRowSelection({}); // Reset pilihan
+      await loadData();
+    } catch (err) {
+      setError("Gagal memperbarui beberapa soal.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!token || selectedCount === 0) return;
+
+    setActionLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const selectedIds = Object.keys(rowSelection).map(Number);
+
+      await Promise.all(
+        selectedIds.map((id) => adminApi.deleteQuestion(token, id)),
+      );
+
+      setMessage(
+        `${selectedIds.length} soal berhasil dihapus secara permanen.`,
+      );
+      setRowSelection({});
+      setBulkDeleteOpen(false);
+      await loadData();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Gagal menghapus beberapa soal.",
+      );
     } finally {
       setActionLoading(false);
     }
@@ -451,6 +434,64 @@ export default function AdminBankSoalPage() {
         </div>
       )}
 
+      {selectedCount > 0 && (
+        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-10 duration-500 ease-out">
+          <div className="flex items-center justify-between min-w-135 bg-white backdrop-blur-md border border-slate-200/60 p-2.5 pl-8 rounded-[3rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15),0_0_20px_rgba(0,0,0,0.02)] ring-1 ring-slate-900/5">
+            <div className="flex items-center gap-5 mr-8 border-r border-slate-100 pr-10">
+              <div className="relative p-3 rounded-full bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+                <span className="text-base font-semibold leading-none">
+                  {selectedCount}
+                </span>
+                <div className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 bg-emerald-500 rounded-full border-2 border-white animate-pulse" />
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-slate-800 leading-none">
+                  Soal Terpilih
+                </span>
+                <button
+                  onClick={() => setRowSelection({})}
+                  className="text-[10px] cursor-pointer font-bold text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-widest mt-2 text-left"
+                >
+                  Batal Pilih
+                </button>
+              </div>
+            </div>
+
+            {/* Action Group dengan gap yang lebih lebar */}
+            <div className="flex items-center gap-3 pr-2">
+              <div className="flex items-center bg-slate-50/80 p-1.5 rounded-[1.5rem] border border-slate-100">
+                <button
+                  onClick={() => handleBulkStatusUpdate(true)}
+                  className="h-10 px-6 rounded-xl cursor-pointer text-[10px] font-bold uppercase tracking-widest text-emerald-600 hover:bg-white hover:shadow-sm hover:text-emerald-700 transition-all flex items-center gap-2"
+                >
+                  Aktifkan
+                </button>
+
+                <button
+                  onClick={() => handleBulkStatusUpdate(false)}
+                  className="h-10 px-6 rounded-xl cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-white hover:shadow-sm hover:text-slate-800 transition-all"
+                >
+                  Nonaktifkan
+                </button>
+              </div>
+
+              <Button
+                size="sm"
+                onClick={() => setBulkDeleteOpen(true)}
+                className="h-12 rounded-[1.5rem] bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border-none font-bold text-[10px] uppercase tracking-widest px-8 transition-all duration-300 shadow-none active:scale-95 group"
+              >
+                <Trash2
+                  size={16}
+                  className="mr-2 group-hover:rotate-12 transition-transform"
+                />
+                Hapus Masal
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row items-center gap-2 bg-white/50 backdrop-blur-sm p-2 px-3 rounded-2xl border border-slate-100 shadow-sm">
         <div className="flex items-center flex-1 gap-2 w-full">
           <div className="relative flex-1 group">
@@ -462,13 +503,13 @@ export default function AdminBankSoalPage() {
             />
             <Search
               size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-sky-500 transition-colors"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary-500 transition-colors"
             />
           </div>
 
           <div className="relative group">
             <select
-              className="h-9 min-w-[140px] appearance-none rounded-xl border border-slate-100 bg-slate-50/50 pl-3 pr-8 text-[11px] font-semibold uppercase tracking-tight text-slate-600 outline-none focus:ring-2 focus:ring-sky-500/20 focus:bg-white transition-all cursor-pointer"
+              className="h-9 min-w-35 appearance-none rounded-xl border border-slate-100 bg-slate-50/50 pl-3 pr-8 text-[11px] font-semibold uppercase tracking-tight text-slate-600 outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white transition-all cursor-pointer"
               value={packageFilter}
               onChange={(e) => setPackageFilter(Number(e.target.value))}
             >
@@ -515,7 +556,8 @@ export default function AdminBankSoalPage() {
       <Table
         columns={columns}
         data={filteredData}
-        onBulkUpdate={handleBulkUpdate}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
       />
 
       <ModalPreview
@@ -537,14 +579,14 @@ export default function AdminBankSoalPage() {
               <Button
                 variant="ghost"
                 onClick={() => setFormOpen(false)}
-                className="rounded-xl font-bold text-xs uppercase tracking-widest text-slate-500"
+                className="rounded-xl font-bold text-xs uppercase tracking-widest text-red-500 hover:bg-red-500"
               >
                 Batal
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={actionLoading}
-                className="text-white rounded-xl px-6 font-bold shadow-lg shadow-sky-100 min-w-35"
+                className="text-white rounded-xl px-6 font-bold shadow-lg shadow-primary-100 min-w-35"
               >
                 {actionLoading ? "Menyimpan..." : "Simpan Soal"}
               </Button>
@@ -560,7 +602,7 @@ export default function AdminBankSoalPage() {
                 Kategori / Paket Soal
               </label>
               <select
-                className="w-full h-11 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium focus:ring-2 focus:ring-sky-500 outline-none transition-all shadow-sm"
+                className="w-full h-11 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm"
                 value={questionDraft.package_id}
                 onChange={(e) =>
                   setQuestionDraft((p) => ({
@@ -578,7 +620,7 @@ export default function AdminBankSoalPage() {
             </div>
 
             <div className="md:col-span-4 space-y-2">
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-sky-600 ml-1">
+              <label className="text-[10px] font-semibold uppercase tracking-widest text-primary-600 ml-1">
                 Kunci Jawaban
               </label>
               <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
@@ -595,7 +637,7 @@ export default function AdminBankSoalPage() {
                     className={cn(
                       "flex-1 h-9 rounded-lg text-xs font-semibold uppercase transition-all",
                       questionDraft.correct_answer === o
-                        ? "bg-sky-600 text-white shadow-md shadow-sky-200 scale-105 z-10"
+                        ? "bg-primary-600 text-white shadow-md shadow-primary-200 scale-105 z-10"
                         : "text-slate-400 hover:bg-slate-50",
                     )}
                   >
@@ -620,7 +662,7 @@ export default function AdminBankSoalPage() {
                   question_text: e.target.value,
                 }))
               }
-              className="min-h-30 rounded-2xl border-slate-200 focus:ring-sky-500 text-base leading-relaxed p-4"
+              className="min-h-30 rounded-2xl border-slate-200 focus:ring-primary-500 text-base leading-relaxed p-4"
             />
           </div>
 
@@ -638,8 +680,8 @@ export default function AdminBankSoalPage() {
                       className={cn(
                         "absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-semibold border transition-all",
                         isCorrect
-                          ? "bg-sky-600 border-sky-600 text-white shadow-lg shadow-sky-100"
-                          : "bg-slate-100 border-slate-200 text-slate-400 group-focus-within:border-sky-300",
+                          ? "bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-100"
+                          : "bg-slate-100 border-slate-200 text-slate-400 group-focus-within:border-primary-300",
                       )}
                     >
                       {key.toUpperCase()}
@@ -649,7 +691,7 @@ export default function AdminBankSoalPage() {
                       className={cn(
                         "pl-12 h-12 rounded-xl border-slate-200 transition-all",
                         isCorrect &&
-                          "border-sky-300 bg-sky-50/30 ring-1 ring-sky-100",
+                          "border-primary-300 bg-primary-50/30 ring-1 ring-primary-100",
                       )}
                       value={(questionDraft as any)[`option_${key}`]}
                       onChange={(e) =>
@@ -715,7 +757,7 @@ export default function AdminBankSoalPage() {
               <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">
                 Pertanyaan
               </h4>
-              <div className="text-xs font-medium text-slate-800 leading-snug border-l-2 border-sky-400 pl-3">
+              <div className="text-xs font-medium text-slate-800 leading-snug border-l-2 border-primary-400 pl-3">
                 {previewQuestion.question_text}
               </div>
             </section>
@@ -832,6 +874,55 @@ export default function AdminBankSoalPage() {
             <AlertDialogCancel className="w-full h-12 border-none bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all">
               Batalkan
             </AlertDialogCancel>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent className="p-0 overflow-hidden border-none shadow-2xl max-w-md rounded-[2.5rem] bg-white">
+          <div className="p-10 pb-6 flex flex-col items-center text-center space-y-5">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-4xl bg-rose-50 flex items-center justify-center animate-in zoom-in duration-500">
+                <Trash2 className="w-10 h-10 text-rose-600" strokeWidth={1.5} />
+              </div>
+              <div className="absolute -bottom-2 -right-2 bg-white p-2 rounded-full shadow-sm">
+                <div className="bg-rose-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                  {selectedCount}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <AlertDialogTitle className="text-2xl font-semibold text-slate-900 tracking-tight">
+                Hapus Masal?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm font-medium text-slate-500 leading-relaxed px-4">
+                Kamu akan menghapus{" "}
+                <span className="text-rose-600 font-semibold">
+                  {selectedCount} soal
+                </span>{" "}
+                secara permanen dari database. Tindakan ini tidak dapat
+                dibatalkan.
+              </AlertDialogDescription>
+            </div>
+          </div>
+
+          <div className="p-8 pt-0 flex flex-col gap-3">
+            <Button
+              className="w-full h-14 bg-rose-600 text-white hover:bg-rose-700 rounded-2xl font-semibold text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-rose-200 transition-all active:scale-[0.98] border-none"
+              onClick={handleBulkDelete}
+              disabled={actionLoading}
+            >
+              {actionLoading ? "Mengeksekusi..." : "Ya, Hapus Semua"}
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full h-12 text-slate-400 font-bold text-[11px] uppercase tracking-widest transition-all"
+              onClick={() => setBulkDeleteOpen(false)}
+            >
+              Batalkan
+            </Button>
           </div>
         </AlertDialogContent>
       </AlertDialog>

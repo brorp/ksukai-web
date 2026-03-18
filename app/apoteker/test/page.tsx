@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Calculator, ChevronLeft, Clock, LayoutGrid, X } from "lucide-react";
+import {
+  Calculator,
+  ChevronLeft,
+  Clock,
+  LayoutGrid,
+  ShieldAlert,
+  X,
+} from "lucide-react";
 
 import TestQuestion from "@/components/apoteker/test-question";
 import LabValuesModal from "@/components/apoteker/lab-values-modal";
@@ -433,23 +440,48 @@ export default function TestPage() {
       </AlertDialog>
 
       <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
-        <AlertDialogContent className="bg-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi Keluar</AlertDialogTitle>
-            <AlertDialogDescription>
-              Keluar halaman tidak akan menghapus sesi. Anda dapat lanjut dari
-              menu ujian.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => router.push("/apoteker/dashboard")}
-              className="bg-rose-600 text-white"
-            >
-              Keluar
-            </AlertDialogAction>
-          </AlertDialogFooter>
+        <AlertDialogContent className="bg-white rounded-4xl border-none shadow-2xl p-8 max-w-100">
+          <div className="flex flex-col items-center text-center space-y-4">
+            {/* Icon Warning yang Mencolok */}
+            <div className="w-16 h-16 rounded-3xl bg-amber-50 flex items-center justify-center text-amber-500 animate-pulse">
+              <ShieldAlert size={32} />
+            </div>
+
+            <AlertDialogHeader className="space-y-2">
+              <AlertDialogTitle className="text-2xl font-black text-slate-900 tracking-tight">
+                Peringatan Penting!
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-slate-500 font-medium leading-relaxed">
+                Sesi ujian yang sedang berjalan{" "}
+                <span className="text-rose-600 font-bold italic underline">
+                  mungkin tidak dapat dilanjutkan
+                </span>{" "}
+                jika Anda meninggalkan halaman ini sekarang.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <div className="w-full bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                Status Sesi:
+              </p>
+              <p className="text-xs font-bold text-slate-600 italic">
+                "Progress jawaban Anda tersimpan, namun akses masuk kembali
+                bergantung pada kebijakan paket ujian."
+              </p>
+            </div>
+
+            <AlertDialogFooter className="flex flex-col sm:flex-row gap-3 w-full pt-4">
+              <AlertDialogCancel className="flex-1 rounded-xl h-12 font-bold text-slate-400 border-none hover:text-slate-700 hover:bg-slate-50 transition-all">
+                Lanjutkan Ujian
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => router.push("/apoteker/dashboard")}
+                className="flex-1 rounded-xl h-12 bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-rose-200 transition-all active:scale-95"
+              >
+                Tetap Keluar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
     </div>
