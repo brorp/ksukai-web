@@ -27,9 +27,35 @@ export function Table<TData, TValue>({
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
+  const finalColumns = useMemo<ColumnDef<TData, TValue>[]>(() => {
+    const selectColumn = columns.find((col) => col.id === "checkbox");
+    const otherColumns = columns.filter((col) => col.id !== "checkbox");
+
+    const numberingColumn: ColumnDef<TData, TValue> = {
+      id: "numbering",
+      header: "No",
+      cell: ({ row, table }) => {
+        const pageIndex = table.getState().pagination.pageIndex;
+        const pageSize = table.getState().pagination.pageSize;
+        return (
+          <span className="text-slate-400 text-[10px] font-bold">
+            {pageIndex * pageSize + row.index + 1}
+          </span>
+        );
+      },
+      enableSorting: false,
+    };
+
+    return [
+      ...(selectColumn ? [selectColumn] : []),
+      numberingColumn,
+      ...otherColumns,
+    ];
+  }, [columns]);
+
   const table = useReactTable({
     data,
-    columns,
+    columns: finalColumns,
     state: { rowSelection, sorting },
     onRowSelectionChange: onRowSelectionChange,
     onSortingChange: setSorting,
@@ -62,7 +88,7 @@ export function Table<TData, TValue>({
 
   return (
     <div className="flex flex-col w-full h-full">
-      <div className="rounded-4xl border border-slate-100 bg-white shadow-sm flex flex-col h-[calc(100vh-160px)] overflow-hidden">
+      <div className="rounded-4xl border border-slate-100 bg-white shadow-sm flex flex-col h-full overflow-hidden">
         <div className="flex-1 overflow-auto no-scrollbar relative">
           <table className="w-full text-left border-separate border-spacing-0">
             <thead className="sticky top-0 z-30">
@@ -73,10 +99,7 @@ export function Table<TData, TValue>({
                       key={header.id}
                       className={cn(
                         "px-4 py-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400 bg-slate-50/90 backdrop-blur-md border-b border-slate-100",
-                        index === 0 &&
-                          "rounded-tl-4xl sticky left-0 z-40 bg-slate-50",
-                        index === headerGroup.headers.length - 1 &&
-                          "rounded-tr-4xl sticky right-0 z-40 bg-slate-50",
+                        index === 0 && "sticky left-0 z-40 bg-slate-50",
                       )}
                     >
                       <div
@@ -106,7 +129,7 @@ export function Table<TData, TValue>({
                   <tr
                     key={row.id}
                     className={cn(
-                      "hover:bg-slate-50/50 transition-colors",
+                      "hover:bg-slate-50/50 transition-colors group",
                       row.getIsSelected() ? "bg-primary-50/30" : "",
                     )}
                   >
@@ -115,39 +138,27 @@ export function Table<TData, TValue>({
                         key={cell.id}
                         className={cn(
                           "px-4 py-2 text-[13px] text-slate-600 font-medium",
-                          cell.column.id === "pertanyaan" && "max-w-md",
                           index === 0 &&
                             "sticky left-0 bg-white group-hover:bg-slate-50/50 z-10",
-                          index === row.getVisibleCells().length - 1 &&
-                            "sticky right-0 bg-white group-hover:bg-slate-50/50 z-10",
                         )}
                       >
-                        <div
-                          className={cn(
-                            cell.column.id === "pertanyaan" && "line-clamp-2",
-                          )}
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </div>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
                       </td>
                     ))}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={columns.length} className="h-full">
+                  <td colSpan={finalColumns.length}>
                     <div className="flex flex-col items-center justify-center py-24 text-slate-300">
                       <div className="bg-slate-50 p-4 rounded-3xl mb-4">
                         <Inbox size={40} strokeWidth={1.5} />
                       </div>
                       <p className="text-xs font-black uppercase tracking-widest">
                         Data Tidak Ditemukan
-                      </p>
-                      <p className="text-[10px] font-medium text-slate-400 mt-1">
-                        Belum ada informasi yang bisa ditampilkan saat ini.
                       </p>
                     </div>
                   </td>
@@ -159,19 +170,17 @@ export function Table<TData, TValue>({
 
         {hasData && (
           <div className="bg-white border-t border-slate-100 px-6 py-3 flex items-center justify-between z-30">
-            <div className="flex items-center gap-3">
-              <select
-                value={table.getState().pagination.pageSize}
-                onChange={(e) => table.setPageSize(Number(e.target.value))}
-                className="bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[10px] font-semibold text-primary outline-none"
-              >
-                {[10, 20, 50].map((size) => (
-                  <option key={size} value={size}>
-                    {size} Rows
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={table.getState().pagination.pageSize}
+              onChange={(e) => table.setPageSize(Number(e.target.value))}
+              className="bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[10px] font-semibold text-primary outline-none"
+            >
+              {[10, 20, 50].map((size) => (
+                <option key={size} value={size}>
+                  {size} Rows
+                </option>
+              ))}
+            </select>
 
             <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">
               <Button

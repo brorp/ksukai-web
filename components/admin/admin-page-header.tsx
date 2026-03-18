@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { RotateCcw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AdminPageHeaderProps {
   title: string;
@@ -46,9 +48,20 @@ export default function AdminPageHeader({
           size="sm"
           onClick={onAction}
           disabled={actionDisabled}
-          className="rounded-xl font-bold h-9 px-4 border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
+          className={cn(
+            "rounded-xl font-bold h-9 px-4 border-slate-200 transition-all active:scale-95 shrink-0",
+            "hover:bg-primary-50 hover:text-primary-600 hover:border-primary-200",
+            "disabled:opacity-70 disabled:cursor-not-allowed",
+          )}
         >
-          {actionLabel}
+          <RotateCcw
+            size={14}
+            className={cn(
+              "mr-2 transition-transform duration-500",
+              actionDisabled ? "animate-spin" : "group-hover:rotate-180",
+            )}
+          />
+          <span>{actionDisabled ? "Memuat..." : actionLabel}</span>
         </Button>
       )}
     </div>

@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import SessionProvider from "@/components/providers/session-provider";
 import "./globals.css";
+import { Toaster } from "sonner";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -116,6 +117,7 @@ export default function RootLayout({
       >
         <SessionProvider>{children}</SessionProvider>
         <Analytics />
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );

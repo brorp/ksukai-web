@@ -45,6 +45,7 @@ import {
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -57,8 +58,6 @@ export default function ResultsPage() {
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [sessions, setSessions] = useState<ExamSessionSummary[]>([]);
   const [result, setResult] = useState<ExamResultResponse | null>(null);
 
@@ -88,7 +87,6 @@ export default function ResultsPage() {
 
     const loadData = async () => {
       setLoading(true);
-      setError("");
       try {
         const sessionRows = await examApi.sessions(token);
         setSessions(sessionRows);
@@ -100,11 +98,12 @@ export default function ResultsPage() {
           setResult(null);
         }
       } catch (loadError) {
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Gagal memuat hasil ujian.",
-        );
+        toast.error("Gagal Memuat Data", {
+          description:
+            loadError instanceof Error
+              ? loadError.message
+              : "Gagal memuat hasil ujian.",
+        });
       } finally {
         setLoading(false);
       }
@@ -116,26 +115,28 @@ export default function ResultsPage() {
   const handleOpenReport = (question: ExamResultQuestion) => {
     setReportingQuestion(question);
     setReportText("");
-    setMessage("");
     setReportOpen(true);
   };
-
   const handleSubmitReport = async () => {
     if (!token || !result || !reportingQuestion || !reportText.trim()) return;
     setSubmittingReport(true);
-    try {
-      const response = await examApi.reportQuestion(token, {
-        question_id: reportingQuestion.questionId,
-        session_id: result.sessionId,
-        report_text: reportText.trim(),
-      });
-      setMessage(response.message ?? "Laporan soal berhasil dikirim.");
-      setReportOpen(false);
-    } catch (e) {
-      setError("Gagal mengirim laporan.");
-    } finally {
-      setSubmittingReport(false);
-    }
+
+    const promise = examApi.reportQuestion(token, {
+      question_id: reportingQuestion.questionId,
+      session_id: result.sessionId,
+      report_text: reportText.trim(),
+    });
+
+    toast.promise(promise, {
+      loading: "Mengirim laporan...",
+      success: (response) => {
+        setReportOpen(false);
+        setReportText("");
+        return response.message ?? "Laporan soal berhasil dikirim.";
+      },
+      error: "Gagal mengirim laporan.",
+      finally: () => setSubmittingReport(false),
+    });
   };
 
   if (!mounted || !isAuthenticated || user?.role !== "user") return null;
@@ -156,19 +157,6 @@ export default function ResultsPage() {
 
   return (
     <div className="max-w-6xl mx-auto pb-20 space-y-6 animate-in fade-in duration-500">
-      {error && (
-        <div className="flex items-center gap-3 rounded-2xl border border-rose-100 bg-rose-50/50 p-4 text-rose-600 animate-in slide-in-from-top-2">
-          <AlertCircle size={18} />
-          <p className="text-sm font-semibold">{error}</p>
-        </div>
-      )}
-      {message && (
-        <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 text-emerald-600 animate-in slide-in-from-top-2">
-          <CheckCircle2 size={18} />
-          <p className="text-sm font-semibold">{message}</p>
-        </div>
-      )}
-
       {activeSessionId > 0 && result ? (
         <ResultDetail result={result} onOpenReport={handleOpenReport} />
       ) : (
@@ -240,7 +228,6 @@ function ResultDetail({
 
   return (
     <div className="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
-      {/* Tombol Back ke Daftar Hasil */}
       <div className="flex items-center">
         <Link
           href="/apoteker/results"

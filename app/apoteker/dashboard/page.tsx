@@ -3,14 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
   Clock,
   Crown,
-  FileText,
-  Laptop2,
   Layers,
   Play,
-  ShieldAlert,
   Timer,
   WalletCards,
   WifiOff,
@@ -34,6 +30,7 @@ import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
 import { ModalPreview } from "@/components/preview-modal";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 const formatExamPurposeLabel = (value?: string) => {
   if (value === "persiapan_ukai") return "Persiapan UKAI";
@@ -49,7 +46,6 @@ export default function ApotekerDashboard() {
   const [packages, setPackages] = useState<ExamPackage[]>([]);
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [confirmStart, setConfirmStart] = useState(false);
   const [selectPackage, setSelectPackage] = useState<ExamPackage>();
 
@@ -63,7 +59,6 @@ export default function ApotekerDashboard() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      setError("");
       try {
         await fetchProfile();
         const [packageList, purchaseList] = await Promise.all([
@@ -73,7 +68,7 @@ export default function ApotekerDashboard() {
         setPackages(packageList);
         setPurchases(purchaseList);
       } catch (loadError) {
-        setError(
+        toast.error(
           loadError instanceof Error
             ? loadError.message
             : "Gagal memuat data dashboard.",
@@ -161,12 +156,6 @@ export default function ApotekerDashboard() {
           value={formatExamPurposeLabel(user?.examPurpose)}
         />
       </div>
-
-      {error ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
-          {error}
-        </div>
-      ) : null}
 
       <Card className="border-none bg-linear-to-br from-sky-600 via-cyan-600 to-sky-700 text-white shadow-xl">
         <CardHeader>

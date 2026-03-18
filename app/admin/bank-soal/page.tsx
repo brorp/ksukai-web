@@ -51,6 +51,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 const createEmptyQuestionDraft = (packageId = 0): AdminQuestionPayload => ({
   package_id: packageId,
@@ -72,11 +73,8 @@ const truncateText = (value: string, maxLength: number): string => {
 
 export default function AdminBankSoalPage() {
   const token = useAuthStore((state) => state.token);
-
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [packageFilter, setPackageFilter] = useState<number>(0);
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">(
@@ -106,7 +104,6 @@ export default function AdminBankSoalPage() {
   const loadData = async () => {
     if (!token) return;
     setLoading(true);
-    setError("");
     try {
       const [questionRows, packageRows] = await Promise.all([
         adminApi.questions(token, {
@@ -118,11 +115,12 @@ export default function AdminBankSoalPage() {
       setRows(questionRows);
       setPackages(packageRows);
     } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Gagal memuat bank soal.",
-      );
+      toast.error("Gagal Memuat Data", {
+        description:
+          loadError instanceof Error
+            ? loadError.message
+            : "Gagal memuat bank soal.",
+      });
     } finally {
       setLoading(false);
     }
@@ -140,7 +138,7 @@ export default function AdminBankSoalPage() {
   const columns = useMemo<ColumnDef<AdminQuestion>[]>(
     () => [
       {
-        id: "select",
+        id: "checkbox",
         header: ({ table }) => (
           <Checkbox
             checked={
@@ -211,14 +209,24 @@ export default function AdminBankSoalPage() {
           <Switch
             checked={row.original.is_active}
             onCheckedChange={async (checked) => {
-              await adminApi.updateQuestion(token!, row.original.id, {
+              const promise = adminApi.updateQuestion(token!, row.original.id, {
                 is_active: checked,
               });
-              setRows((prev) =>
-                prev.map((r) =>
-                  r.id === row.original.id ? { ...r, is_active: checked } : r,
-                ),
-              );
+
+              toast.promise(promise, {
+                loading: "Memperbarui status...",
+                success: () => {
+                  setRows((prev) =>
+                    prev.map((r) =>
+                      r.id === row.original.id
+                        ? { ...r, is_active: checked }
+                        : r,
+                    ),
+                  );
+                  return `Soal berhasil ${checked ? "diaktifkan" : "dinonaktifkan"}.`;
+                },
+                error: "Gagal mengubah status soal.",
+              });
             }}
           />
         ),
@@ -281,7 +289,7 @@ export default function AdminBankSoalPage() {
       !Number.isInteger(questionDraft.package_id) ||
       questionDraft.package_id <= 0
     ) {
-      setError("Kategori soal wajib dipilih.");
+      toast.error("Gagal", { description: "Kategori soal wajib dipilih." });
       return;
     }
 
@@ -296,32 +304,31 @@ export default function AdminBankSoalPage() {
     ].some((value) => !value.trim());
 
     if (hasEmptyField) {
-      setError("Pertanyaan, semua opsi, dan pembahasan wajib diisi.");
+      toast.warning("Form Belum Lengkap", {
+        description: "Pertanyaan, semua opsi, dan pembahasan wajib diisi.",
+      });
       return;
     }
 
     setActionLoading(true);
-    setError("");
-    setMessage("");
-
     try {
       if (editingQuestionId) {
         await adminApi.updateQuestion(token, editingQuestionId, questionDraft);
-        setMessage("Soal berhasil diperbarui.");
+        toast.success("Berhasil", { description: "Soal berhasil diperbarui." });
       } else {
         await adminApi.createQuestion(token, questionDraft);
-        setMessage("Soal berhasil ditambahkan.");
+        toast.success("Berhasil", {
+          description: "Soal baru berhasil ditambahkan.",
+        });
       }
-
       setFormOpen(false);
       resetForm();
       await loadData();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal menyimpan soal.",
-      );
+    } catch (err) {
+      toast.error("Oops!", {
+        description:
+          err instanceof Error ? err.message : "Gagal menyimpan soal.",
+      });
     } finally {
       setActionLoading(false);
     }
@@ -329,25 +336,16 @@ export default function AdminBankSoalPage() {
 
   const handleDelete = async () => {
     if (!token || !deleteTarget) return;
-
     setActionLoading(true);
-    setError("");
-    setMessage("");
-
     try {
       await adminApi.deleteQuestion(token, deleteTarget.id);
-      setMessage(`Soal #${deleteTarget.id} berhasil dihapus.`);
+      toast.success("Terhapus", {
+        description: `Soal #${deleteTarget.id} berhasil dihapus.`,
+      });
       setDeleteTarget(null);
-      if (previewQuestion?.id === deleteTarget.id) {
-        setPreviewQuestion(null);
-      }
       await loadData();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Gagal menghapus soal.",
-      );
+    } catch (err) {
+      toast.error("Gagal Hapus", { description: "Gagal menghapus soal." });
     } finally {
       setActionLoading(false);
     }
@@ -356,81 +354,73 @@ export default function AdminBankSoalPage() {
   const handleBulkStatusUpdate = async (active: boolean) => {
     if (!token || selectedCount === 0) return;
     setActionLoading(true);
-    try {
-      const selectedIds = Object.keys(rowSelection);
-      await Promise.all(
-        selectedIds.map((id) =>
-          adminApi.updateQuestion(token, Number(id), { is_active: active }),
-        ),
-      );
-      setMessage(
-        `${selectedIds.length} soal berhasil ${active ? "diaktifkan" : "dinonaktifkan"}.`,
-      );
-      setRowSelection({}); // Reset pilihan
-      await loadData();
-    } catch (err) {
-      setError("Gagal memperbarui beberapa soal.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
-  const handleBulkDelete = async () => {
-    if (!token || selectedCount === 0) return;
+    const selectedIds = Object.keys(rowSelection);
+    const promise = Promise.all(
+      selectedIds.map((id) =>
+        adminApi.updateQuestion(token, Number(id), { is_active: active }),
+      ),
+    );
 
-    setActionLoading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      const selectedIds = Object.keys(rowSelection).map(Number);
-
-      await Promise.all(
-        selectedIds.map((id) => adminApi.deleteQuestion(token, id)),
-      );
-
-      setMessage(
-        `${selectedIds.length} soal berhasil dihapus secara permanen.`,
-      );
-      setRowSelection({});
-      setBulkDeleteOpen(false);
-      await loadData();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Gagal menghapus beberapa soal.",
-      );
-    } finally {
-      setActionLoading(false);
-    }
+    toast.promise(promise, {
+      loading: "Memperbarui status soal...",
+      success: () => {
+        setRowSelection({});
+        loadData();
+        return `${selectedIds.length} soal berhasil ${active ? "diaktifkan" : "dinonaktifkan"}.`;
+      },
+      error: "Gagal memperbarui beberapa soal.",
+      finally: () => setActionLoading(false),
+    });
   };
 
   const handleBulkCategoryUpdate = async () => {
     if (!token || !selectedCategoryId || selectedCount === 0) return;
+    setIsUpdatingCategory(true);
 
+    const selectedIds = Object.keys(rowSelection);
+    const promise = Promise.all(
+      selectedIds.map((id) =>
+        adminApi.updateQuestion(token, Number(id), {
+          package_id: Number(selectedCategoryId),
+        }),
+      ),
+    );
+
+    toast.promise(promise, {
+      loading: "Memindahkan kategori...",
+      success: () => {
+        setRowSelection({});
+        setBulkCategoryOpen(false);
+        setSelectedCategoryId("");
+        loadData();
+        return `${selectedIds.length} soal berhasil dipindahkan.`;
+      },
+      error: "Gagal memindahkan soal.",
+      finally: () => setIsUpdatingCategory(false),
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (!token || selectedCount === 0) return;
     setActionLoading(true);
-    try {
-      const selectedIds = Object.keys(rowSelection);
 
-      await Promise.all(
-        selectedIds.map((id) =>
-          adminApi.updateQuestion(token, Number(id), {
-            package_id: Number(selectedCategoryId),
-          }),
-        ),
-      );
+    const selectedIds = Object.keys(rowSelection).map(Number);
+    const promise = Promise.all(
+      selectedIds.map((id) => adminApi.deleteQuestion(token, id)),
+    );
 
-      setMessage(
-        `${selectedIds.length} soal berhasil dipindahkan ke kategori baru.`,
-      );
-      setRowSelection({});
-      setBulkCategoryOpen(false);
-      setSelectedCategoryId("");
-      await loadData();
-    } catch (err) {
-      setError("Gagal memindahkan beberapa soal.");
-    } finally {
-      setActionLoading(false);
-    }
+    toast.promise(promise, {
+      loading: "Menghapus soal secara permanen...",
+      success: () => {
+        setRowSelection({});
+        setBulkDeleteOpen(false);
+        loadData();
+        return `${selectedIds.length} soal berhasil dihapus.`;
+      },
+      error: "Gagal menghapus beberapa soal.",
+      finally: () => setActionLoading(false),
+    });
   };
 
   const filteredData = useMemo(() => {
@@ -447,17 +437,6 @@ export default function AdminBankSoalPage() {
         description="Gunakan tabel di bawah untuk manajemen database soal secara masal."
         icon={<ShieldCheck size={20} />}
       />
-
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm font-medium">
-          {error}
-        </div>
-      )}
-      {message && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-3 text-sm font-medium">
-          {message}
-        </div>
-      )}
 
       {selectedCount > 0 && (
         <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-10 duration-500 ease-out">
