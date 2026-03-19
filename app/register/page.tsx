@@ -102,7 +102,7 @@ export default function RegisterPage() {
 
           <CardContent className="p-8 pt-6">
             <div className="mb-6">
-              <GoogleAuthButton />
+              <GoogleAuthButton intent="register" />
 
               <div className="relative my-8">
                 <div className="absolute inset-0 flex items-center">

@@ -42,6 +42,7 @@ import {
   type ExamResultQuestion,
   type ExamResultResponse,
   type ExamSessionSummary,
+  getServerAssetUrl,
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
@@ -244,8 +245,11 @@ function ResultDetail({
       <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div className="space-y-1">
           <h1 className="text-xl font-bold text-slate-900">
-            {result.package_name || "Hasil Try Out Apoteker"}
+            {result.exam_name || "Hasil Try Out Apoteker"}
           </h1>
+          <p className="text-sm font-medium text-slate-500">
+            Paket: {result.package_name || "-"}
+          </p>
           <div className="flex items-center gap-4 text-sm text-slate-500">
             <span className="flex items-center gap-1">
               <Calendar size={14} />{" "}
@@ -253,6 +257,9 @@ function ResultDetail({
             </span>
             <span className="flex items-center gap-1">
               <Clock size={14} /> {result.totalQuestions} Soal
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock size={14} /> {result.durationMinutes ?? result.totalQuestions} Menit
             </span>
           </div>
         </div>
@@ -298,6 +305,16 @@ function ResultDetail({
               <div className="text-slate-800 font-medium leading-relaxed">
                 {currentQuestion.questionText}
               </div>
+
+              {currentQuestion.imageUrl && (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <img
+                    src={getServerAssetUrl(currentQuestion.imageUrl) ?? currentQuestion.imageUrl}
+                    alt={`Ilustrasi soal ${activeIdx + 1}`}
+                    className="max-h-[420px] w-full rounded-xl object-contain bg-slate-50"
+                  />
+                </div>
+              )}
 
               <div className="grid gap-3">
                 {(["a", "b", "c", "d", "e"] as const).map((key) => {
@@ -544,9 +561,11 @@ function SessionList({ sessions }: { sessions: ExamSessionSummary[] }) {
 
                   <div className="space-y-1.5">
                     <h3 className="text-lg font-bold text-slate-900 group-hover:text-slate-700 transition-colors leading-tight">
-                      {session.package_name ||
-                        `Simulasi Paket #${session.session_id}`}
+                      {session.exam_name || `Ujian #${session.session_id}`}
                     </h3>
+                    <p className="text-sm text-slate-500">
+                      Paket: {session.package_name || "-"}
+                    </p>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-slate-500 font-bold uppercase tracking-wider">
                       <span className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
                         <Calendar size={12} className="text-slate-400" />{" "}
@@ -574,6 +593,13 @@ function SessionList({ sessions }: { sessions: ExamSessionSummary[] }) {
                         className="bg-slate-900 text-white rounded-md h-5 px-2 text-[9px]"
                       >
                         ATTEMPT {session.attempt_number}
+                      </Badge>
+
+                      <Badge
+                        variant="outline"
+                        className="rounded-md h-5 px-2 text-[9px]"
+                      >
+                        {session.duration_minutes ?? session.total_questions} MENIT
                       </Badge>
                     </div>
                   </div>

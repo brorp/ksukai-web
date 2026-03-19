@@ -24,6 +24,7 @@ import {
 import {
   transactionApi,
   type ExamPackage,
+  type ExamPackageExam,
   type PurchaseRecord,
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
@@ -47,7 +48,10 @@ export default function ApotekerDashboard() {
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmStart, setConfirmStart] = useState(false);
-  const [selectPackage, setSelectPackage] = useState<ExamPackage>();
+  const [selectedExamState, setSelectedExamState] = useState<{
+    packageItem: ExamPackage;
+    examItem: ExamPackageExam;
+  } | null>(null);
 
   const formatDuration = (totalMinutes: number) => {
     const hours = Math.floor(totalMinutes / 60);
@@ -106,11 +110,17 @@ export default function ApotekerDashboard() {
     return map;
   }, [purchases]);
 
-  const quickStartPackage = useMemo(
+  const quickStartExam = useMemo(
     () =>
-      packages.find(
-        (item) => item.price === 0 || activePackageIds.has(item.id),
-      ) ?? null,
+      packages
+        .filter((item) => item.price === 0 || activePackageIds.has(item.id))
+        .flatMap((item) =>
+          (item.exams ?? []).map((exam) => ({
+            packageItem: item,
+            examItem: exam,
+          })),
+        )
+        .find((item) => item.examItem.is_active) ?? null,
     [activePackageIds, packages],
   );
 
@@ -173,16 +183,16 @@ export default function ApotekerDashboard() {
             Riwayat order dan status pembayaran selalu bisa dipantau dari menu
             Pembelian.
           </p>
-          {quickStartPackage ? (
+          {quickStartExam ? (
             <Button
               onClick={() => {
                 setConfirmStart(true);
-                setSelectPackage(quickStartPackage);
+                setSelectedExamState(quickStartExam);
               }}
               className="bg-white font-bold text-sky-700 hover:bg-sky-50"
             >
               <Play size={16} className="mr-2 fill-current" />
-              Mulai {quickStartPackage.name}
+              Mulai {quickStartExam.examItem.name}
             </Button>
           ) : (
             <Link href="/apoteker/purchases">
@@ -245,17 +255,45 @@ export default function ApotekerDashboard() {
                           ? "Gratis"
                           : `Rp ${Number(pkg.price).toLocaleString("id-ID")}`}
                       </p>
+
                       {canStartPackage ? (
-                        <Button
-                          onClick={() => {
-                            setConfirmStart(true);
-                            setSelectPackage(pkg);
-                          }}
-                          className="w-full bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          <Play size={16} className="mr-2 fill-current" />
-                          Kerjakan
-                        </Button>
+                        <div className="space-y-3">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                              Daftar Ujian
+                            </p>
+                            <div className="mt-3 space-y-2">
+                              {(pkg.exams ?? []).map((exam) => (
+                                <div
+                                  key={exam.id}
+                                  className="flex items-center justify-between gap-3 rounded-xl border border-white bg-white px-3 py-3 shadow-sm"
+                                >
+                                  <div className="space-y-1">
+                                    <p className="text-sm font-semibold text-slate-900">
+                                      {exam.name}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                      {exam.description || `${exam.question_count} soal`}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    onClick={() => {
+                                      setConfirmStart(true);
+                                      setSelectedExamState({
+                                        packageItem: pkg,
+                                        examItem: exam,
+                                      });
+                                    }}
+                                    className="bg-emerald-600 hover:bg-emerald-700"
+                                  >
+                                    <Play size={16} className="mr-2 fill-current" />
+                                    Kerjakan
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       ) : pendingOrder ? (
                         <Link
                           href={`/apoteker/checkout?transactionId=${pendingOrder.id}`}
@@ -301,7 +339,9 @@ export default function ApotekerDashboard() {
             </Button>
             <Button
               onClick={() =>
-                router.push(`/apoteker/test?packageId=${selectPackage?.id}`)
+                router.push(
+                  `/apoteker/test?examId=${selectedExamState?.examItem.id}`,
+                )
               }
               className="flex-2 bg-linear-to-r from-primary-600 to-primary-600 hover:from-sky-700 hover:to-primary-700 text-white rounded-2xl font-semibold text-xs uppercase tracking-widest shadow-xl shadow-blue-100 transition-all active:scale-95"
             >
@@ -323,8 +363,8 @@ export default function ApotekerDashboard() {
               <div className="flex items-center justify-center gap-1.5">
                 <Clock size={16} className="text-slate-400" />
                 <p className="text-2xl font-semibold text-slate-800 tracking-tighter">
-                  {selectPackage?.question_count
-                    ? formatDuration(selectPackage.question_count)
+                  {selectedExamState?.examItem.question_count
+                    ? formatDuration(selectedExamState.examItem.question_count)
                     : "—"}
                 </p>
               </div>
@@ -339,7 +379,7 @@ export default function ApotekerDashboard() {
               <div className="flex items-center justify-center gap-1.5">
                 <Layers size={16} className="text-slate-400" />
                 <p className="text-2xl font-semibold text-slate-800 tracking-tighter">
-                  {selectPackage?.question_count ?? 0}{" "}
+                  {selectedExamState?.examItem.question_count ?? 0}{" "}
                   <span className="text-sm text-slate-400">Soal</span>
                 </p>
               </div>
@@ -408,8 +448,8 @@ export default function ApotekerDashboard() {
             <div className="bg-slate-50 p-3 rounded-2xl flex items-center gap-3 border border-slate-100/50">
               <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
               <p className="text-[10px] text-slate-500 font-bold tracking-tight">
-                Sistem siap. Pastikan fokus Anda maksimal sebelum menekan
-                tombol.
+                {selectedExamState?.packageItem.name ?? "Paket"} •{" "}
+                {selectedExamState?.examItem.name ?? "Ujian"}
               </p>
             </div>
           </div>

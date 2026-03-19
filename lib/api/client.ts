@@ -3,10 +3,12 @@ import type {
   OptionKey,
   QuestionFlagStatus,
   User,
+  UserAuthProvider,
   UserRole,
 } from "@/lib/types";
 
 const API_BASE_PATH = "/api/proxy/api";
+const API_PROXY_BASE_PATH = "/api/proxy";
 
 class ApiError extends Error {
   status: number;
@@ -100,7 +102,7 @@ export interface RegisterPayload {
   registration_token?: string;
   name: string;
   email?: string;
-  password: string;
+  password?: string;
   education: string;
   school_origin: string;
   exam_purpose: ExamPurpose;
@@ -138,6 +140,28 @@ export interface EmailOtpVerifyResponse {
   next_step: "complete_profile";
 }
 
+export interface ForgotPasswordResponse {
+  message: string;
+  request_id: number;
+  expires_at: string;
+  retry_after_seconds: number;
+  provider: "resend" | "log";
+  delivered: boolean;
+  warning?: string | null;
+}
+
+export interface VerifyResetPasswordTokenResponse {
+  message: string;
+  email: string;
+  expires_at: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+  email: string;
+  updated_at: string;
+}
+
 export interface GoogleContinuePayload {
   id_token: string;
 }
@@ -159,6 +183,13 @@ export interface GoogleContinueResponse {
 
 const normalizeRole = (role: unknown): UserRole =>
   role === "admin" ? "admin" : "user";
+
+const normalizeAuthProvider = (value: unknown): UserAuthProvider => {
+  if (value === "google" || value === "both") {
+    return value;
+  }
+  return "email";
+};
 
 const normalizeExamPurpose = (value: unknown): ExamPurpose => {
   if (value === "persiapan_ukai" || value === "ukai") {
@@ -187,6 +218,9 @@ const normalizeUser = (raw: unknown): User => {
     phone: String(source.phone ?? "-"),
     targetScore: Number(source.target_score ?? source.targetScore ?? 0),
     isPremium: Boolean(source.is_premium ?? source.isPremium),
+    authProvider: normalizeAuthProvider(
+      source.auth_provider ?? source.authProvider,
+    ),
     accountStatus:
       source.account_status === "inactive" ||
       source.accountStatus === "inactive"
@@ -260,6 +294,29 @@ export const authApi = {
       body: { email, otp },
     }),
 
+  forgotPassword: async (email: string): Promise<ForgotPasswordResponse> =>
+    request("/auth/password/forgot", {
+      method: "POST",
+      body: { email },
+    }),
+
+  verifyResetPasswordToken: async (
+    token: string,
+  ): Promise<VerifyResetPasswordTokenResponse> =>
+    request("/auth/password/reset/verify", {
+      method: "POST",
+      body: { token },
+    }),
+
+  resetPassword: async (
+    token: string,
+    password: string,
+  ): Promise<ResetPasswordResponse> =>
+    request("/auth/password/reset", {
+      method: "POST",
+      body: { token, password },
+    }),
+
   continueWithGoogle: async (
     payload: GoogleContinuePayload,
   ): Promise<GoogleContinueResponse> => {
@@ -288,6 +345,18 @@ export const registrationApi = {
   complete: authApi.register,
 };
 
+export interface ExamPackageExam {
+  id: number;
+  package_id: number;
+  name: string;
+  description: string;
+  question_count: number;
+  sort_order: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ExamPackage {
   id: number;
   name: string;
@@ -298,6 +367,8 @@ export interface ExamPackage {
   session_limit?: number | null;
   validity_days?: number | null;
   is_active?: boolean;
+  exam_count?: number;
+  exams?: ExamPackageExam[];
   created_at?: string;
   updated_at?: string;
 }
@@ -463,6 +534,7 @@ export interface ExamQuestionPublic {
   questionId: number;
   order: number;
   questionText: string;
+  imageUrl?: string | null;
   options: Record<OptionKey, string>;
 }
 
@@ -470,6 +542,8 @@ export interface ExamStartResponse {
   sessionId: number;
   packageId: number;
   packageName: string;
+  examId: number;
+  examName: string;
   attemptNumber: number;
   questionCount: number;
   startTime: string;
@@ -485,6 +559,10 @@ interface ExamStartRaw {
   package_id?: number;
   packageName?: string;
   package_name?: string;
+  examId?: number;
+  exam_id?: number;
+  examName?: string;
+  exam_name?: string;
   attempt_number?: number;
   questionCount?: number;
   question_count?: number;
@@ -500,6 +578,8 @@ interface ExamStartRaw {
     order: number;
     questionText?: string;
     question_text?: string;
+    imageUrl?: string | null;
+    image_url?: string | null;
     options: Record<OptionKey, string>;
   }>;
 }
@@ -508,6 +588,8 @@ const normalizeExamStart = (raw: ExamStartRaw): ExamStartResponse => ({
   sessionId: Number(raw.sessionId ?? raw.session_id ?? 0),
   packageId: Number(raw.packageId ?? raw.package_id ?? 0),
   packageName: String(raw.packageName ?? raw.package_name ?? ""),
+  examId: Number(raw.examId ?? raw.exam_id ?? 0),
+  examName: String(raw.examName ?? raw.exam_name ?? ""),
   attemptNumber: Number(raw.attempt_number ?? 1),
   questionCount: Number(
     raw.questionCount ?? raw.question_count ?? raw.questions?.length ?? 0,
@@ -526,6 +608,9 @@ const normalizeExamStart = (raw: ExamStartRaw): ExamStartResponse => ({
       questionText: String(
         question.questionText ?? question.question_text ?? "",
       ),
+      imageUrl: (question.imageUrl ?? question.image_url ?? null) as
+        | string
+        | null,
       options: question.options,
     })) ?? [],
 });
@@ -534,17 +619,21 @@ export interface SubmitExamResponse {
   sessionId: number;
   package_id?: number | null;
   package_name?: string | null;
+  exam_id?: number | null;
+  exam_name?: string | null;
   attempt_number?: number | null;
   score?: number;
   status?: string;
   totalQuestions?: number;
   correctAnswers?: number;
+  durationMinutes?: number;
 }
 
 export interface ExamResultQuestion {
   questionId: number;
   order: number;
   questionText: string;
+  imageUrl?: string | null;
   options: Record<OptionKey, string>;
   selectedOption?: OptionKey | null;
   correctAnswer?: OptionKey;
@@ -556,11 +645,14 @@ export interface ExamResultResponse {
   sessionId: number;
   package_id?: number | null;
   package_name?: string | null;
+  exam_id?: number | null;
+  exam_name?: string | null;
   attempt_number?: number | null;
   status: string;
   score: number;
   totalQuestions: number;
   correctAnswers: number;
+  durationMinutes?: number;
   startedAt?: string;
   submittedAt?: string;
   questions: ExamResultQuestion[];
@@ -570,10 +662,13 @@ export interface ExamSessionSummary {
   session_id: number;
   package_id?: number | null;
   package_name?: string | null;
+  exam_id?: number | null;
+  exam_name?: string | null;
   attempt_number: number;
   status: string;
   score: number;
   total_questions: number;
+  duration_minutes?: number;
   start_time?: string;
   end_time?: string | null;
 }
@@ -581,14 +676,14 @@ export interface ExamSessionSummary {
 export const examApi = {
   start: async (
     token: string,
-    packageId: number,
+    examId: number,
   ): Promise<ExamStartResponse> => {
     const raw = await request<ExamStartRaw>("/exam/start", {
       method: "POST",
       token,
       body: {
-        package_id: packageId,
-        packageId,
+        exam_id: examId,
+        examId,
       },
     });
     return normalizeExamStart(raw);
@@ -692,8 +787,10 @@ export interface AdminPackage extends ExamPackage {
   is_active: boolean;
 }
 
+export interface AdminPackageExam extends ExamPackageExam {}
+
 export interface AdminQuestionPayload {
-  package_id: number;
+  exam_id: number;
   question_text: string;
   option_a: string;
   option_b: string;
@@ -703,12 +800,16 @@ export interface AdminQuestionPayload {
   correct_answer: OptionKey;
   explanation: string;
   is_active: boolean;
+  remove_image?: boolean;
 }
 
 export interface AdminQuestion extends AdminQuestionPayload {
   id: number;
+  package_id?: number | null;
   package_name: string | null;
   package_question_count: number | null;
+  exam_name?: string | null;
+  image_url?: string | null;
 }
 
 export interface QuestionReportSummary {
@@ -724,6 +825,8 @@ export interface QuestionReportSummary {
   question_text?: string | null;
   package_id?: number | null;
   package_name?: string | null;
+  exam_id?: number | null;
+  exam_name?: string | null;
   session_id?: number | null;
 }
 
@@ -741,8 +844,19 @@ export interface QuestionReportDetail {
   question: {
     id?: number | null;
     text?: string | null;
+    image_url?: string | null;
+    options?: Record<OptionKey, string | null>;
+    correct_answer?: OptionKey | null;
+    correct_answer_text?: string | null;
+    selected_answer?: OptionKey | null;
+    selected_answer_text?: string | null;
+    explanation?: string | null;
   };
   package: {
+    id?: number | null;
+    name?: string | null;
+  };
+  exam: {
     id?: number | null;
     name?: string | null;
   };
@@ -756,6 +870,88 @@ export interface QuestionReportDetail {
     created_at: string;
   }>;
 }
+
+export interface AdminPackagePayload {
+  name: string;
+  description: string;
+  features: string;
+  price: number;
+  session_limit?: number | null;
+  validity_days?: number | null;
+  is_active?: boolean;
+}
+
+export interface AdminPackageExamPayload {
+  name: string;
+  description: string;
+  question_count: number;
+  sort_order?: number;
+  is_active?: boolean;
+}
+
+const appendBooleanField = (
+  formData: FormData,
+  key: string,
+  value: boolean | undefined,
+) => {
+  if (typeof value === "boolean") {
+    formData.append(key, String(value));
+  }
+};
+
+const buildQuestionFormData = (
+  payload: Partial<AdminQuestionPayload> & {
+    imageFile?: File | null;
+  },
+) => {
+  const formData = new FormData();
+
+  if (typeof payload.exam_id === "number" && payload.exam_id > 0) {
+    formData.append("exam_id", String(payload.exam_id));
+  }
+  if (typeof payload.question_text === "string") {
+    formData.append("question_text", payload.question_text);
+  }
+  if (typeof payload.option_a === "string") {
+    formData.append("option_a", payload.option_a);
+  }
+  if (typeof payload.option_b === "string") {
+    formData.append("option_b", payload.option_b);
+  }
+  if (typeof payload.option_c === "string") {
+    formData.append("option_c", payload.option_c);
+  }
+  if (typeof payload.option_d === "string") {
+    formData.append("option_d", payload.option_d);
+  }
+  if (typeof payload.option_e === "string") {
+    formData.append("option_e", payload.option_e);
+  }
+  if (typeof payload.correct_answer === "string") {
+    formData.append("correct_answer", payload.correct_answer);
+  }
+  if (typeof payload.explanation === "string") {
+    formData.append("explanation", payload.explanation);
+  }
+  appendBooleanField(formData, "is_active", payload.is_active);
+  appendBooleanField(formData, "remove_image", payload.remove_image);
+  if (payload.imageFile) {
+    formData.append("image", payload.imageFile);
+  }
+
+  return formData;
+};
+
+export const getServerAssetUrl = (path?: string | null): string | null => {
+  if (!path) {
+    return null;
+  }
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${API_PROXY_BASE_PATH}${normalizedPath}`;
+};
 
 export const adminApi = {
   dashboardStats: async (token: string): Promise<DashboardStats> =>
@@ -815,16 +1011,7 @@ export const adminApi = {
 
   createPackage: async (
     token: string,
-    payload: {
-      name: string;
-      description: string;
-      features: string;
-      price: number;
-      question_count: number;
-      session_limit?: number | null;
-      validity_days?: number | null;
-      is_active?: boolean;
-    },
+    payload: AdminPackagePayload,
   ): Promise<AdminPackage> =>
     request("/admin/packages", {
       method: "POST",
@@ -835,16 +1022,7 @@ export const adminApi = {
   updatePackage: async (
     token: string,
     id: number,
-    payload: Partial<{
-      name: string;
-      description: string;
-      features: string;
-      price: number;
-      question_count: number;
-      session_limit?: number | null;
-      validity_days?: number | null;
-      is_active?: boolean;
-    }>,
+    payload: Partial<AdminPackagePayload>,
   ): Promise<AdminPackage> =>
     request(`/admin/packages/${id}`, {
       method: "PUT",
@@ -861,10 +1039,41 @@ export const adminApi = {
       token,
     }),
 
+  createPackageExam: async (
+    token: string,
+    packageId: number,
+    payload: AdminPackageExamPayload,
+  ): Promise<AdminPackageExam> =>
+    request(`/admin/packages/${packageId}/exams`, {
+      method: "POST",
+      token,
+      body: payload,
+    }),
+
+  updatePackageExam: async (
+    token: string,
+    id: number,
+    payload: Partial<AdminPackageExamPayload>,
+  ): Promise<AdminPackageExam> =>
+    request(`/admin/exams/${id}`, {
+      method: "PUT",
+      token,
+      body: payload,
+    }),
+
+  archivePackageExam: async (
+    token: string,
+    id: number,
+  ): Promise<{ message: string; exam: AdminPackageExam }> =>
+    request(`/admin/exams/${id}/archive`, {
+      method: "PATCH",
+      token,
+    }),
+
   questions: async (
     token: string,
     options?: {
-      packageId?: number;
+      examId?: number;
       isActive?: boolean;
       search?: string;
     },
@@ -872,7 +1081,7 @@ export const adminApi = {
     request("/admin/questions", {
       token,
       query: {
-        package_id: options?.packageId,
+        exam_id: options?.examId,
         is_active: options?.isActive,
         search: options?.search,
       },
@@ -880,23 +1089,23 @@ export const adminApi = {
 
   createQuestion: async (
     token: string,
-    payload: AdminQuestionPayload,
+    payload: AdminQuestionPayload & { imageFile?: File | null },
   ): Promise<AdminQuestion> =>
     request("/admin/questions", {
       method: "POST",
       token,
-      body: payload,
+      formData: buildQuestionFormData(payload),
     }),
 
   updateQuestion: async (
     token: string,
     id: number,
-    payload: Partial<AdminQuestionPayload>,
+    payload: Partial<AdminQuestionPayload> & { imageFile?: File | null },
   ): Promise<AdminQuestion> =>
     request(`/admin/questions/${id}`, {
       method: "PUT",
       token,
-      body: payload,
+      formData: buildQuestionFormData(payload),
     }),
 
   deleteQuestion: async (token: string, id: number): Promise<void> => {
@@ -909,10 +1118,12 @@ export const adminApi = {
   importQuestions: async (
     token: string,
     file: File,
-    options?: { packageId?: number; isActive?: boolean },
+    options?: { examId?: number; isActive?: boolean },
   ): Promise<{
     message?: string;
     imported_count?: number;
+    exam_id?: number;
+    exam_name?: string;
     package_id?: number;
     package_name?: string;
     is_active?: boolean;
@@ -921,8 +1132,8 @@ export const adminApi = {
   }> => {
     const formData = new FormData();
     formData.append("file", file);
-    if (typeof options?.packageId === "number" && options.packageId > 0) {
-      formData.append("package_id", String(options.packageId));
+    if (typeof options?.examId === "number" && options.examId > 0) {
+      formData.append("exam_id", String(options.examId));
     }
     if (typeof options?.isActive === "boolean") {
       formData.append("is_active", String(options.isActive));

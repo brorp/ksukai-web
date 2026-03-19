@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { Loader2, AlertCircle, ArrowLeft, ShieldCheck } from "lucide-react";
 
@@ -21,10 +21,13 @@ type SessionWithGoogle = {
 
 export default function GoogleAuthPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const setSession = useAuthStore((state) => state.setSession);
   const [error, setError] = useState<string | null>(null);
   const hasStartedRef = useRef(false);
+  const intent = searchParams.get("intent") === "login" ? "login" : "register";
+  const fallbackHref = intent === "login" ? "/login" : "/register";
 
   useEffect(() => {
     if (status !== "authenticated" || hasStartedRef.current) return;
@@ -113,8 +116,8 @@ export default function GoogleAuthPage() {
 
             <p className="mb-8 text-sm leading-relaxed text-slate-500 max-w-70">
               {error
-                ? "Terjadi kesalahan saat menghubungkan akun Google Anda."
-                : "Tunggu sebentar ya, kami sedang memverifikasi data Anda untuk keamanan."}
+                ? "Terjadi kendala saat menghubungkan akun Google Anda ke sistem."
+                : "Tunggu sebentar ya, kami sedang memverifikasi data Google Anda dan menyiapkan langkah berikutnya."}
             </p>
 
             {error && (
@@ -135,7 +138,7 @@ export default function GoogleAuthPage() {
             <div className="w-full space-y-3">
               <Button
                 variant={error ? "default" : "ghost"}
-                onClick={() => router.replace("/register")}
+                onClick={() => router.replace(fallbackHref)}
                 className={cn(
                   "w-full h-12 rounded-2xl font-bold transition-all active:scale-95",
                   error
@@ -144,10 +147,13 @@ export default function GoogleAuthPage() {
                 )}
               >
                 {error ? (
-                  "Coba Lagi"
+                  intent === "login" ? "Kembali ke Login" : "Kembali ke Registrasi"
                 ) : (
                   <div className="flex items-center gap-2">
-                    <ArrowLeft size={16} /> Kembali ke Registrasi
+                    <ArrowLeft size={16} />{" "}
+                    {intent === "login"
+                      ? "Kembali ke Login"
+                      : "Kembali ke Registrasi"}
                   </div>
                 )}
               </Button>

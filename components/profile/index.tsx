@@ -48,12 +48,8 @@ const profileSchema = z
     address: z.string().min(5, "Alamat minimal 5 karakter"),
     phone: z.string().min(10, "No. HP tidak valid"),
     targetScore: z.number().min(0).max(100),
-    password: z.string().min(6, "Password minimal 6 karakter"),
-    confirmPassword: z.string().min(1, "Konfirmasi password wajib diisi"),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Password tidak cocok",
-    path: ["confirmPassword"],
+    password: z.string().optional(),
+    confirmPassword: z.string().optional(),
   });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -126,13 +122,39 @@ export default function RegisterProfileForm() {
       return;
     }
 
+    if (authSource === "email") {
+      if (!data.password || data.password.trim().length < 6) {
+        form.setError("password", {
+          type: "manual",
+          message: "Password minimal 6 karakter",
+        });
+        return;
+      }
+
+      if (!data.confirmPassword) {
+        form.setError("confirmPassword", {
+          type: "manual",
+          message: "Konfirmasi password wajib diisi",
+        });
+        return;
+      }
+
+      if (data.password !== data.confirmPassword) {
+        form.setError("confirmPassword", {
+          type: "manual",
+          message: "Password tidak cocok",
+        });
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
       const result = await registrationApi.complete({
         registration_token: pendingRegistration.registrationToken,
         name: data.name,
-        password: data.password,
+        password: authSource === "email" ? data.password : undefined,
         education: data.education,
         school_origin: data.schoolOrigin,
         exam_purpose: data.examPurpose,
@@ -194,6 +216,13 @@ export default function RegisterProfileForm() {
             </div>
           </div>
         </div>
+
+        {authSource === "google" && (
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-4 text-sm text-emerald-800">
+            Akun ini akan masuk menggunakan Google, jadi Anda tidak perlu
+            membuat password terpisah.
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
@@ -324,47 +353,51 @@ export default function RegisterProfileForm() {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-2 text-slate-700 font-semibold">
-                  <Lock className="w-4 h-4 text-sky-600" /> Password
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="Minimal 6 karakter"
-                    {...field}
-                    className="rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white h-11"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {authSource === "email" && (
+            <>
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2 text-slate-700 font-semibold">
+                      <Lock className="w-4 h-4 text-sky-600" /> Password
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Minimal 6 karakter"
+                        {...field}
+                        className="rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white h-11"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <FormField
-            control={form.control}
-            name="confirmPassword"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-2 text-slate-700 font-semibold">
-                  <Lock className="w-4 h-4 text-sky-600" /> Konfirmasi Password
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="Ulangi password"
-                    {...field}
-                    className="rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white h-11"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2 text-slate-700 font-semibold">
+                      <Lock className="w-4 h-4 text-sky-600" /> Konfirmasi Password
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Ulangi password"
+                        {...field}
+                        className="rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white h-11"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </>
+          )}
         </div>
 
         <FormField

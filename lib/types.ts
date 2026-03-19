@@ -6,6 +6,7 @@ export type ExamPurpose =
   | "persiapan_masuk_apoteker"
   | "lainnya";
 export type UserAccountStatus = "active" | "inactive";
+export type UserAuthProvider = "email" | "google" | "both";
 
 export interface User {
   id: number;
@@ -21,6 +22,7 @@ export interface User {
   isPremium: boolean;
   accountStatus: UserAccountStatus;
   statusNote?: string | null;
+  authProvider?: UserAuthProvider;
 }
 
 export interface Question {
@@ -28,6 +30,7 @@ export interface Question {
   order: number;
   question: string;
   options: Record<OptionKey, string>;
+  imageUrl?: string | null;
 }
 
 export interface TestAnswer {

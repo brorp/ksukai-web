@@ -107,6 +107,16 @@ export default function TestQuestion({
         <div className="bg-white p-6 md:p-8 rounded-2xl border-2 border-slate-100 leading-relaxed text-slate-800 text-lg shadow-sm">
           {question.question}
         </div>
+
+        {question.imageUrl && (
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            <img
+              src={question.imageUrl}
+              alt={`Ilustrasi soal ${questionNumber}`}
+              className="max-h-[420px] w-full rounded-xl object-contain bg-slate-50"
+            />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-3">

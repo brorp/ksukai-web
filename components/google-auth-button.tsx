@@ -6,10 +6,12 @@ import { signIn } from "next-auth/react";
 
 interface GoogleButtonProps {
   isLoading?: boolean;
+  intent?: "login" | "register";
 }
 
 const GoogleAuthButton = ({
   isLoading: externalLoading,
+  intent = "register",
 }: GoogleButtonProps) => {
   const [internalLoading, setInternalLoading] = React.useState(false);
 
@@ -19,7 +21,7 @@ const GoogleAuthButton = ({
     setInternalLoading(true);
     try {
       await signIn("google", {
-        redirectTo: "/auth/google",
+        redirectTo: `/auth/google?intent=${intent}`,
         redirect: true,
       });
     } catch (error) {

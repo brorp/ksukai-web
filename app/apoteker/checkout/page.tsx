@@ -32,11 +32,6 @@ import { cn } from "@/lib/utils";
 
 const PAYMENT_OPTIONS = [
   ["gopay", "Gopay (QRIS)", "Pembayaran via flow GoPay."],
-  [
-    "bank_transfer",
-    "Virtual Account",
-    "Pembayaran via virtual account bank yang tersedia.",
-  ],
 ] as const;
 
 const ALLOWED_PAYMENT_METHODS = new Set<string>(
@@ -82,10 +77,6 @@ const formatPaymentMethod = (value?: string | null) => {
   switch (value) {
     case "gopay":
       return "Gopay (QRIS)";
-    case "bank_transfer":
-      return "Virtual Account";
-    case "qris":
-      return "QRIS Dinamis";
     default:
       return value ?? "-";
   }

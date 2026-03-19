@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FileUp,
   ShieldCheck,
@@ -31,13 +31,14 @@ import {
   type AdminQuestion,
   type AdminQuestionPayload,
   type ExamPackage,
+  getServerAssetUrl,
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import type { OptionKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const createDefaultQuestionDraft = (packageId = 0): AdminQuestionPayload => ({
-  package_id: packageId,
+const createDefaultQuestionDraft = (examId = 0): AdminQuestionPayload => ({
+  exam_id: examId,
   question_text: "",
   option_a: "",
   option_b: "",
@@ -65,7 +66,34 @@ export default function AdminKelolaSoalPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importFileInputKey, setImportFileInputKey] = useState(0);
   const [importAsActive, setImportAsActive] = useState(false);
-  const [importPackageId, setImportPackageId] = useState(0);
+  const [importExamId, setImportExamId] = useState(0);
+  const [questionImageFile, setQuestionImageFile] = useState<File | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [removeCurrentImage, setRemoveCurrentImage] = useState(false);
+
+  const examOptions = useMemo(
+    () =>
+      packages.flatMap((pkg) =>
+        (pkg.exams ?? []).map((exam) => ({
+          ...exam,
+          package_name: pkg.name,
+        })),
+      ),
+    [packages],
+  );
+
+  const questionImagePreviewUrl = useMemo(
+    () => (questionImageFile ? URL.createObjectURL(questionImageFile) : null),
+    [questionImageFile],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (questionImagePreviewUrl) {
+        URL.revokeObjectURL(questionImagePreviewUrl);
+      }
+    };
+  }, [questionImagePreviewUrl]);
 
   const loadData = async () => {
     if (!token) return;
@@ -77,12 +105,14 @@ export default function AdminKelolaSoalPage() {
       ]);
       setQuestions(questionRows);
       setPackages(packageRows);
+      const firstExamId =
+        packageRows.flatMap((pkg) => pkg.exams ?? [])[0]?.id ?? 0;
       setQuestionDraft((prev) =>
-        prev.package_id > 0
+        prev.exam_id > 0
           ? prev
-          : createDefaultQuestionDraft(packageRows[0]?.id ?? 0),
+          : createDefaultQuestionDraft(firstExamId),
       );
-      setImportPackageId((prev) => prev || packageRows[0]?.id || 0);
+      setImportExamId((prev) => prev || firstExamId);
     } catch (err) {
       toast.error("Gagal Memuat Data", {
         description:
@@ -99,7 +129,10 @@ export default function AdminKelolaSoalPage() {
 
   const resetQuestionForm = () => {
     setEditingQuestionId(null);
-    setQuestionDraft(createDefaultQuestionDraft(packages[0]?.id ?? 0));
+    setQuestionDraft(createDefaultQuestionDraft(examOptions[0]?.id ?? 0));
+    setQuestionImageFile(null);
+    setCurrentImageUrl(null);
+    setRemoveCurrentImage(false);
   };
 
   const handleEditQuestion = (questionId: number) => {
@@ -108,7 +141,7 @@ export default function AdminKelolaSoalPage() {
 
     setEditingQuestionId(selected.id);
     setQuestionDraft({
-      package_id: selected.package_id ?? packages[0]?.id ?? 0,
+      exam_id: selected.exam_id ?? examOptions[0]?.id ?? 0,
       question_text: selected.question_text,
       option_a: selected.option_a,
       option_b: selected.option_b,
@@ -119,6 +152,9 @@ export default function AdminKelolaSoalPage() {
       explanation: selected.explanation,
       is_active: selected.is_active,
     });
+    setQuestionImageFile(null);
+    setCurrentImageUrl(selected.image_url ?? null);
+    setRemoveCurrentImage(false);
     toast.info("Mode Edit Aktif", {
       description: `Mengedit soal #${selected.id}`,
     });
@@ -128,20 +164,27 @@ export default function AdminKelolaSoalPage() {
     if (!token) return;
 
     if (
-      !Number.isInteger(questionDraft.package_id) ||
-      questionDraft.package_id <= 0
+      !Number.isInteger(questionDraft.exam_id) ||
+      questionDraft.exam_id <= 0
     ) {
-      toast.warning("Kategori soal wajib dipilih.");
+      toast.warning("Ujian tujuan wajib dipilih.");
       return;
     }
 
     setActionLoading(true);
     try {
       if (editingQuestionId) {
-        await adminApi.updateQuestion(token, editingQuestionId, questionDraft);
+        await adminApi.updateQuestion(token, editingQuestionId, {
+          ...questionDraft,
+          imageFile: questionImageFile,
+          remove_image: removeCurrentImage,
+        });
         toast.success("Berhasil", { description: "Soal berhasil diperbarui." });
       } else {
-        await adminApi.createQuestion(token, questionDraft);
+        await adminApi.createQuestion(token, {
+          ...questionDraft,
+          imageFile: questionImageFile,
+        });
         toast.success("Berhasil", {
           description: "Soal baru telah ditambahkan.",
         });
@@ -159,14 +202,14 @@ export default function AdminKelolaSoalPage() {
 
   const handleImportQuestions = async () => {
     if (!token || !importFile) return;
-    if (!Number.isInteger(importPackageId) || importPackageId <= 0) {
-      toast.warning("Pilih kategori package untuk hasil import.");
+    if (!Number.isInteger(importExamId) || importExamId <= 0) {
+      toast.warning("Pilih ujian tujuan untuk hasil import.");
       return;
     }
 
     setActionLoading(true);
     const promise = adminApi.importQuestions(token, importFile, {
-      packageId: importPackageId,
+      examId: importExamId,
       isActive: importAsActive,
     });
 
@@ -176,7 +219,8 @@ export default function AdminKelolaSoalPage() {
         setImportFile(null);
         setImportFileInputKey((prev) => prev + 1);
         loadData();
-        return `${result.imported_count ?? 0} soal berhasil diimpor ke kategori ${packages.find((p) => p.id === importPackageId)?.name}.`;
+        const selectedExam = examOptions.find((exam) => exam.id === importExamId);
+        return `${result.imported_count ?? 0} soal berhasil diimpor ke ${selectedExam?.package_name ?? "paket"} • ${selectedExam?.name ?? "ujian"}.`;
       },
       error: "Gagal import soal. Periksa kembali format template.",
       finally: () => setActionLoading(false),
@@ -276,22 +320,22 @@ export default function AdminKelolaSoalPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 ml-1">
-                    Kategori Package
+                    Ujian Tujuan
                   </label>
                   <select
                     className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
-                    value={questionDraft.package_id}
+                    value={questionDraft.exam_id}
                     onChange={(e) =>
                       setQuestionDraft((prev) => ({
                         ...prev,
-                        package_id: Number(e.target.value),
+                        exam_id: Number(e.target.value),
                       }))
                     }
                   >
-                    <option value={0}>Pilih kategori...</option>
-                    {packages.map((pkg) => (
-                      <option key={pkg.id} value={pkg.id}>
-                        {pkg.name}
+                    <option value={0}>Pilih ujian...</option>
+                    {examOptions.map((exam) => (
+                      <option key={exam.id} value={exam.id}>
+                        {exam.package_name} • {exam.name}
                       </option>
                     ))}
                   </select>
@@ -332,6 +376,61 @@ export default function AdminKelolaSoalPage() {
                     }))
                   }
                 />
+              </div>
+
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Gambar Soal
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Khusus input manual, Anda bisa menambahkan satu gambar pendukung.
+                    </p>
+                  </div>
+                  {(currentImageUrl || questionImageFile) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setQuestionImageFile(null);
+                        setCurrentImageUrl(null);
+                        setRemoveCurrentImage(true);
+                      }}
+                    >
+                      Hapus Gambar
+                    </Button>
+                  )}
+                </div>
+
+                <Input
+                  type="file"
+                  accept="image/*"
+                  className="rounded-xl h-auto py-2 bg-white"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setQuestionImageFile(file);
+                    if (file) {
+                      setRemoveCurrentImage(false);
+                    }
+                  }}
+                />
+
+                {(questionImageFile || currentImageUrl) && (
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3">
+                    <img
+                        src={
+                        questionImagePreviewUrl ??
+                        getServerAssetUrl(currentImageUrl) ??
+                        currentImageUrl ??
+                        ""
+                      }
+                      alt="Preview gambar soal"
+                      className="max-h-[320px] w-full rounded-xl object-contain bg-slate-50"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -470,17 +569,17 @@ export default function AdminKelolaSoalPage() {
 
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase text-slate-400 ml-1">
-                  Target Kategori
+                  Target Ujian
                 </label>
                 <select
                   className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none"
-                  value={importPackageId}
-                  onChange={(e) => setImportPackageId(Number(e.target.value))}
+                  value={importExamId}
+                  onChange={(e) => setImportExamId(Number(e.target.value))}
                 >
-                  <option value={0}>Pilih kategori import...</option>
-                  {packages.map((pkg) => (
-                    <option key={pkg.id} value={pkg.id}>
-                      {pkg.name}
+                  <option value={0}>Pilih ujian import...</option>
+                  {examOptions.map((exam) => (
+                    <option key={exam.id} value={exam.id}>
+                      {exam.package_name} • {exam.name}
                     </option>
                   ))}
                 </select>
@@ -495,7 +594,7 @@ export default function AdminKelolaSoalPage() {
                   type="file"
                   className="rounded-lg h-auto py-2"
                   accept=".docx"
-                  disabled={importPackageId <= 0}
+                  disabled={importExamId <= 0}
                   onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
                 />
               </div>
@@ -514,7 +613,7 @@ export default function AdminKelolaSoalPage() {
                 variant="outline"
                 className="w-full h-11 rounded-xl border-primary-200 text-primary-700 hover:bg-primary-50 font-bold"
                 onClick={() => void handleImportQuestions()}
-                disabled={!importFile || actionLoading || importPackageId <= 0}
+                disabled={!importFile || actionLoading || importExamId <= 0}
               >
                 {actionLoading ? "Processing..." : "Jalankan Import"}
               </Button>

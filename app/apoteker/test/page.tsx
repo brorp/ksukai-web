@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { examApi } from "@/lib/api/client";
+import { examApi, getServerAssetUrl } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import { useTestStore } from "@/lib/store/test";
 import type { OptionKey, Question, QuestionFlagStatus } from "@/lib/types";
@@ -40,7 +40,7 @@ export default function TestPage() {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const packageId = Number(searchParams.get("packageId") ?? 0);
+  const examId = Number(searchParams.get("examId") ?? 0);
 
   const [mounted, setMounted] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
@@ -51,6 +51,7 @@ export default function TestPage() {
   const [error, setError] = useState("");
   const [syncError, setSyncError] = useState("");
   const [packageName, setPackageName] = useState("");
+  const [examName, setExamName] = useState("");
 
   const {
     sessionId,
@@ -83,24 +84,26 @@ export default function TestPage() {
       setIsLoadingSession(true);
       setError("");
 
-      if (!Number.isInteger(packageId) || packageId <= 0) {
-        setError("Pilih paket ujian dari dashboard terlebih dahulu.");
+      if (!Number.isInteger(examId) || examId <= 0) {
+        setError("Pilih ujian dari dashboard terlebih dahulu.");
         setIsLoadingSession(false);
         return;
       }
 
       try {
-        const response = await examApi.start(token, packageId);
+        const response = await examApi.start(token, examId);
         const questions: Question[] = response.questions
           .sort((a, b) => a.order - b.order)
           .map((item) => ({
             id: item.questionId,
             order: item.order,
             question: item.questionText,
+            imageUrl: getServerAssetUrl(item.imageUrl ?? null),
             options: item.options,
           }));
 
         setPackageName(response.packageName);
+        setExamName(response.examName);
         initializeSession({
           sessionId: response.sessionId,
           startTime: response.startTime,
@@ -125,7 +128,7 @@ export default function TestPage() {
     token,
     isAuthenticated,
     user?.role,
-    packageId,
+    examId,
     initializeSession,
   ]);
 
@@ -262,8 +265,11 @@ export default function TestPage() {
             <div className="flex-1 flex flex-col items-center px-4 overflow-hidden">
               {/* Judul Paket */}
               <h2 className="text-sm font-bold text-slate-800 truncate w-full text-center mb-1">
-                {packageName || "Paket Ujian"}
+                {examName || "Ujian"}
               </h2>
+              <p className="text-[11px] text-slate-400 text-center truncate w-full mb-1">
+                {packageName || "Paket Ujian"}
+              </p>
 
               <div className="flex items-center gap-3 bg-slate-50/50 px-3 py-1 rounded-full border border-slate-100">
                 <div

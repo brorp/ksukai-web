@@ -137,6 +137,15 @@ export default function LoginPage() {
                   placeholder="Masukkan Password"
                 />
 
+                <div className="flex justify-end">
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs font-semibold text-primary hover:text-primary-700 transition-colors"
+                  >
+                    Lupa password?
+                  </Link>
+                </div>
+
                 <Button
                   type="submit"
                   disabled={isLoading}
@@ -159,7 +168,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <GoogleAuthButton />
+            <GoogleAuthButton intent="login" />
 
             <div className="mt-8 text-center">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">

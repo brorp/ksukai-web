@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
   Mail,
   MessageSquareMore,
@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   adminApi,
+  getServerAssetUrl,
   type QuestionReportDetail,
   type QuestionReportSummary,
 } from "@/lib/api/client";
@@ -257,18 +258,109 @@ export default function AdminReportsPage() {
                         Konten Soal Terkait
                       </CardTitle>
                       <CardDescription className="text-xs uppercase tracking-wider font-bold text-slate-400 mt-1">
-                        {detail.package.name ?? "Tanpa Kategori"}
+                        {(detail.package.name ?? "Tanpa Paket") +
+                          " • " +
+                          (detail.exam.name ?? "Tanpa Ujian")}
                       </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-6">
+                <CardContent className="pt-6 space-y-5">
                   <div className="bg-slate-50 border border-slate-100 rounded-xl p-5 italic text-slate-600 text-sm leading-relaxed">
                     "
                     {detail.question.text ??
                       "Konten soal sudah dihapus atau tidak tersedia."}
                     "
                   </div>
+
+                  {detail.question.image_url && (
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
+                      <img
+                        src={
+                          getServerAssetUrl(detail.question.image_url) ??
+                          detail.question.image_url
+                        }
+                        alt={`Gambar soal ${detail.question.id ?? ""}`}
+                        className="max-h-[360px] w-full rounded-lg object-contain bg-slate-50"
+                      />
+                    </div>
+                  )}
+
+                  {detail.question.options && (
+                    <div className="space-y-2">
+                      <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                        Opsi Jawaban
+                      </h4>
+                      <div className="grid gap-2">
+                        {(["a", "b", "c", "d", "e"] as const).map((key) => {
+                          const optionText = detail.question.options?.[key];
+                          if (!optionText) {
+                            return null;
+                          }
+
+                          const isCorrect = detail.question.correct_answer === key;
+                          const isSelected = detail.question.selected_answer === key;
+
+                          return (
+                            <div
+                              key={key}
+                              className={cn(
+                                "rounded-xl border p-3 text-sm",
+                                isCorrect
+                                  ? "border-emerald-200 bg-emerald-50"
+                                  : isSelected
+                                    ? "border-sky-200 bg-sky-50"
+                                    : "border-slate-100 bg-white",
+                              )}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="font-semibold text-slate-900">
+                                  {key.toUpperCase()}. {optionText}
+                                </span>
+                                <div className="flex gap-2">
+                                  {isCorrect && (
+                                    <Badge className="bg-emerald-600 text-white">
+                                      Kunci
+                                    </Badge>
+                                  )}
+                                  {isSelected && (
+                                    <Badge variant="outline">Dipilih peserta</Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <InfoBox
+                      label="Jawaban Benar"
+                      value={
+                        detail.question.correct_answer
+                          ? `${detail.question.correct_answer.toUpperCase()} - ${detail.question.correct_answer_text ?? "-"}`
+                          : "-"
+                      }
+                    />
+                    <InfoBox
+                      label="Jawaban Peserta"
+                      value={
+                        detail.question.selected_answer
+                          ? `${detail.question.selected_answer.toUpperCase()} - ${detail.question.selected_answer_text ?? "-"}`
+                          : "Tidak menjawab"
+                      }
+                    />
+                  </div>
+
+                  <InfoBox
+                    label="Pembahasan"
+                    value={
+                      detail.question.explanation ??
+                      "Pembahasan belum tersedia."
+                    }
+                  />
                 </CardContent>
               </Card>
 
@@ -405,7 +497,7 @@ function MetricCard({
 }: {
   label: string;
   value: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   isStatus?: boolean;
 }) {
   return (
@@ -420,6 +512,17 @@ function MetricCard({
       ) : (
         <p className="text-sm font-bold text-slate-800 truncate">{value}</p>
       )}
+    </div>
+  );
+}
+
+function InfoBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
+        {label}
+      </p>
+      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{value}</p>
     </div>
   );
 }

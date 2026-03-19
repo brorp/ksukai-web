@@ -37,6 +37,7 @@ import {
   type AdminQuestion,
   type AdminQuestionPayload,
   type ExamPackage,
+  getServerAssetUrl,
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
@@ -53,8 +54,8 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-const createEmptyQuestionDraft = (packageId = 0): AdminQuestionPayload => ({
-  package_id: packageId,
+const createEmptyQuestionDraft = (examId = 0): AdminQuestionPayload => ({
+  exam_id: examId,
   question_text: "",
   option_a: "",
   option_b: "",
@@ -76,7 +77,7 @@ export default function AdminBankSoalPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [packageFilter, setPackageFilter] = useState<number>(0);
+  const [examFilter, setExamFilter] = useState<number>(0);
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">(
     "",
   );
@@ -99,6 +100,17 @@ export default function AdminBankSoalPage() {
   const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
 
+  const examOptions = useMemo(
+    () =>
+      packages.flatMap((pkg) =>
+        (pkg.exams ?? []).map((exam) => ({
+          ...exam,
+          package_name: pkg.name,
+        })),
+      ),
+    [packages],
+  );
+
   const selectedCount = Object.keys(rowSelection).length;
 
   const loadData = async () => {
@@ -107,7 +119,7 @@ export default function AdminBankSoalPage() {
     try {
       const [questionRows, packageRows] = await Promise.all([
         adminApi.questions(token, {
-          packageId: packageFilter || undefined,
+          examId: examFilter || undefined,
           isActive: statusFilter === "" ? undefined : statusFilter === "active",
         }),
         adminApi.packages(),
@@ -128,11 +140,11 @@ export default function AdminBankSoalPage() {
 
   useEffect(() => {
     void loadData();
-  }, [token, packageFilter, statusFilter]);
+  }, [token, examFilter, statusFilter]);
 
   const resetForm = () => {
     setEditingQuestionId(null);
-    setQuestionDraft(createEmptyQuestionDraft(packages[0]?.id ?? 0));
+    setQuestionDraft(createEmptyQuestionDraft(examOptions[0]?.id ?? 0));
   };
 
   const columns = useMemo<ColumnDef<AdminQuestion>[]>(
@@ -193,11 +205,11 @@ export default function AdminBankSoalPage() {
         ),
       },
       {
-        accessorKey: "package_name",
-        header: "Kategori",
+        accessorKey: "exam_name",
+        header: "Ujian",
         cell: ({ row }) => (
           <span className="inline-flex items-center rounded-md bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
-            {row.original.package_name || "Uncategorized"}
+            {row.original.exam_name || "Belum terhubung"}
           </span>
         ),
       },
@@ -251,7 +263,7 @@ export default function AdminBankSoalPage() {
               onClick={() => {
                 setEditingQuestionId(row.original.id);
                 setQuestionDraft({
-                  package_id: row.original.package_id ?? 0,
+                  exam_id: row.original.exam_id ?? 0,
                   question_text: row.original.question_text,
                   option_a: row.original.option_a,
                   option_b: row.original.option_b,
@@ -286,10 +298,10 @@ export default function AdminBankSoalPage() {
     if (!token) return;
 
     if (
-      !Number.isInteger(questionDraft.package_id) ||
-      questionDraft.package_id <= 0
+      !Number.isInteger(questionDraft.exam_id) ||
+      questionDraft.exam_id <= 0
     ) {
-      toast.error("Gagal", { description: "Kategori soal wajib dipilih." });
+      toast.error("Gagal", { description: "Ujian tujuan wajib dipilih." });
       return;
     }
 
@@ -382,7 +394,7 @@ export default function AdminBankSoalPage() {
     const promise = Promise.all(
       selectedIds.map((id) =>
         adminApi.updateQuestion(token, Number(id), {
-          package_id: Number(selectedCategoryId),
+          exam_id: Number(selectedCategoryId),
         }),
       ),
     );
@@ -520,13 +532,13 @@ export default function AdminBankSoalPage() {
           <div className="relative group">
             <select
               className="h-9 min-w-35 appearance-none rounded-xl border border-slate-100 bg-slate-50/50 pl-3 pr-8 text-[11px] font-semibold uppercase tracking-tight text-slate-600 outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white transition-all cursor-pointer"
-              value={packageFilter}
-              onChange={(e) => setPackageFilter(Number(e.target.value))}
+              value={examFilter}
+              onChange={(e) => setExamFilter(Number(e.target.value))}
             >
-              <option value={0}>Semua Kategori</option>
-              {packages.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
+              <option value={0}>Semua Ujian</option>
+              {examOptions.map((exam) => (
+                <option key={exam.id} value={exam.id}>
+                  {exam.package_name} • {exam.name}
                 </option>
               ))}
             </select>
@@ -543,7 +555,7 @@ export default function AdminBankSoalPage() {
             className="flex-1 sm:flex-none h-9 rounded-xl font-bold text-xs bg-primary hover:bg-primary/90 shadow-sm shadow-primary/20"
             onClick={() => {
               setEditingQuestionId(null);
-              setQuestionDraft(createEmptyQuestionDraft(packages[0]?.id || 0));
+              setQuestionDraft(createEmptyQuestionDraft(examOptions[0]?.id || 0));
               setFormOpen(true);
             }}
           >
@@ -609,21 +621,21 @@ export default function AdminBankSoalPage() {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
             <div className="md:col-span-8 space-y-2">
               <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 ml-1">
-                Kategori / Paket Soal
+                Ujian Tujuan
               </label>
               <select
                 className="w-full h-11 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm"
-                value={questionDraft.package_id}
+                value={questionDraft.exam_id}
                 onChange={(e) =>
                   setQuestionDraft((p) => ({
                     ...p,
-                    package_id: Number(e.target.value),
+                    exam_id: Number(e.target.value),
                   }))
                 }
               >
-                {packages.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+                {examOptions.map((exam) => (
+                  <option key={exam.id} value={exam.id}>
+                    {exam.package_name} • {exam.name}
                   </option>
                 ))}
               </select>
@@ -748,7 +760,7 @@ export default function AdminBankSoalPage() {
             variant="outline"
             className="bg-white border-slate-200 text-slate-500 text-[10px] h-5"
           >
-            {previewQuestion?.package_name || "Umum"}
+            {previewQuestion?.exam_name || "Umum"}
           </Badge>
         }
         footer={
@@ -770,6 +782,18 @@ export default function AdminBankSoalPage() {
               <div className="text-xs font-medium text-slate-800 leading-snug border-l-2 border-primary-400 pl-3">
                 {previewQuestion.question_text}
               </div>
+              {previewQuestion.image_url && (
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
+                  <img
+                    src={
+                      getServerAssetUrl(previewQuestion.image_url) ??
+                      previewQuestion.image_url
+                    }
+                    alt={`Gambar soal ${previewQuestion.id}`}
+                    className="max-h-[360px] w-full rounded-lg object-contain bg-slate-50"
+                  />
+                </div>
+              )}
             </section>
             <section className="space-y-2">
               <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">
@@ -960,7 +984,7 @@ export default function AdminBankSoalPage() {
             <div className="w-full space-y-3 pt-8">
               <div className="flex items-center justify-between px-1">
                 <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                  Kategori Tujuan
+                  Ujian Tujuan
                 </label>
                 {selectedCategoryId && (
                   <span className="text-[9px] font-semibold text-emerald-500 uppercase tracking-widest animate-pulse">
@@ -982,11 +1006,11 @@ export default function AdminBankSoalPage() {
                   )}
                 >
                   <option value="" disabled>
-                    Pilih kategori...
+                    Pilih ujian...
                   </option>
-                  {packages.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
+                  {examOptions.map((exam) => (
+                    <option key={exam.id} value={exam.id}>
+                      {exam.package_name} • {exam.name}
                     </option>
                   ))}
                 </select>
