@@ -279,6 +279,24 @@ export const authApi = {
     return normalizeUser(payload);
   },
 
+  updateProfile: async (
+    token: string,
+    payload: {
+      name: string;
+      education: string;
+      school_origin: string;
+      exam_purpose: string;
+      address: string;
+      phone: string;
+      target_score: number;
+    },
+  ): Promise<{ message: string }> =>
+    request("/user/profile", {
+      method: "PUT",
+      token,
+      body: payload,
+    }),
+
   reqEmailOtp: async (email: string): Promise<EmailOtpSendResponse> =>
     request("/auth/email-otp/send", {
       method: "POST",
@@ -878,7 +896,7 @@ export interface AdminPackagePayload {
   name: string;
   description: string;
   features: string;
-  price: number;
+  price: number | "";
   is_active?: boolean;
   exams: AdminPackageExamPayload[];
 }
@@ -887,9 +905,9 @@ export interface AdminPackageExamPayload {
   id?: number;
   name: string;
   description: string;
-  question_count: number;
-  session_limit?: number | null;
-  sort_order?: number;
+  question_count: number | "";
+  session_limit?: number | "" | null;
+  sort_order?: number | "";
   is_active?: boolean;
 }
 

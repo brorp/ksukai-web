@@ -110,20 +110,6 @@ export default function ApotekerDashboard() {
     return map;
   }, [purchases]);
 
-  const quickStartExam = useMemo(
-    () =>
-      packages
-        .filter((item) => item.price === 0 || activePackageIds.has(item.id))
-        .flatMap((item) =>
-          (item.exams ?? []).map((exam) => ({
-            packageItem: item,
-            examItem: exam,
-          })),
-        )
-        .find((item) => item.examItem.is_active) ?? null,
-    [activePackageIds, packages],
-  );
-
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -167,40 +153,32 @@ export default function ApotekerDashboard() {
         />
       </div>
 
-      <Card className="border-none bg-linear-to-br from-sky-600 via-cyan-600 to-sky-700 text-white shadow-xl">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-2xl">
-            <Crown className="h-6 w-6" />
-            Paket Ujian KSUKAI
+      <Card className="border-none bg-linear-to-br from-sky-600 via-sky-700 to-sky-800 text-white shadow-xl overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+        <CardHeader className="relative z-10 pb-4">
+          <CardTitle className="flex items-center gap-2 text-2xl mb-1">
+            <Crown className="h-6 w-6 text-sky-200" />
+            Informasi & Alur Ujian CBT KSUKAI
           </CardTitle>
-          <CardDescription className="text-sky-100">
-            Paket gratis bisa langsung dimulai. Paket berbayar dibeli lewat
-            checkout yang aman di website ini.
+          <CardDescription className="text-sky-100/90 text-sm md:text-base leading-relaxed max-w-3xl">
+            Selamat datang di portal ujian KSUKAI. Mohon perhatikan tata cara berikut untuk kelancaran proses ujian Anda.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-sky-100">
-            Riwayat order dan status pembayaran selalu bisa dipantau dari menu
-            Pembelian.
-          </p>
-          {quickStartExam ? (
-            <Button
-              onClick={() => {
-                setConfirmStart(true);
-                setSelectedExamState(quickStartExam);
-              }}
-              className="bg-white font-bold text-sky-700 hover:bg-sky-50"
-            >
-              <Play size={16} className="mr-2 fill-current" />
-              Mulai {quickStartExam.examItem.name}
-            </Button>
-          ) : (
-            <Link href="/apoteker/purchases">
-              <Button className="bg-white font-bold text-sky-700 hover:bg-sky-50">
-                Lihat Pembelian
-              </Button>
-            </Link>
-          )}
+        <CardContent className="relative z-10">
+          <ul className="grid grid-cols-1 md:grid-cols-3 gap-5 text-sm text-sky-50 mt-2">
+            <li className="flex gap-3 items-start bg-white/10 p-4 rounded-2xl border border-white/5">
+              <div className="w-7 h-7 rounded-full bg-sky-50 text-sky-700 flex items-center justify-center shrink-0 font-bold shadow-sm">1</div>
+              <p className="leading-relaxed">Pastikan <strong className="text-white">koneksi internet stabil</strong> sebelum memulai ujian untuk menghindari terputusnya sesi secara tiba-tiba.</p>
+            </li>
+            <li className="flex gap-3 items-start bg-white/10 p-4 rounded-2xl border border-white/5">
+              <div className="w-7 h-7 rounded-full bg-sky-50 text-sky-700 flex items-center justify-center shrink-0 font-bold shadow-sm">2</div>
+              <p className="leading-relaxed">Paket gratis dapat langsung dikerjakan. Paket berbayar akan aktif otomatis setelah <strong className="text-white">pembayaran terverifikasi</strong>.</p>
+            </li>
+            <li className="flex gap-3 items-start bg-white/10 p-4 rounded-2xl border border-white/5">
+              <div className="w-7 h-7 rounded-full bg-sky-50 text-sky-700 flex items-center justify-center shrink-0 font-bold shadow-sm">3</div>
+              <p className="leading-relaxed">Waktu berjalan otomatis. <strong className="text-white">Timer tidak akan berhenti</strong> meskipun Anda keluar dari layar ujian.</p>
+            </li>
+          </ul>
         </CardContent>
       </Card>
 

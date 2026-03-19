@@ -29,7 +29,7 @@ export default function KSUKAICalculator({
     setExpression("");
     setResult("");
   };
-  const backspace = () => setExpression(expression.slice(0, -1));
+  const backspace = () => setExpression((prev) => prev.slice(0, -1));
 
   const handleCalculate = () => {
     try {
@@ -49,6 +49,45 @@ export default function KSUKAICalculator({
       setResult("Error");
     }
   };
+
+  useEffect(() => {
+    if (!showCalculator) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input or textarea
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+
+      const key = e.key;
+
+      if (/^[0-9\.+\-()^%]$/.test(key)) {
+        e.preventDefault();
+        addToExpression(key);
+      } else if (key === "*") {
+        e.preventDefault();
+        addToExpression("×");
+      } else if (key === "/") {
+        e.preventDefault();
+        addToExpression("÷");
+      } else if (key === "Enter" || key === "=") {
+        e.preventDefault();
+        handleCalculate();
+      } else if (key === "Backspace") {
+        e.preventDefault();
+        backspace();
+      } else if (key === "Escape") {
+        e.preventDefault();
+        setShowCalculator(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showCalculator, expression, history, lastAns, setShowCalculator]);
 
   const buttons = [
     { label: "ln", cmd: "log(", color: "bg-slate-50 text-primary" },

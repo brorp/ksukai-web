@@ -22,6 +22,44 @@ import { cn } from "@/lib/utils";
 
 type LogStatusFilter = "all" | "success" | "failed";
 
+const ACTION_MAP: Record<string, string> = {
+  LOGIN: "Melakukan Login",
+  REGISTER: "Mendaftar Akun",
+  PROFILE_UPDATE: "Mengubah Profil",
+  PROFILE_READ: "Melihat Profil",
+  EXAM_START: "Memulai Ujian",
+  EXAM_SUBMIT: "Menyelesaikan Ujian",
+  EXAM_READ: "Melihat Ujian",
+  EXAM_REPORT: "Melaporkan Ujian",
+  EXAM_RESULT_READ: "Melihat Hasil Ujian",
+  TRANSACTION_CREATE: "Membuat Transaksi",
+  TRANSACTION_UPDATE: "Memperbarui Transaksi",
+  TRANSACTION_READ: "Melihat Transaksi",
+  PASSWORD_RESET: "Mereset Password",
+  PASSWORD_RESET_REQUEST: "Request Reset Password",
+  LOGOUT: "Melakukan Logout",
+  PACKAGE_CREATE: "Membuat Paket",
+  PACKAGE_UPDATE: "Memperbarui Paket",
+  PACKAGE_ARCHIVE: "Menghapus Paket",
+  PACKAGE_READ: "Melihat Paket",
+  USER_UPDATE: "Memperbarui User",
+  USER_READ: "Melihat User",
+  DASHBOARD_READ: "Melihat Dashboard",
+};
+
+const ENTITY_MAP: Record<string, string> = {
+  USER: "Pengguna",
+  EXAM: "Sesi Ujian / Soal",
+  PACKAGE: "Paket Ujian",
+  TRANSACTION: "Order Pembayaran",
+  SESSION: "Sesi Ujian",
+  DASHBOARD: "Halaman Dashboard",
+  AUTH: "Autentikasi",
+};
+
+const formatAction = (action: string) => ACTION_MAP[action] || action.replace(/_/g, " ");
+const formatEntity = (entity: string) => ENTITY_MAP[entity] || entity.replace(/_/g, " ");
+
 export default function AdminLogAktivitasPage() {
   const token = useAuthStore((state) => state.token);
   const [loading, setLoading] = useState(true);
@@ -54,9 +92,12 @@ export default function AdminLogAktivitasPage() {
     return logs.filter((item) => {
       const matchesStatus =
         statusFilter === "all" || item.status === statusFilter;
+      const mappedAction = formatAction(item.action).toLowerCase();
+      const mappedEntity = formatEntity(item.entity).toLowerCase();
+
       const matchesSearch =
-        item.action.toLowerCase().includes(search.toLowerCase()) ||
-        item.entity.toLowerCase().includes(search.toLowerCase()) ||
+        mappedAction.includes(search.toLowerCase()) ||
+        mappedEntity.includes(search.toLowerCase()) ||
         (item.message?.toLowerCase() || "").includes(search.toLowerCase());
 
       return matchesStatus && matchesSearch;
@@ -93,12 +134,12 @@ export default function AdminLogAktivitasPage() {
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <Zap size={12} className="text-sky-500" />
-              <span className="font-semibold text-slate-900 text-[12px] uppercase tracking-tight">
-                {row.original.action}
+              <span className="font-semibold text-slate-900 text-[12px] tracking-tight">
+                {formatAction(row.original.action)}
               </span>
             </div>
-            <span className="text-[10px] text-slate-400 font-medium lowercase italic">
-              target: {row.original.entity}
+            <span className="text-[10px] text-slate-400 font-medium italic">
+              Target: {formatEntity(row.original.entity)}
             </span>
           </div>
         ),

@@ -324,22 +324,7 @@ function TestContent() {
             </div>
           </div>
 
-          {/* Gunakan w-auto atau w-10 (icon only) jika layar menyempit */}
           <div className="flex items-center gap-2">
-            <LabValuesModal />
-
-            <Button
-              variant="outline"
-              onClick={() => setShowCalculator(!showCalculator)}
-              className={cn(
-                "h-10 px-3 font-bold rounded-xl transition-all",
-                showCalculator ? "bg-primary text-white" : "text-slate-600",
-              )}
-            >
-              <Calculator size={18} />
-              <span className="hidden xl:inline ml-2">Kalkulator</span>
-            </Button>
-
             <Button
               onClick={() => setShowSubmitDialog(true)}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-5 rounded-xl shadow-lg shadow-emerald-100"
@@ -356,41 +341,73 @@ function TestContent() {
         </div>
       )}
 
-      <div className="bg-slate-50 border-b px-6 py-3 flex items-center gap-4 z-20 overflow-x-auto no-scrollbar">
-        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-          <LayoutGrid size={14} /> Navigasi
-        </span>
-        <QuestionNumberGrid
-          totalQuestions={shuffledQuestions.length}
-          currentQuestionIndex={currentQuestionIndex}
-          onSelectQuestion={(idx) => setCurrentQuestion(idx)}
-        />
-      </div>
-
       <div className="flex-1 flex relative overflow-hidden">
-        <main className="flex-1 overflow-y-auto bg-[#F8FAFC] px-2 py-2 md:px-12">
-          <div className="max-w-5xl mx-auto">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <TestQuestion
-                question={currentQuestion}
-                onPersistAnswer={persistAnswer}
-                onNext={() => {
-                  if (currentQuestionIndex === shuffledQuestions.length - 1) {
-                    setShowSubmitDialog(true);
-                    return;
-                  }
-                  setCurrentQuestion(currentQuestionIndex + 1);
-                }}
-                onPrevious={() => setCurrentQuestion(currentQuestionIndex - 1)}
-                isFirstQuestion={currentQuestionIndex === 0}
-                isLastQuestion={
-                  currentQuestionIndex === shuffledQuestions.length - 1
-                }
-                questionNumber={currentQuestionIndex + 1}
-              />
-            </div>
+        <main className="flex-1 overflow-y-auto bg-[#F8FAFC] px-2 py-6 md:px-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column (Question) */}
+              <div className="lg:col-span-8 flex flex-col gap-6">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <TestQuestion
+                    question={currentQuestion}
+                    onPersistAnswer={persistAnswer}
+                    onNext={() => {
+                      if (currentQuestionIndex === shuffledQuestions.length - 1) {
+                        setShowSubmitDialog(true);
+                        return;
+                      }
+                      setCurrentQuestion(currentQuestionIndex + 1);
+                    }}
+                    onPrevious={() => setCurrentQuestion(currentQuestionIndex - 1)}
+                    isFirstQuestion={currentQuestionIndex === 0}
+                    isLastQuestion={
+                      currentQuestionIndex === shuffledQuestions.length - 1
+                    }
+                    questionNumber={currentQuestionIndex + 1}
+                  />
+                </div>
+                <div className="h-10" />
+              </div>
+              
+              {/* Right Column (Sidebar) */}
+              <div className="lg:col-span-4 space-y-4 lg:sticky lg:top-6">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 lg:p-5">
+                  <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <LayoutGrid size={14} /> Navigasi Nomor
+                    </h3>
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                      {shuffledQuestions.length} Soal
+                    </span>
+                  </div>
+                  
+                  <div className="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                    <QuestionNumberGrid
+                      totalQuestions={shuffledQuestions.length}
+                      currentQuestionIndex={currentQuestionIndex}
+                      onSelectQuestion={(idx) => setCurrentQuestion(idx)}
+                    />
+                  </div>
+                </div>
 
-            <div className="h-10" />
+                <div className="grid grid-flow-col auto-cols-auto gap-3">
+                  <LabValuesModal />
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCalculator(!showCalculator)}
+                    className={cn(
+                      "h-10 font-bold rounded-xl transition-all w-full flex-1",
+                      showCalculator
+                        ? "bg-primary text-white border-primary"
+                        : "text-slate-600 bg-white hover:bg-slate-50 border-slate-200 shadow-sm",
+                    )}
+                  >
+                    <Calculator size={18} className="mr-2" />
+                    Kalkulator
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </main>
 

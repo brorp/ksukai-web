@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth";
 import DrawerLayout from "@/components/drawer-layout";
-import { LayoutDashboard, BookOpen, Award } from "lucide-react";
+import { LayoutDashboard, BookOpen, Award, User } from "lucide-react";
 
 export default function ApotekerLayout({
   children,
@@ -45,6 +45,11 @@ export default function ApotekerLayout({
       label: "Hasil Ujian",
       href: "/apoteker/results",
       icon: <Award className="h-4 w-4" />,
+    },
+    {
+      label: "Profil Saya",
+      href: "/apoteker/profile",
+      icon: <User className="h-4 w-4" />,
     },
   ];
 

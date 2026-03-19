@@ -345,7 +345,8 @@ export default function RegisterProfileForm() {
                     type="number"
                     className="rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white h-11"
                     {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
+                    onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
+                    value={field.value === 0 ? "" : field.value}
                   />
                 </FormControl>
                 <FormMessage />

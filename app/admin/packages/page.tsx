@@ -197,7 +197,13 @@ export default function AdminPackagesPage() {
     try {
       const payload: AdminPackagePayload = {
         ...packageDraft,
-        exams: renumberExamSortOrders(packageDraft.exams),
+        price: packageDraft.price === "" ? 0 : packageDraft.price,
+        exams: renumberExamSortOrders(packageDraft.exams).map((exam) => ({
+          ...exam,
+          question_count: exam.question_count === "" ? 0 : exam.question_count,
+          session_limit: exam.session_limit === "" ? null : exam.session_limit,
+          sort_order: exam.sort_order === "" ? undefined : exam.sort_order,
+        })),
       };
 
       const saved = editingPackageId
@@ -310,7 +316,7 @@ export default function AdminPackagesPage() {
                   onChange={(e) =>
                     setPackageDraft((prev) => ({
                       ...prev,
-                      price: Number(e.target.value || 0),
+                      price: e.target.value === "" ? "" : Number(e.target.value),
                     }))
                   }
                 />
@@ -408,7 +414,7 @@ export default function AdminPackagesPage() {
                             onChange={(e) =>
                               updateExamDraft(index, (current) => ({
                                 ...current,
-                                question_count: Number(e.target.value || 0),
+                                question_count: e.target.value === "" ? "" : Number(e.target.value),
                               }))
                             }
                           />
@@ -421,9 +427,7 @@ export default function AdminPackagesPage() {
                             onChange={(e) =>
                               updateExamDraft(index, (current) => ({
                                 ...current,
-                                session_limit: e.target.value
-                                  ? Number(e.target.value)
-                                  : null,
+                                session_limit: e.target.value === "" ? "" : Number(e.target.value),
                               }))
                             }
                           />
@@ -435,7 +439,7 @@ export default function AdminPackagesPage() {
                             onChange={(e) =>
                               updateExamDraft(index, (current) => ({
                                 ...current,
-                                sort_order: Number(e.target.value || index + 1),
+                                sort_order: e.target.value === "" ? "" : Number(e.target.value),
                               }))
                             }
                           />
