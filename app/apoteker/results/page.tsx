@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   BarChart3,
@@ -49,6 +49,26 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function ResultsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-[60vh] flex flex-col items-center justify-center space-y-4">
+          <div className="relative h-12 w-12">
+            <div className="absolute inset-0 rounded-full border-4 border-slate-100" />
+            <div className="absolute inset-0 rounded-full border-4 border-t-primary animate-spin" />
+          </div>
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+            Menyiapkan Hasil...
+          </p>
+        </div>
+      }
+    >
+      <ResultsContent />
+    </Suspense>
+  );
+}
+
+function ResultsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionIdFromQuery = Number(searchParams.get("sessionId") ?? 0);

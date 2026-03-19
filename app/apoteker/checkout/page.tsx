@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -121,6 +121,21 @@ const getStatusTone = (status?: string | null) =>
   );
 
 export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center py-16 text-slate-500">
+          <LoaderCircle className="h-5 w-5 animate-spin mr-3" />
+          Memuat halaman checkout...
+        </div>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
+  );
+}
+
+function CheckoutContent() {
   const searchParams = useSearchParams();
   const token = useAuthStore((state) => state.token);
   const [packages, setPackages] = useState<ExamPackage[]>([]);

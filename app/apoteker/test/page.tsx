@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Calculator,
@@ -35,6 +35,21 @@ import ScientificCalculator from "@/components/apoteker/scientific-calculator";
 import KSUKAICalculator from "@/components/apoteker/scientific-calculator";
 
 export default function TestPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
+          <div className="h-10 w-10 border-4 border-slate-200 border-t-primary-600 rounded-full animate-spin" />
+          <p className="text-sm text-slate-500 mt-4">Menyiapkan sesi ujian...</p>
+        </div>
+      }
+    >
+      <TestContent />
+    </Suspense>
+  );
+}
+
+function TestContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);

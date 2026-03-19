@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { Loader2, AlertCircle, ArrowLeft, ShieldCheck } from "lucide-react";
@@ -20,6 +20,20 @@ type SessionWithGoogle = {
 };
 
 export default function GoogleAuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <GoogleAuthContent />
+    </Suspense>
+  );
+}
+
+function GoogleAuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
