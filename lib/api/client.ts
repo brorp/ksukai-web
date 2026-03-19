@@ -351,6 +351,7 @@ export interface ExamPackageExam {
   name: string;
   description: string;
   question_count: number;
+  session_limit?: number | null;
   sort_order: number;
   is_active: boolean;
   created_at?: string;
@@ -878,8 +879,6 @@ export interface AdminPackagePayload {
   description: string;
   features: string;
   price: number;
-  session_limit?: number | null;
-  validity_days?: number | null;
   is_active?: boolean;
   exams: AdminPackageExamPayload[];
 }
@@ -889,6 +888,7 @@ export interface AdminPackageExamPayload {
   name: string;
   description: string;
   question_count: number;
+  session_limit?: number | null;
   sort_order?: number;
   is_active?: boolean;
 }

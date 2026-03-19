@@ -180,14 +180,11 @@ export default function PurchasesPage() {
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                     <div className="flex items-center gap-2 font-medium text-slate-800">
                       <CalendarDays className="h-4 w-4" />
-                      Progress Akses
+                      Progress Paket
                     </div>
                     <p className="mt-2">
-                      Sesi digunakan: <strong>{item.sessions_used}</strong>
-                      {typeof item.session_limit === "number" &&
-                      item.session_limit > 0
-                        ? ` / ${item.session_limit}`
-                        : " (tanpa batas sesi)"}
+                      Total sesi yang sudah dikerjakan dari paket ini:
+                      <strong> {item.sessions_used}</strong>
                     </p>
                   </div>
 
@@ -212,6 +209,12 @@ export default function PurchasesPage() {
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
                               {exam.description || `${exam.question_count} soal`}
+                            </p>
+                            <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                              {typeof exam.session_limit === "number" &&
+                              exam.session_limit > 0
+                                ? `Batas sesi ${exam.session_limit}`
+                                : "Tanpa batas sesi"}
                             </p>
                           </div>
                         ))

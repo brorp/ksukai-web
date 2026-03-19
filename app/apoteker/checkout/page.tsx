@@ -224,10 +224,7 @@ export default function CheckoutPage() {
           currentTransaction.gross_amount ??
           0,
         features: catalogPackage?.features ?? "",
-        question_count:
-          catalogPackage?.question_count ?? currentTransaction.session_limit ?? 0,
-        session_limit: currentTransaction.session_limit,
-        validity_days: currentTransaction.validity_days,
+        question_count: catalogPackage?.question_count ?? 0,
         exam_count: catalogPackage?.exam_count,
         exams: catalogPackage?.exams ?? [],
       } satisfies ExamPackage;
@@ -415,22 +412,12 @@ export default function CheckoutPage() {
                     value={formatCurrency(selectedPackage.price)}
                   />
                   <InfoBox
-                    label="Batas Sesi"
-                    value={
-                      typeof selectedPackage.session_limit === "number" &&
-                      selectedPackage.session_limit > 0
-                        ? `${selectedPackage.session_limit} sesi`
-                        : "Tanpa batas sesi"
-                    }
+                    label="Jumlah Tipe Ujian"
+                    value={String(selectedPackage.exam_count ?? selectedPackage.exams?.length ?? 0)}
                   />
                   <InfoBox
-                    label="Masa Berlaku"
-                    value={
-                      typeof selectedPackage.validity_days === "number" &&
-                      selectedPackage.validity_days > 0
-                        ? `${selectedPackage.validity_days} hari`
-                        : "Tidak dibatasi"
-                    }
+                    label="Total Soal Paket"
+                    value={`${selectedPackage.question_count} soal`}
                   />
                 </div>
 
@@ -454,6 +441,12 @@ export default function CheckoutPage() {
                           </p>
                           <p className="mt-1 text-xs text-slate-500">
                             {exam.description || `${exam.question_count} soal`}
+                          </p>
+                          <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                            {typeof exam.session_limit === "number" &&
+                            exam.session_limit > 0
+                              ? `Batas sesi ${exam.session_limit}`
+                              : "Tanpa batas sesi"}
                           </p>
                         </div>
                       ))

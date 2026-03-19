@@ -260,7 +260,7 @@ export default function ApotekerDashboard() {
                         <div className="space-y-3">
                           <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
                             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                              Daftar Ujian
+                              Daftar Tipe Ujian
                             </p>
                             <div className="mt-3 space-y-2">
                               {(pkg.exams ?? []).map((exam) => (
@@ -274,6 +274,12 @@ export default function ApotekerDashboard() {
                                     </p>
                                     <p className="text-xs text-slate-500">
                                       {exam.description || `${exam.question_count} soal`}
+                                    </p>
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                                      {typeof exam.session_limit === "number" &&
+                                      exam.session_limit > 0
+                                        ? `Batas sesi ${exam.session_limit}`
+                                        : "Tanpa batas sesi"}
                                     </p>
                                   </div>
                                   <Button

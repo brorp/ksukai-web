@@ -33,6 +33,7 @@ const createDefaultExamDraft = (
   name: "",
   description: "",
   question_count: 50,
+  session_limit: null,
   sort_order: sortOrder,
   is_active: true,
 });
@@ -42,8 +43,6 @@ const createDefaultPackageDraft = (): AdminPackagePayload => ({
   description: "",
   features: "",
   price: 0,
-  session_limit: null,
-  validity_days: null,
   is_active: true,
   exams: [createDefaultExamDraft(1)],
 });
@@ -53,8 +52,6 @@ const mapPackageToDraft = (item: AdminPackage): AdminPackagePayload => ({
   description: item.description,
   features: item.features,
   price: item.price,
-  session_limit: item.session_limit ?? null,
-  validity_days: item.validity_days ?? null,
   is_active: item.is_active,
   exams:
     item.exams && item.exams.length > 0
@@ -63,6 +60,7 @@ const mapPackageToDraft = (item: AdminPackage): AdminPackagePayload => ({
           name: exam.name,
           description: exam.description,
           question_count: exam.question_count,
+          session_limit: exam.session_limit ?? null,
           sort_order: exam.sort_order || index + 1,
           is_active: exam.is_active,
         }))
@@ -151,7 +149,7 @@ export default function AdminPackagesPage() {
 
   const removeExamDraft = (index: number) => {
     if (packageDraft.exams.length <= 1) {
-      toast.warning("Paket minimal punya satu ujian.");
+      toast.warning("Paket minimal punya satu tipe ujian.");
       return;
     }
 
@@ -174,17 +172,17 @@ export default function AdminPackagesPage() {
     }
 
     if (!packageDraft.exams.length) {
-      toast.warning("Paket minimal harus memiliki satu ujian.");
+      toast.warning("Paket minimal harus memiliki satu tipe ujian.");
       return false;
     }
 
     for (const [index, exam] of packageDraft.exams.entries()) {
       if (!exam.name.trim()) {
-        toast.warning(`Nama ujian ke-${index + 1} wajib diisi.`);
+        toast.warning(`Nama tipe ujian ke-${index + 1} wajib diisi.`);
         return false;
       }
       if (!exam.question_count || exam.question_count <= 0) {
-        toast.warning(`Jumlah soal untuk ujian "${exam.name}" belum valid.`);
+        toast.warning(`Jumlah soal untuk tipe ujian "${exam.name}" belum valid.`);
         return false;
       }
     }
@@ -208,8 +206,8 @@ export default function AdminPackagesPage() {
 
       toast.success(
         editingPackageId
-          ? "Paket dan daftar ujian berhasil diperbarui."
-          : "Paket dan daftar ujian berhasil dibuat.",
+          ? "Paket dan tipe ujian berhasil diperbarui."
+          : "Paket dan tipe ujian berhasil dibuat.",
       );
 
       setEditingPackageId(saved.id);
@@ -249,8 +247,8 @@ export default function AdminPackagesPage() {
   return (
     <div className="space-y-6 pb-10">
       <AdminPageHeader
-        title="Manajemen Paket & Ujian"
-        description="Setiap paket sekarang berisi daftar ujian. Admin membuat dan mengedit relasi itu dalam satu form yang sama."
+        title="Manajemen Paket & Tipe Ujian"
+        description="Paket adalah produk yang dibeli user, sedangkan tipe ujian adalah entity turunan yang berisi soal dan batas sesi masing-masing."
         icon={<ShieldCheck className="text-primary" size={24} />}
         actionLabel="Refresh"
         onAction={() => void loadData()}
@@ -264,11 +262,11 @@ export default function AdminPackagesPage() {
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Layers size={18} />
                 {editingPackageId
-                  ? "Edit Paket & Ujian"
+                  ? "Edit Paket & Tipe Ujian"
                   : "Buat Paket Baru"}
               </CardTitle>
               <CardDescription>
-                Setelah data paket diisi, lanjutkan langsung dengan daftar ujian
+                Setelah data paket diisi, lanjutkan langsung dengan tipe ujian
                 yang menjadi isi paket tersebut.
               </CardDescription>
             </CardHeader>
@@ -305,50 +303,18 @@ export default function AdminPackagesPage() {
                 />
               </Field>
 
-              <div className="grid grid-cols-3 gap-3">
-                <Field label="Harga">
-                  <Input
-                    type="number"
-                    value={packageDraft.price}
-                    onChange={(e) =>
-                      setPackageDraft((prev) => ({
-                        ...prev,
-                        price: Number(e.target.value || 0),
-                      }))
-                    }
-                  />
-                </Field>
-                <Field label="Batas Sesi">
-                  <Input
-                    type="number"
-                    placeholder="∞"
-                    value={packageDraft.session_limit ?? ""}
-                    onChange={(e) =>
-                      setPackageDraft((prev) => ({
-                        ...prev,
-                        session_limit: e.target.value
-                          ? Number(e.target.value)
-                          : null,
-                      }))
-                    }
-                  />
-                </Field>
-                <Field label="Masa Aktif">
-                  <Input
-                    type="number"
-                    placeholder="∞"
-                    value={packageDraft.validity_days ?? ""}
-                    onChange={(e) =>
-                      setPackageDraft((prev) => ({
-                        ...prev,
-                        validity_days: e.target.value
-                          ? Number(e.target.value)
-                          : null,
-                      }))
-                    }
-                  />
-                </Field>
-              </div>
+              <Field label="Harga">
+                <Input
+                  type="number"
+                  value={packageDraft.price}
+                  onChange={(e) =>
+                    setPackageDraft((prev) => ({
+                      ...prev,
+                      price: Number(e.target.value || 0),
+                    }))
+                  }
+                />
+              </Field>
 
               <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <div>
@@ -371,16 +337,16 @@ export default function AdminPackagesPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">
-                      Daftar Ujian di Dalam Paket
+                      Daftar Tipe Ujian di Dalam Paket
                     </p>
                     <p className="text-xs text-slate-500">
-                      Hapus ujian dari form saat edit untuk mengarsipkannya dari
+                      Hapus tipe ujian dari form saat edit untuk mengarsipkannya dari
                       paket.
                     </p>
                   </div>
                   <Button variant="outline" onClick={addExamDraft}>
                     <Plus className="mr-2 h-4 w-4" />
-                    Tambah Ujian
+                    Tambah Tipe Ujian
                   </Button>
                 </div>
 
@@ -393,7 +359,7 @@ export default function AdminPackagesPage() {
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold text-slate-900">
-                            Ujian {index + 1}
+                            Tipe Ujian {index + 1}
                           </p>
                           <p className="text-xs text-slate-500">
                             Relasi ini akan langsung tersimpan ke package.
@@ -409,7 +375,7 @@ export default function AdminPackagesPage() {
                         </Button>
                       </div>
 
-                      <Field label="Nama Ujian">
+                      <Field label="Nama Tipe Ujian">
                         <Input
                           value={exam.name}
                           onChange={(e) =>
@@ -421,7 +387,7 @@ export default function AdminPackagesPage() {
                         />
                       </Field>
 
-                      <Field label="Deskripsi Ujian">
+                      <Field label="Deskripsi Tipe Ujian">
                         <Textarea
                           value={exam.description}
                           onChange={(e) =>
@@ -434,7 +400,7 @@ export default function AdminPackagesPage() {
                         />
                       </Field>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
                         <Field label="Jumlah Soal">
                           <Input
                             type="number"
@@ -443,6 +409,21 @@ export default function AdminPackagesPage() {
                               updateExamDraft(index, (current) => ({
                                 ...current,
                                 question_count: Number(e.target.value || 0),
+                              }))
+                            }
+                          />
+                        </Field>
+                        <Field label="Batas Sesi">
+                          <Input
+                            type="number"
+                            placeholder="∞"
+                            value={exam.session_limit ?? ""}
+                            onChange={(e) =>
+                              updateExamDraft(index, (current) => ({
+                                ...current,
+                                session_limit: e.target.value
+                                  ? Number(e.target.value)
+                                  : null,
                               }))
                             }
                           />
@@ -464,11 +445,11 @@ export default function AdminPackagesPage() {
                       <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                         <div>
                           <p className="text-sm font-semibold text-slate-900">
-                            Ujian aktif
+                            Tipe ujian aktif
                           </p>
                           <p className="text-xs text-slate-500">
-                            Ujian aktif bisa dikerjakan user yang membeli paket
-                            ini.
+                            Tipe ujian aktif bisa dikerjakan user yang membeli
+                            paket ini.
                           </p>
                         </div>
                         <Switch
@@ -495,8 +476,8 @@ export default function AdminPackagesPage() {
                   {savingPackage
                     ? "Menyimpan..."
                     : editingPackageId
-                      ? "Simpan Paket & Ujian"
-                      : "Buat Paket & Ujian"}
+                      ? "Simpan Paket & Tipe Ujian"
+                      : "Buat Paket & Tipe Ujian"}
                 </Button>
                 {(editingPackageId || packageDraft.name || packageDraft.exams.length > 1) && (
                   <Button variant="outline" onClick={resetPackageForm}>
@@ -512,7 +493,7 @@ export default function AdminPackagesPage() {
           {loading ? (
             <Card className="border-dashed border-slate-200">
               <CardContent className="py-14 text-center text-sm text-slate-500">
-                Memuat paket dan ujian...
+                Memuat paket dan tipe ujian...
               </CardContent>
             </Card>
           ) : rows.length === 0 ? (
@@ -552,7 +533,7 @@ export default function AdminPackagesPage() {
                           Rp {item.price.toLocaleString("id-ID")}
                         </span>
                         <span className="rounded-full bg-slate-100 px-3 py-1">
-                          {item.exam_count ?? item.exams?.length ?? 0} ujian
+                          {item.exam_count ?? item.exams?.length ?? 0} tipe ujian
                         </span>
                         <span className="rounded-full bg-slate-100 px-3 py-1">
                           {item.question_count} soal total
@@ -587,11 +568,11 @@ export default function AdminPackagesPage() {
                       <BookOpenCheck className="h-4 w-4 text-slate-500" />
                       <div>
                         <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-                          Ujian Dalam Paket
+                          Tipe Ujian Dalam Paket
                         </p>
                         <p className="text-sm text-slate-500">
-                          Relasi ini langsung dibawa ke katalog user dan akses
-                          ujian setelah pembelian.
+                          Relasi ini langsung dibawa ke katalog user dan akan
+                          menentukan bank soal per tipe ujian.
                         </p>
                       </div>
                     </div>
@@ -599,7 +580,7 @@ export default function AdminPackagesPage() {
 
                   {(item.exams ?? []).length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
-                      Belum ada ujian di paket ini.
+                      Belum ada tipe ujian di paket ini.
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -655,7 +636,7 @@ export default function AdminPackagesPage() {
               </span>
             </div>
             <div>
-              Total ujian:
+              Total tipe ujian:
               <span className="ml-2 font-semibold text-slate-900">
                 {selectedPackage.exam_count ?? selectedPackage.exams?.length ?? 0}
               </span>
