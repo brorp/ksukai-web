@@ -436,6 +436,8 @@ export interface PurchaseRecord {
   package_name: string;
   package_description: string;
   package_price: number;
+  exam_count?: number;
+  exams?: ExamPackageExam[];
   session_limit?: number | null;
   validity_days?: number | null;
   order_code?: string | null;
@@ -879,9 +881,11 @@ export interface AdminPackagePayload {
   session_limit?: number | null;
   validity_days?: number | null;
   is_active?: boolean;
+  exams: AdminPackageExamPayload[];
 }
 
 export interface AdminPackageExamPayload {
+  id?: number;
   name: string;
   description: string;
   question_count: number;

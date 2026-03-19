@@ -8,6 +8,7 @@ import {
   Pencil,
   Plus,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,12 +21,21 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   adminApi,
   type AdminPackage,
-  type AdminPackageExam,
   type AdminPackageExamPayload,
   type AdminPackagePayload,
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
+
+const createDefaultExamDraft = (
+  sortOrder = 1,
+): AdminPackageExamPayload => ({
+  name: "",
+  description: "",
+  question_count: 50,
+  sort_order: sortOrder,
+  is_active: true,
+});
 
 const createDefaultPackageDraft = (): AdminPackagePayload => ({
   name: "",
@@ -35,32 +45,49 @@ const createDefaultPackageDraft = (): AdminPackagePayload => ({
   session_limit: null,
   validity_days: null,
   is_active: true,
+  exams: [createDefaultExamDraft(1)],
 });
 
-const createDefaultExamDraft = (): AdminPackageExamPayload => ({
-  name: "",
-  description: "",
-  question_count: 50,
-  sort_order: 1,
-  is_active: true,
+const mapPackageToDraft = (item: AdminPackage): AdminPackagePayload => ({
+  name: item.name,
+  description: item.description,
+  features: item.features,
+  price: item.price,
+  session_limit: item.session_limit ?? null,
+  validity_days: item.validity_days ?? null,
+  is_active: item.is_active,
+  exams:
+    item.exams && item.exams.length > 0
+      ? item.exams.map((exam, index) => ({
+          id: exam.id,
+          name: exam.name,
+          description: exam.description,
+          question_count: exam.question_count,
+          sort_order: exam.sort_order || index + 1,
+          is_active: exam.is_active,
+        }))
+      : [createDefaultExamDraft(1)],
 });
+
+const renumberExamSortOrders = (
+  exams: AdminPackageExamPayload[],
+): AdminPackageExamPayload[] =>
+  exams.map((exam, index) => ({
+    ...exam,
+    sort_order: index + 1,
+  }));
 
 export default function AdminPackagesPage() {
   const token = useAuthStore((state) => state.token);
   const [loading, setLoading] = useState(true);
   const [savingPackage, setSavingPackage] = useState(false);
-  const [savingExam, setSavingExam] = useState(false);
   const [rows, setRows] = useState<AdminPackage[]>([]);
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(
     null,
   );
   const [editingPackageId, setEditingPackageId] = useState<number | null>(null);
-  const [editingExamId, setEditingExamId] = useState<number | null>(null);
   const [packageDraft, setPackageDraft] = useState<AdminPackagePayload>(
     createDefaultPackageDraft(),
-  );
-  const [examDraft, setExamDraft] = useState<AdminPackageExamPayload>(
-    createDefaultExamDraft(),
   );
 
   const loadData = async () => {
@@ -94,53 +121,100 @@ export default function AdminPackagesPage() {
     setPackageDraft(createDefaultPackageDraft());
   };
 
-  const resetExamForm = () => {
-    setEditingExamId(null);
-    setExamDraft(createDefaultExamDraft());
-  };
-
   const handleEditPackage = (item: AdminPackage) => {
     setEditingPackageId(item.id);
     setSelectedPackageId(item.id);
-    setPackageDraft({
-      name: item.name,
-      description: item.description,
-      features: item.features,
-      price: item.price,
-      session_limit: item.session_limit ?? null,
-      validity_days: item.validity_days ?? null,
-      is_active: item.is_active,
-    });
+    setPackageDraft(mapPackageToDraft(item));
   };
 
-  const handleEditExam = (exam: AdminPackageExam) => {
-    setEditingExamId(exam.id);
-    setExamDraft({
-      name: exam.name,
-      description: exam.description,
-      question_count: exam.question_count,
-      sort_order: exam.sort_order,
-      is_active: exam.is_active,
-    });
+  const updateExamDraft = (
+    index: number,
+    updater: (current: AdminPackageExamPayload) => AdminPackageExamPayload,
+  ) => {
+    setPackageDraft((prev) => ({
+      ...prev,
+      exams: prev.exams.map((exam, examIndex) =>
+        examIndex === index ? updater(exam) : exam,
+      ),
+    }));
   };
 
-  const handleSavePackage = async () => {
-    if (!token) return;
-    if (!packageDraft.name.trim() || !packageDraft.description.trim()) {
-      toast.warning("Nama dan deskripsi paket wajib diisi.");
+  const addExamDraft = () => {
+    setPackageDraft((prev) => ({
+      ...prev,
+      exams: [
+        ...prev.exams,
+        createDefaultExamDraft(prev.exams.length + 1),
+      ],
+    }));
+  };
+
+  const removeExamDraft = (index: number) => {
+    if (packageDraft.exams.length <= 1) {
+      toast.warning("Paket minimal punya satu ujian.");
       return;
     }
 
+    setPackageDraft((prev) => ({
+      ...prev,
+      exams: renumberExamSortOrders(
+        prev.exams.filter((_, examIndex) => examIndex !== index),
+      ),
+    }));
+  };
+
+  const validatePackageDraft = () => {
+    if (
+      !packageDraft.name.trim() ||
+      !packageDraft.description.trim() ||
+      !packageDraft.features.trim()
+    ) {
+      toast.warning("Nama, deskripsi, dan fitur paket wajib diisi.");
+      return false;
+    }
+
+    if (!packageDraft.exams.length) {
+      toast.warning("Paket minimal harus memiliki satu ujian.");
+      return false;
+    }
+
+    for (const [index, exam] of packageDraft.exams.entries()) {
+      if (!exam.name.trim()) {
+        toast.warning(`Nama ujian ke-${index + 1} wajib diisi.`);
+        return false;
+      }
+      if (!exam.question_count || exam.question_count <= 0) {
+        toast.warning(`Jumlah soal untuk ujian "${exam.name}" belum valid.`);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleSavePackage = async () => {
+    if (!token || !validatePackageDraft()) return;
+
     setSavingPackage(true);
     try {
-      if (editingPackageId) {
-        await adminApi.updatePackage(token, editingPackageId, packageDraft);
-        toast.success("Paket berhasil diperbarui.");
-      } else {
-        await adminApi.createPackage(token, packageDraft);
-        toast.success("Paket berhasil dibuat.");
-      }
-      resetPackageForm();
+      const payload: AdminPackagePayload = {
+        ...packageDraft,
+        exams: renumberExamSortOrders(packageDraft.exams),
+      };
+
+      const saved = editingPackageId
+        ? await adminApi.updatePackage(token, editingPackageId, payload)
+        : await adminApi.createPackage(token, payload);
+
+      toast.success(
+        editingPackageId
+          ? "Paket dan daftar ujian berhasil diperbarui."
+          : "Paket dan daftar ujian berhasil dibuat.",
+      );
+
+      setEditingPackageId(saved.id);
+      setSelectedPackageId(saved.id);
+      setPackageDraft(mapPackageToDraft(saved));
       await loadData();
     } catch (error) {
       toast.error("Gagal menyimpan paket.", {
@@ -172,76 +246,33 @@ export default function AdminPackagesPage() {
     }
   };
 
-  const handleSaveExam = async () => {
-    if (!token || !selectedPackageId) return;
-    if (!examDraft.name.trim() || !examDraft.description.trim()) {
-      toast.warning("Nama dan deskripsi ujian wajib diisi.");
-      return;
-    }
-
-    setSavingExam(true);
-    try {
-      if (editingExamId) {
-        await adminApi.updatePackageExam(token, editingExamId, examDraft);
-        toast.success("Ujian berhasil diperbarui.");
-      } else {
-        await adminApi.createPackageExam(token, selectedPackageId, examDraft);
-        toast.success("Ujian baru berhasil ditambahkan.");
-      }
-      resetExamForm();
-      await loadData();
-    } catch (error) {
-      toast.error("Gagal menyimpan ujian.", {
-        description:
-          error instanceof Error ? error.message : "Silakan coba lagi.",
-      });
-    } finally {
-      setSavingExam(false);
-    }
-  };
-
-  const handleArchiveExam = async (exam: AdminPackageExam) => {
-    if (!token) return;
-    try {
-      await adminApi.archivePackageExam(token, exam.id);
-      toast.success(`Ujian "${exam.name}" diarsipkan.`);
-      if (editingExamId === exam.id) {
-        resetExamForm();
-      }
-      await loadData();
-    } catch (error) {
-      toast.error("Gagal mengarsipkan ujian.", {
-        description:
-          error instanceof Error ? error.message : "Silakan coba lagi.",
-      });
-    }
-  };
-
   return (
     <div className="space-y-6 pb-10">
       <AdminPageHeader
         title="Manajemen Paket & Ujian"
-        description="Kelola produk paket tryout dan daftar ujian yang berada di dalam setiap paket."
+        description="Setiap paket sekarang berisi daftar ujian. Admin membuat dan mengedit relasi itu dalam satu form yang sama."
         icon={<ShieldCheck className="text-primary" size={24} />}
         actionLabel="Refresh"
         onAction={() => void loadData()}
         actionDisabled={loading}
       />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_1fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[440px_1fr]">
         <div className="space-y-6">
           <Card className="border-slate-200 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Layers size={18} />
-                {editingPackageId ? "Edit Paket" : "Buat Paket Baru"}
+                {editingPackageId
+                  ? "Edit Paket & Ujian"
+                  : "Buat Paket Baru"}
               </CardTitle>
               <CardDescription>
-                Paket adalah layer pembelian. Ujian dikelola setelah paket
-                dibuat.
+                Setelah data paket diisi, lanjutkan langsung dengan daftar ujian
+                yang menjadi isi paket tersebut.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               <Field label="Nama Paket">
                 <Input
                   value={packageDraft.name}
@@ -336,6 +367,125 @@ export default function AdminPackagesPage() {
                 />
               </div>
 
+              <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Daftar Ujian di Dalam Paket
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Hapus ujian dari form saat edit untuk mengarsipkannya dari
+                      paket.
+                    </p>
+                  </div>
+                  <Button variant="outline" onClick={addExamDraft}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Tambah Ujian
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {packageDraft.exams.map((exam, index) => (
+                    <div
+                      key={exam.id ?? `draft-${index}`}
+                      className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            Ujian {index + 1}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Relasi ini akan langsung tersimpan ke package.
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-slate-500 hover:text-rose-600"
+                          onClick={() => removeExamDraft(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <Field label="Nama Ujian">
+                        <Input
+                          value={exam.name}
+                          onChange={(e) =>
+                            updateExamDraft(index, (current) => ({
+                              ...current,
+                              name: e.target.value,
+                            }))
+                          }
+                        />
+                      </Field>
+
+                      <Field label="Deskripsi Ujian">
+                        <Textarea
+                          value={exam.description}
+                          onChange={(e) =>
+                            updateExamDraft(index, (current) => ({
+                              ...current,
+                              description: e.target.value,
+                            }))
+                          }
+                          className="min-h-20"
+                        />
+                      </Field>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Jumlah Soal">
+                          <Input
+                            type="number"
+                            value={exam.question_count}
+                            onChange={(e) =>
+                              updateExamDraft(index, (current) => ({
+                                ...current,
+                                question_count: Number(e.target.value || 0),
+                              }))
+                            }
+                          />
+                        </Field>
+                        <Field label="Urutan Tampil">
+                          <Input
+                            type="number"
+                            value={exam.sort_order ?? index + 1}
+                            onChange={(e) =>
+                              updateExamDraft(index, (current) => ({
+                                ...current,
+                                sort_order: Number(e.target.value || index + 1),
+                              }))
+                            }
+                          />
+                        </Field>
+                      </div>
+
+                      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            Ujian aktif
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Ujian aktif bisa dikerjakan user yang membeli paket
+                            ini.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={exam.is_active ?? true}
+                          onCheckedChange={(checked) =>
+                            updateExamDraft(index, (current) => ({
+                              ...current,
+                              is_active: checked,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex gap-3">
                 <Button
                   onClick={() => void handleSavePackage()}
@@ -345,135 +495,11 @@ export default function AdminPackagesPage() {
                   {savingPackage
                     ? "Menyimpan..."
                     : editingPackageId
-                      ? "Simpan Paket"
-                      : "Buat Paket"}
+                      ? "Simpan Paket & Ujian"
+                      : "Buat Paket & Ujian"}
                 </Button>
-                {editingPackageId && (
+                {(editingPackageId || packageDraft.name || packageDraft.exams.length > 1) && (
                   <Button variant="outline" onClick={resetPackageForm}>
-                    Reset
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <BookOpenCheck size={18} />
-                {editingExamId ? "Edit Ujian" : "Tambah Ujian ke Paket"}
-              </CardTitle>
-              <CardDescription>
-                {selectedPackage
-                  ? `Ujian akan ditambahkan ke paket "${selectedPackage.name}".`
-                  : "Pilih paket lebih dulu untuk mengelola daftar ujian di dalamnya."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Field label="Paket Terpilih">
-                <select
-                  className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm"
-                  value={selectedPackageId ?? ""}
-                  onChange={(e) =>
-                    setSelectedPackageId(
-                      e.target.value ? Number(e.target.value) : null,
-                    )
-                  }
-                >
-                  <option value="">Pilih paket...</option>
-                  {rows.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field label="Nama Ujian">
-                <Input
-                  value={examDraft.name}
-                  onChange={(e) =>
-                    setExamDraft((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  disabled={!selectedPackageId}
-                />
-              </Field>
-
-              <Field label="Deskripsi Ujian">
-                <Textarea
-                  value={examDraft.description}
-                  onChange={(e) =>
-                    setExamDraft((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  className="min-h-24"
-                  disabled={!selectedPackageId}
-                />
-              </Field>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Jumlah Soal">
-                  <Input
-                    type="number"
-                    value={examDraft.question_count}
-                    onChange={(e) =>
-                      setExamDraft((prev) => ({
-                        ...prev,
-                        question_count: Number(e.target.value || 0),
-                      }))
-                    }
-                    disabled={!selectedPackageId}
-                  />
-                </Field>
-                <Field label="Urutan Tampil">
-                  <Input
-                    type="number"
-                    value={examDraft.sort_order ?? 1}
-                    onChange={(e) =>
-                      setExamDraft((prev) => ({
-                        ...prev,
-                        sort_order: Number(e.target.value || 1),
-                      }))
-                    }
-                    disabled={!selectedPackageId}
-                  />
-                </Field>
-              </div>
-
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    Ujian aktif
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Ujian aktif dapat dikerjakan user yang punya akses ke paket.
-                  </p>
-                </div>
-                <Switch
-                  checked={examDraft.is_active ?? true}
-                  onCheckedChange={(checked) =>
-                    setExamDraft((prev) => ({ ...prev, is_active: checked }))
-                  }
-                  disabled={!selectedPackageId}
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => void handleSaveExam()}
-                  disabled={savingExam || !selectedPackageId}
-                  className="flex-1"
-                >
-                  {savingExam
-                    ? "Menyimpan..."
-                    : editingExamId
-                      ? "Simpan Ujian"
-                      : "Tambah Ujian"}
-                </Button>
-                {editingExamId && (
-                  <Button variant="outline" onClick={resetExamForm}>
                     Reset
                   </Button>
                 )}
@@ -487,6 +513,12 @@ export default function AdminPackagesPage() {
             <Card className="border-dashed border-slate-200">
               <CardContent className="py-14 text-center text-sm text-slate-500">
                 Memuat paket dan ujian...
+              </CardContent>
+            </Card>
+          ) : rows.length === 0 ? (
+            <Card className="border-dashed border-slate-200">
+              <CardContent className="py-14 text-center text-sm text-slate-500">
+                Belum ada paket. Buat paket pertama Anda dari panel kiri.
               </CardContent>
             </Card>
           ) : (
@@ -531,13 +563,10 @@ export default function AdminPackagesPage() {
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
-                        onClick={() => {
-                          setSelectedPackageId(item.id);
-                          handleEditPackage(item);
-                        }}
+                        onClick={() => handleEditPackage(item)}
                       >
                         <Pencil className="mr-2 h-4 w-4" />
-                        Edit Paket
+                        Edit
                       </Button>
                       {item.is_active && (
                         <Button
@@ -554,26 +583,17 @@ export default function AdminPackagesPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <BookOpenCheck className="h-4 w-4 text-slate-500" />
                       <div>
                         <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-                          Daftar Ujian
+                          Ujian Dalam Paket
                         </p>
                         <p className="text-sm text-slate-500">
-                          Paket ini bisa berisi banyak ujian dengan jumlah soal
-                          masing-masing.
+                          Relasi ini langsung dibawa ke katalog user dan akses
+                          ujian setelah pembelian.
                         </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedPackageId(item.id);
-                          resetExamForm();
-                        }}
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Tambah Ujian
-                      </Button>
                     </div>
                   </div>
 
@@ -586,58 +606,33 @@ export default function AdminPackagesPage() {
                       {(item.exams ?? []).map((exam) => (
                         <div
                           key={exam.id}
-                          className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
+                          className="rounded-2xl border border-slate-200 bg-white p-4"
                         >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <p className="text-base font-semibold text-slate-900">
-                                {exam.name}
-                              </p>
-                              <span
-                                className={cn(
-                                  "rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em]",
-                                  exam.is_active
-                                    ? "bg-emerald-100 text-emerald-700"
-                                    : "bg-slate-100 text-slate-500",
-                                )}
-                              >
-                                {exam.is_active ? "Aktif" : "Arsip"}
-                              </span>
-                            </div>
-                            <p className="text-sm text-slate-500">
-                              {exam.description}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-base font-semibold text-slate-900">
+                              {exam.name}
                             </p>
-                            <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
-                              <span className="rounded-full bg-slate-100 px-3 py-1">
-                                {exam.question_count} soal
-                              </span>
-                              <span className="rounded-full bg-slate-100 px-3 py-1">
-                                Urutan {exam.sort_order}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedPackageId(item.id);
-                                handleEditExam(exam);
-                              }}
+                            <span
+                              className={cn(
+                                "rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em]",
+                                exam.is_active
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-slate-100 text-slate-500",
+                              )}
                             >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </Button>
-                            {exam.is_active && (
-                              <Button
-                                variant="outline"
-                                className="border-rose-200 text-rose-600 hover:bg-rose-50"
-                                onClick={() => void handleArchiveExam(exam)}
-                              >
-                                <Archive className="mr-2 h-4 w-4" />
-                                Arsipkan
-                              </Button>
-                            )}
+                              {exam.is_active ? "Aktif" : "Arsip"}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {exam.description}
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
+                            <span className="rounded-full bg-slate-100 px-3 py-1">
+                              {exam.question_count} soal
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-3 py-1">
+                              Urutan {exam.sort_order}
+                            </span>
                           </div>
                         </div>
                       ))}
@@ -649,6 +644,25 @@ export default function AdminPackagesPage() {
           )}
         </div>
       </div>
+
+      {selectedPackage && (
+        <Card className="border-slate-200 shadow-sm">
+          <CardContent className="flex flex-col gap-2 py-5 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
+            <div>
+              Paket terpilih saat ini:
+              <span className="ml-2 font-semibold text-slate-900">
+                {selectedPackage.name}
+              </span>
+            </div>
+            <div>
+              Total ujian:
+              <span className="ml-2 font-semibold text-slate-900">
+                {selectedPackage.exam_count ?? selectedPackage.exams?.length ?? 0}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -662,7 +676,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 ml-1">
+      <label className="ml-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
         {label}
       </label>
       {children}

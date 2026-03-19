@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CalendarDays, PackageCheck, ShoppingBag } from "lucide-react";
+import { BookOpenCheck, CalendarDays, PackageCheck, ShoppingBag } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -191,13 +191,39 @@ export default function PurchasesPage() {
                     </p>
                   </div>
 
+                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                    <div className="flex items-center gap-2 font-medium text-slate-800">
+                      <BookOpenCheck className="h-4 w-4" />
+                      Ujian di Dalam Paket
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {(item.exams ?? []).length === 0 ? (
+                        <p className="text-sm text-slate-500">
+                          Daftar ujian belum tersedia.
+                        </p>
+                      ) : (
+                        (item.exams ?? []).map((exam) => (
+                          <div
+                            key={exam.id}
+                            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3"
+                          >
+                            <p className="font-medium text-slate-900">
+                              {exam.name}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {exam.description || `${exam.question_count} soal`}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex flex-wrap gap-3">
                     {item.access_status === "active" ? (
-                      <Link
-                        href={`/apoteker/test?packageId=${item.package_id}`}
-                      >
+                      <Link href="/apoteker/dashboard">
                         <Button className="bg-emerald-600 hover:bg-emerald-700">
-                          Mulai Ujian
+                          Pilih Ujian
                         </Button>
                       </Link>
                     ) : item.transaction_status === "pending" ||

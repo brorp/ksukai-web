@@ -212,22 +212,27 @@ export default function CheckoutPage() {
   }, [currentTransaction, token]);
 
   const selectedPackage = useMemo(() => {
+    const catalogPackage = packages.find((item) => item.id === selectedPackageId);
+
     if (currentTransaction) {
       return {
         id: currentTransaction.package_id,
-        name: currentTransaction.package_name ?? "-",
+        name: currentTransaction.package_name ?? catalogPackage?.name ?? "-",
         description: currentTransaction.package_description ?? "",
         price:
           currentTransaction.package_price ??
           currentTransaction.gross_amount ??
           0,
-        features: "",
-        question_count: currentTransaction.session_limit ?? 0,
+        features: catalogPackage?.features ?? "",
+        question_count:
+          catalogPackage?.question_count ?? currentTransaction.session_limit ?? 0,
         session_limit: currentTransaction.session_limit,
         validity_days: currentTransaction.validity_days,
+        exam_count: catalogPackage?.exam_count,
+        exams: catalogPackage?.exams ?? [],
       } satisfies ExamPackage;
     }
-    return packages.find((item) => item.id === selectedPackageId) ?? null;
+    return catalogPackage ?? null;
   }, [currentTransaction, packages, selectedPackageId]);
 
   const redirectToPaymentPage = (transaction: Transaction) => {
@@ -427,6 +432,33 @@ export default function CheckoutPage() {
                         : "Tidak dibatasi"
                     }
                   />
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Ujian yang Didapat
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {(selectedPackage.exams ?? []).length === 0 ? (
+                      <p className="text-sm text-slate-500">
+                        Daftar ujian akan muncul setelah paket tersinkron.
+                      </p>
+                    ) : (
+                      (selectedPackage.exams ?? []).map((exam) => (
+                        <div
+                          key={exam.id}
+                          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3"
+                        >
+                          <p className="text-sm font-semibold text-slate-900">
+                            {exam.name}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {exam.description || `${exam.question_count} soal`}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
