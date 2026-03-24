@@ -201,6 +201,31 @@ export default function AdminKelolaSoalPage() {
     }
   };
 
+  const handleDeleteQuestion = async () => {
+    if (!token || !editingQuestionId) return;
+
+    const confirmed = window.confirm(
+      `Hapus soal #${editingQuestionId}?\n\nSoal akan dihapus permanen dari bank soal.`,
+    );
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    try {
+      await adminApi.deleteQuestion(token, editingQuestionId);
+      toast.success("Soal dihapus.", {
+        description: `Soal #${editingQuestionId} berhasil dihapus permanen.`,
+      });
+      resetQuestionForm();
+      await loadData();
+    } catch (err) {
+      toast.error("Gagal menghapus soal", {
+        description: err instanceof Error ? err.message : "Silakan coba lagi.",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleImportQuestions = async () => {
     if (!token || !importFile) return;
     if (!Number.isInteger(importExamId) || importExamId <= 0) {
@@ -527,22 +552,36 @@ export default function AdminKelolaSoalPage() {
                 </div>
               </div>
 
-              <Button
-                onClick={() => void handleSaveQuestion()}
-                disabled={actionLoading}
-                className="w-full h-12 rounded-xl bg-primary-600 hover:bg-primary-700 shadow-lg shadow-primary-100 font-bold"
-              >
-                {actionLoading ? (
-                  "Memproses..."
-                ) : (
-                  <>
-                    <Save size={18} className="mr-2" />
-                    {editingQuestionId
-                      ? "Update Data Soal"
-                      : "Simpan ke Bank Soal"}
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col gap-3 md:flex-row">
+                <Button
+                  onClick={() => void handleSaveQuestion()}
+                  disabled={actionLoading}
+                  className="h-12 flex-1 rounded-xl bg-primary-600 hover:bg-primary-700 shadow-lg shadow-primary-100 font-bold"
+                >
+                  {actionLoading ? (
+                    "Memproses..."
+                  ) : (
+                    <>
+                      <Save size={18} className="mr-2" />
+                      {editingQuestionId
+                        ? "Update Data Soal"
+                        : "Simpan ke Bank Soal"}
+                    </>
+                  )}
+                </Button>
+                {editingQuestionId ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => void handleDeleteQuestion()}
+                    disabled={actionLoading}
+                    className="h-12 rounded-xl font-bold md:w-auto"
+                  >
+                    <Trash2 size={18} className="mr-2" />
+                    Hapus Soal
+                  </Button>
+                ) : null}
+              </div>
             </CardContent>
           </Card>
         </div>

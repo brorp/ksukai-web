@@ -146,9 +146,14 @@ export default function AdminPackagesPage() {
 
   const handleDelete = async (item: AdminPackage) => {
     if (!token) return;
+    const confirmed = window.confirm(
+      `Hapus paket "${item.name}"?\n\nPaket akan dihapus permanen. Ujian yang ada di dalam paket tetap utuh, hanya relasinya ke paket ini yang dilepas.`,
+    );
+    if (!confirmed) return;
+
     try {
       await adminApi.deletePackage(token, item.id);
-      toast.success(`Paket "${item.name}" dihapus.`);
+      toast.success(`Paket "${item.name}" dihapus permanen.`);
       if (selectedPackageId === item.id) {
         setSelectedPackageId(null);
       }

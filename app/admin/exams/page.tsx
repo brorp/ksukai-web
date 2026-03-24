@@ -139,9 +139,14 @@ export default function AdminExamsPage() {
 
   const handleDelete = async (item: AdminExam) => {
     if (!token) return;
+    const confirmed = window.confirm(
+      `Hapus ujian "${item.name}"?\n\nSemua soal yang terhubung akan tetap ada di bank soal, tetapi akan menjadi nonaktif dan tidak terhubung ke ujian mana pun.`,
+    );
+    if (!confirmed) return;
+
     try {
       await adminApi.deleteExam(token, item.id);
-      toast.success(`Ujian "${item.name}" dihapus.`);
+      toast.success(`Ujian "${item.name}" dihapus permanen.`);
       if (selectedExamId === item.id) {
         setSelectedExamId(null);
       }
