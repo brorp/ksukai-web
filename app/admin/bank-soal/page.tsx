@@ -34,9 +34,9 @@ import {
 
 import {
   adminApi,
+  type AdminExam,
   type AdminQuestion,
   type AdminQuestionPayload,
-  type ExamPackage,
   getServerAssetUrl,
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
@@ -83,7 +83,7 @@ export default function AdminBankSoalPage() {
   );
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [rows, setRows] = useState<AdminQuestion[]>([]);
-  const [packages, setPackages] = useState<ExamPackage[]>([]);
+  const [exams, setExams] = useState<AdminExam[]>([]);
   const [previewQuestion, setPreviewQuestion] = useState<AdminQuestion | null>(
     null,
   );
@@ -102,13 +102,14 @@ export default function AdminBankSoalPage() {
 
   const examOptions = useMemo(
     () =>
-      packages.flatMap((pkg) =>
-        (pkg.exams ?? []).map((exam) => ({
-          ...exam,
-          package_name: pkg.name,
-        })),
-      ),
-    [packages],
+      exams.map((exam) => ({
+        ...exam,
+        package_name:
+          exam.packages.length > 0
+            ? exam.packages.map((item) => item.name).join(", ")
+            : "Belum masuk paket",
+      })),
+    [exams],
   );
 
   const selectedCount = Object.keys(rowSelection).length;
@@ -117,15 +118,15 @@ export default function AdminBankSoalPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const [questionRows, packageRows] = await Promise.all([
+      const [questionRows, examRows] = await Promise.all([
         adminApi.questions(token, {
           examId: examFilter || undefined,
           isActive: statusFilter === "" ? undefined : statusFilter === "active",
         }),
-        adminApi.packages(),
+        adminApi.manageExams(token),
       ]);
       setRows(questionRows);
-      setPackages(packageRows);
+      setExams(examRows);
     } catch (loadError) {
       toast.error("Gagal Memuat Data", {
         description:

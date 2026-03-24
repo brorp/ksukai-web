@@ -56,6 +56,7 @@ function TestContent() {
   const token = useAuthStore((state) => state.token);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const examId = Number(searchParams.get("examId") ?? 0);
+  const packageId = Number(searchParams.get("packageId") ?? 0);
 
   const [mounted, setMounted] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
@@ -106,7 +107,11 @@ function TestContent() {
       }
 
       try {
-        const response = await examApi.start(token, examId);
+        const response = await examApi.start(
+          token,
+          examId,
+          Number.isInteger(packageId) && packageId > 0 ? packageId : undefined,
+        );
         const questions: Question[] = response.questions
           .sort((a, b) => a.order - b.order)
           .map((item) => ({
@@ -144,6 +149,7 @@ function TestContent() {
     isAuthenticated,
     user?.role,
     examId,
+    packageId,
     initializeSession,
   ]);
 

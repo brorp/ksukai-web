@@ -324,7 +324,7 @@ export default function ApotekerDashboard() {
             <Button
               onClick={() =>
                 router.push(
-                  `/apoteker/test?examId=${selectedExamState?.examItem.id}`,
+                  `/apoteker/test?packageId=${selectedExamState?.packageItem.id}&examId=${selectedExamState?.examItem.id}`,
                 )
               }
               className="flex-2 bg-linear-to-r from-primary-600 to-primary-600 hover:from-sky-700 hover:to-primary-700 text-white rounded-2xl font-semibold text-xs uppercase tracking-widest shadow-xl shadow-blue-100 transition-all active:scale-95"

@@ -698,6 +698,7 @@ export const examApi = {
   start: async (
     token: string,
     examId: number,
+    packageId?: number,
   ): Promise<ExamStartResponse> => {
     const raw = await request<ExamStartRaw>("/exam/start", {
       method: "POST",
@@ -705,6 +706,8 @@ export const examApi = {
       body: {
         exam_id: examId,
         examId,
+        package_id: packageId,
+        packageId,
       },
     });
     return normalizeExamStart(raw);
@@ -810,6 +813,27 @@ export interface AdminPackage extends ExamPackage {
 
 export interface AdminPackageExam extends ExamPackageExam {}
 
+export interface AdminExamPackageLink {
+  id: number;
+  name: string;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface AdminExam {
+  id: number;
+  name: string;
+  description: string;
+  question_count: number;
+  session_limit?: number | null;
+  sort_order: number;
+  is_active: boolean;
+  package_count: number;
+  packages: AdminExamPackageLink[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface AdminQuestionPayload {
   exam_id: number;
   question_text: string;
@@ -898,7 +922,7 @@ export interface AdminPackagePayload {
   features: string;
   price: number | "";
   is_active?: boolean;
-  exams: AdminPackageExamPayload[];
+  exam_ids: number[];
 }
 
 export interface AdminPackageExamPayload {
@@ -1031,6 +1055,9 @@ export const adminApi = {
   managePackages: async (token: string): Promise<AdminPackage[]> =>
     request("/admin/packages", { token }),
 
+  manageExams: async (token: string): Promise<AdminExam[]> =>
+    request("/admin/exams", { token }),
+
   createPackage: async (
     token: string,
     payload: AdminPackagePayload,
@@ -1052,43 +1079,42 @@ export const adminApi = {
       body: payload,
     }),
 
-  archivePackage: async (
+  deletePackage: async (
     token: string,
     id: number,
-  ): Promise<{ message: string; package: AdminPackage }> =>
-    request(`/admin/packages/${id}/archive`, {
-      method: "PATCH",
+  ): Promise<{ message: string; package: { id: number; name: string } }> =>
+    request(`/admin/packages/${id}`, {
+      method: "DELETE",
       token,
     }),
 
-  createPackageExam: async (
+  createExam: async (
     token: string,
-    packageId: number,
     payload: AdminPackageExamPayload,
-  ): Promise<AdminPackageExam> =>
-    request(`/admin/packages/${packageId}/exams`, {
+  ): Promise<AdminExam> =>
+    request("/admin/exams", {
       method: "POST",
       token,
       body: payload,
     }),
 
-  updatePackageExam: async (
+  updateExam: async (
     token: string,
     id: number,
     payload: Partial<AdminPackageExamPayload>,
-  ): Promise<AdminPackageExam> =>
+  ): Promise<AdminExam> =>
     request(`/admin/exams/${id}`, {
       method: "PUT",
       token,
       body: payload,
     }),
 
-  archivePackageExam: async (
+  deleteExam: async (
     token: string,
     id: number,
-  ): Promise<{ message: string; exam: AdminPackageExam }> =>
-    request(`/admin/exams/${id}/archive`, {
-      method: "PATCH",
+  ): Promise<{ message: string; exam: { id: number; name: string } }> =>
+    request(`/admin/exams/${id}`, {
+      method: "DELETE",
       token,
     }),
 

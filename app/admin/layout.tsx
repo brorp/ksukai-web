@@ -10,6 +10,7 @@ import {
   BookOpen,
   ClipboardList,
   LayoutDashboard,
+  Layers,
   MessageSquareMore,
   Package2,
   Users,
@@ -57,9 +58,14 @@ export default function AdminLayout({
       icon: <WalletCards className="h-4 w-4" />,
     },
     {
-      label: "Paket",
+      label: "Kelola Paket",
       href: "/admin/packages",
       icon: <Package2 className="h-4 w-4" />,
+    },
+    {
+      label: "Kelola Ujian",
+      href: "/admin/exams",
+      icon: <Layers className="h-4 w-4" />,
     },
     {
       label: "Hasil Ujian",

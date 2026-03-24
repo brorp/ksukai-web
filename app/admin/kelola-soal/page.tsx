@@ -28,9 +28,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   adminApi,
+  type AdminExam,
   type AdminQuestion,
   type AdminQuestionPayload,
-  type ExamPackage,
   getServerAssetUrl,
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
@@ -55,7 +55,7 @@ export default function AdminKelolaSoalPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [questions, setQuestions] = useState<AdminQuestion[]>([]);
-  const [packages, setPackages] = useState<ExamPackage[]>([]);
+  const [exams, setExams] = useState<AdminExam[]>([]);
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(
     null,
   );
@@ -73,13 +73,14 @@ export default function AdminKelolaSoalPage() {
 
   const examOptions = useMemo(
     () =>
-      packages.flatMap((pkg) =>
-        (pkg.exams ?? []).map((exam) => ({
-          ...exam,
-          package_name: pkg.name,
-        })),
-      ),
-    [packages],
+      exams.map((exam) => ({
+        ...exam,
+        package_name:
+          exam.packages.length > 0
+            ? exam.packages.map((item) => item.name).join(", ")
+            : "Belum masuk paket",
+      })),
+    [exams],
   );
 
   const questionImagePreviewUrl = useMemo(
@@ -99,14 +100,14 @@ export default function AdminKelolaSoalPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const [questionRows, packageRows] = await Promise.all([
+      const [questionRows, examRows] = await Promise.all([
         adminApi.questions(token),
-        adminApi.packages(),
+        adminApi.manageExams(token),
       ]);
       setQuestions(questionRows);
-      setPackages(packageRows);
+      setExams(examRows);
       const firstExamId =
-        packageRows.flatMap((pkg) => pkg.exams ?? [])[0]?.id ?? 0;
+        examRows[0]?.id ?? 0;
       setQuestionDraft((prev) =>
         prev.exam_id > 0
           ? prev
