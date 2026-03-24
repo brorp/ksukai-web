@@ -221,7 +221,7 @@ export default function AdminKelolaSoalPage() {
         setImportFileInputKey((prev) => prev + 1);
         loadData();
         const selectedExam = examOptions.find((exam) => exam.id === importExamId);
-        return `${result.imported_count ?? 0} soal berhasil diimpor ke ${selectedExam?.package_name ?? "paket"} • ${selectedExam?.name ?? "ujian"}.`;
+        return `${result.imported_count ?? 0} soal berhasil diimpor ke ${selectedExam?.name ?? "ujian"}.`;
       },
       error: "Gagal import soal. Periksa kembali format template.",
       finally: () => setActionLoading(false),
@@ -333,13 +333,13 @@ export default function AdminKelolaSoalPage() {
                       }))
                     }
                   >
-                    <option value={0}>Pilih ujian...</option>
-                    {examOptions.map((exam) => (
-                      <option key={exam.id} value={exam.id}>
-                        {exam.package_name} • {exam.name}
-                      </option>
-                    ))}
-                  </select>
+                  <option value={0}>Pilih ujian...</option>
+                  {examOptions.map((exam) => (
+                    <option key={exam.id} value={exam.id}>
+                      {exam.name}
+                    </option>
+                  ))}
+                </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 ml-1">
@@ -580,7 +580,7 @@ export default function AdminKelolaSoalPage() {
                   <option value={0}>Pilih ujian import...</option>
                   {examOptions.map((exam) => (
                     <option key={exam.id} value={exam.id}>
-                      {exam.package_name} • {exam.name}
+                      {exam.name}
                     </option>
                   ))}
                 </select>

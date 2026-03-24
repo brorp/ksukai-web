@@ -68,11 +68,6 @@ export default function AdminLayout({
       icon: <Layers className="h-4 w-4" />,
     },
     {
-      label: "Hasil Ujian",
-      href: "/admin/exam-results",
-      icon: <BarChart3 className="h-4 w-4" />,
-    },
-    {
       label: "Bank Soal",
       href: "/admin/bank-soal",
       icon: <BookOpen className="h-4 w-4" />,
@@ -81,6 +76,11 @@ export default function AdminLayout({
       label: "Kelola Soal",
       href: "/admin/kelola-soal",
       icon: <ClipboardList className="h-4 w-4" />,
+    },
+    {
+      label: "Hasil Ujian",
+      href: "/admin/exam-results",
+      icon: <BarChart3 className="h-4 w-4" />,
     },
     {
       label: "Report Soal",

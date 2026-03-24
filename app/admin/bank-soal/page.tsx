@@ -539,7 +539,7 @@ export default function AdminBankSoalPage() {
               <option value={0}>Semua Ujian</option>
               {examOptions.map((exam) => (
                 <option key={exam.id} value={exam.id}>
-                  {exam.package_name} • {exam.name}
+                  {exam.name}
                 </option>
               ))}
             </select>
@@ -636,7 +636,7 @@ export default function AdminBankSoalPage() {
               >
                 {examOptions.map((exam) => (
                   <option key={exam.id} value={exam.id}>
-                    {exam.package_name} • {exam.name}
+                    {exam.name}
                   </option>
                 ))}
               </select>
@@ -1007,11 +1007,11 @@ export default function AdminBankSoalPage() {
                   )}
                 >
                   <option value="" disabled>
-                    Pilih ujian...
+                  Pilih ujian...
                   </option>
                   {examOptions.map((exam) => (
                     <option key={exam.id} value={exam.id}>
-                      {exam.package_name} • {exam.name}
+                      {exam.name}
                     </option>
                   ))}
                 </select>
