@@ -220,7 +220,9 @@ export default function AdminExamsPage() {
                   </button>
 
                   <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                    <span>{item.question_count} soal</span>
+                    <span>
+                      {item.assigned_question_count ?? 0} / {item.question_count} soal terisi
+                    </span>
                     <span>
                       {typeof item.session_limit === "number" &&
                       item.session_limit > 0
@@ -260,6 +262,17 @@ export default function AdminExamsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {selectedExam ? (
+                <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm text-slate-700">
+                  <p className="font-medium text-slate-900">
+                    Progres isi soal: {selectedExam.assigned_question_count ?? 0} /{" "}
+                    {selectedExam.question_count} soal
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Jumlah kiri menunjukkan soal yang sudah ter-assign ke ujian ini dari bank soal.
+                  </p>
+                </div>
+              ) : null}
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-slate-700">Nama Ujian</label>

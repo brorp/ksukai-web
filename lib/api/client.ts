@@ -9,6 +9,8 @@ import type {
 
 const API_BASE_PATH = "/api/proxy/api";
 const API_PROXY_BASE_PATH = "/api/proxy";
+const PUBLIC_SERVER_URL =
+  process.env.NEXT_PUBLIC_SERVER_URL ?? process.env.SERVER_URL ?? "";
 
 class ApiError extends Error {
   status: number;
@@ -48,6 +50,33 @@ const buildUrl = (
   return `${url.pathname}${url.search}`;
 };
 
+const buildDirectUrl = (
+  path: string,
+  query?: Record<string, string | number | boolean | undefined>,
+): string | null => {
+  const base = PUBLIC_SERVER_URL.trim();
+  if (!base) {
+    return null;
+  }
+
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const normalizedBase = base.replace(/\/+$/, "");
+  const baseWithApi = normalizedBase.endsWith("/api")
+    ? normalizedBase
+    : `${normalizedBase}/api`;
+  const url = new URL(`${baseWithApi}${normalizedPath}`);
+
+  if (query) {
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, String(value));
+      }
+    });
+  }
+
+  return url.toString();
+};
+
 const request = async <T>(
   path: string,
   options: RequestOptions = {},
@@ -67,7 +96,19 @@ const request = async <T>(
     payload = JSON.stringify(body);
   }
 
-  const response = await fetch(buildUrl(path, query), {
+  const isBrowserUpload = typeof window !== "undefined" && Boolean(formData);
+  const directUrl = isBrowserUpload ? buildDirectUrl(path, query) : null;
+
+  if (isBrowserUpload && !directUrl) {
+    throw new ApiError(
+      "Upload file belum dikonfigurasi. Isi NEXT_PUBLIC_SERVER_URL di frontend agar upload dikirim langsung ke backend.",
+      500,
+    );
+  }
+
+  const requestUrl = directUrl ?? buildUrl(path, query);
+
+  const response = await fetch(requestUrl, {
     method,
     headers,
     body: payload,
@@ -825,6 +866,7 @@ export interface AdminExam {
   name: string;
   description: string;
   question_count: number;
+  assigned_question_count?: number;
   session_limit?: number | null;
   sort_order: number;
   is_active: boolean;
