@@ -39,6 +39,18 @@ const formatExamPurposeLabel = (value?: string) => {
   return "Lainnya";
 };
 
+const getPackageHighlights = (value?: string) =>
+  (value ?? "")
+    .split(/\r?\n|•|,|\|/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+
+const getSessionLimitLabel = (value?: number | null) =>
+  typeof value === "number" && value > 0
+    ? `Maks. ${value} sesi`
+    : "Sesi fleksibel";
+
 export default function ApotekerDashboard() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
@@ -202,81 +214,143 @@ export default function ApotekerDashboard() {
                 const canStartPackage =
                   pkg.price === 0 || activePackageIds.has(pkg.id);
                 const pendingOrder = pendingByPackageId.get(pkg.id);
+                const packageHighlights = getPackageHighlights(
+                  `${pkg.description}\n${pkg.features}`,
+                );
 
                 return (
                   <Card
                     key={pkg.id}
-                    className="border border-slate-200 bg-white"
+                    className="border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
                   >
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-4">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg">{pkg.name}</CardTitle>
-                          <CardDescription>{pkg.description}</CardDescription>
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <CardTitle className="text-lg">{pkg.name}</CardTitle>
+                            <span
+                              className={cn(
+                                "rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest",
+                                pkg.price === 0
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-sky-100 text-sky-700",
+                              )}
+                            >
+                              {pkg.price === 0 ? "Gratis" : "Premium"}
+                            </span>
+                          </div>
+                          <CardDescription className="text-sm leading-relaxed text-slate-500">
+                            {pkg.description || "Paket tryout terstruktur untuk latihan UKAI."}
+                          </CardDescription>
                         </div>
-                        <span
-                          className={cn(
-                            "rounded-full px-3 py-1 text-xs font-semibold",
-                            pkg.price === 0
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-sky-100 text-sky-700",
-                          )}
-                        >
+                        <div className="rounded-2xl bg-slate-900 px-4 py-3 text-right text-white shadow-sm">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
+                            Harga
+                          </p>
+                          <p className="mt-1 text-lg font-black">
+                            {pkg.price === 0
+                              ? "Gratis"
+                              : `Rp ${Number(pkg.price).toLocaleString("id-ID")}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide">
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-500">
                           {pkg.question_count} soal
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-500">
+                          {(pkg.exams ?? []).length} ujian
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-500">
+                          {getSessionLimitLabel(pkg.session_limit)}
                         </span>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <p className="text-sm text-slate-500">{pkg.features}</p>
-                      <p className="text-xl font-bold text-slate-900">
-                        {pkg.price === 0
-                          ? "Gratis"
-                          : `Rp ${Number(pkg.price).toLocaleString("id-ID")}`}
-                      </p>
+                      {packageHighlights.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {packageHighlights.map((highlight) => (
+                            <span
+                              key={highlight}
+                              className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-medium text-slate-600"
+                            >
+                              {highlight}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
 
-                      {canStartPackage ? (
-                        <div className="space-y-3">
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                              Daftar Tipe Ujian
-                            </p>
-                            <div className="mt-3 space-y-2">
-                              {(pkg.exams ?? []).map((exam) => (
-                                <div
-                                  key={exam.id}
-                                  className="flex items-center justify-between gap-3 rounded-xl border border-white bg-white px-3 py-3 shadow-sm"
-                                >
-                                  <div className="space-y-1">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                            Daftar Ujian di Paket
+                          </p>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 shadow-sm">
+                            {(pkg.exams ?? []).length} item
+                          </span>
+                        </div>
+
+                        <div className="mt-3 space-y-2">
+                          {(pkg.exams ?? []).length > 0 ? (
+                            (pkg.exams ?? []).map((exam) => (
+                              <div
+                                key={exam.id}
+                                className="rounded-xl border border-white bg-white p-3 shadow-sm"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="space-y-2">
                                     <p className="text-sm font-semibold text-slate-900">
                                       {exam.name}
                                     </p>
-                                    <p className="text-xs text-slate-500">
-                                      {exam.description || `${exam.question_count} soal`}
-                                    </p>
-                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                      {typeof exam.session_limit === "number" &&
-                                      exam.session_limit > 0
-                                        ? `Batas sesi ${exam.session_limit}`
-                                        : "Tanpa batas sesi"}
-                                    </p>
+                                    <div className="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                                      <span className="rounded-full bg-slate-50 px-2.5 py-1 text-slate-500">
+                                        {exam.question_count} soal
+                                      </span>
+                                      <span className="rounded-full bg-slate-50 px-2.5 py-1 text-slate-500">
+                                        {getSessionLimitLabel(exam.session_limit)}
+                                      </span>
+                                    </div>
+                                    {exam.description ? (
+                                      <p className="text-xs leading-relaxed text-slate-500">
+                                        {exam.description}
+                                      </p>
+                                    ) : null}
                                   </div>
-                                  <Button
-                                    onClick={() => {
-                                      setConfirmStart(true);
-                                      setSelectedExamState({
-                                        packageItem: pkg,
-                                        examItem: exam,
-                                      });
-                                    }}
-                                    className="bg-emerald-600 hover:bg-emerald-700"
-                                  >
-                                    <Play size={16} className="mr-2 fill-current" />
-                                    Kerjakan
-                                  </Button>
+
+                                  {canStartPackage ? (
+                                    <Button
+                                      onClick={() => {
+                                        setConfirmStart(true);
+                                        setSelectedExamState({
+                                          packageItem: pkg,
+                                          examItem: exam,
+                                        });
+                                      }}
+                                      className="h-10 rounded-xl bg-emerald-600 px-4 text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-700"
+                                    >
+                                      <Play size={14} className="mr-1.5 fill-current" />
+                                      Kerjakan
+                                    </Button>
+                                  ) : (
+                                    <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                                      Aktivasi dulu
+                                    </span>
+                                  )}
                                 </div>
-                              ))}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-400">
+                              Belum ada ujian yang ditautkan ke paket ini.
                             </div>
-                          </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {canStartPackage ? (
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm font-medium text-emerald-700">
+                          Paket aktif. Pilih salah satu ujian di atas untuk mulai tryout.
                         </div>
                       ) : pendingOrder ? (
                         <Link

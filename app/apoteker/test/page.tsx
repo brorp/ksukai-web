@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { examApi, getServerAssetUrl } from "@/lib/api/client";
+import { useExamSecurity } from "@/hooks/use-exam-security";
 import { useAuthStore } from "@/lib/store/auth";
 import { useTestStore } from "@/lib/store/test";
 import type { OptionKey, Question, QuestionFlagStatus } from "@/lib/types";
@@ -241,6 +242,15 @@ function TestContent() {
     }),
     [answeredCount, doubtfulCount, emptyCount],
   );
+  const watermarkLabel = useMemo(
+    () =>
+      [user?.name, user?.email, sessionId ? `Sesi ${sessionId}` : null]
+        .filter(Boolean)
+        .join(" • "),
+    [sessionId, user?.email, user?.name],
+  );
+
+  useExamSecurity(Boolean(sessionId));
 
   if (!mounted || isLoadingSession) {
     return (
@@ -271,6 +281,21 @@ function TestContent() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900">
+      {sessionId ? (
+        <div className="pointer-events-none fixed inset-0 z-10 grid grid-cols-2 gap-10 overflow-hidden px-6 py-10 md:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <div
+              key={`watermark-${index + 1}`}
+              className="flex items-center justify-center text-center text-[10px] font-black uppercase tracking-[0.28em] text-slate-900/[0.06] md:text-xs"
+            >
+              <span className="-rotate-[24deg]">
+                {watermarkLabel || "KS UKAI Secure Exam"}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <header className="h-20 bg-white border-b px-6 flex items-center justify-between z-30 shrink-0 sticky top-0">
         {/* KIRI: Tetap kompak */}
         <div className="flex items-center gap-4 min-w-45">
@@ -348,7 +373,7 @@ function TestContent() {
       )}
 
       <div className="flex-1 flex relative overflow-hidden">
-        <main className="flex-1 overflow-y-auto bg-[#F8FAFC] px-2 py-6 md:px-6">
+        <main className="relative z-20 flex-1 overflow-y-auto bg-[#F8FAFC] px-2 py-6 md:px-6">
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* Left Column (Question) */}

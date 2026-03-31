@@ -696,6 +696,8 @@ export interface ExamResultQuestion {
   order: number;
   questionText: string;
   imageUrl?: string | null;
+  explanationImageUrl?: string | null;
+  explanation_image_url?: string | null;
   options: Record<OptionKey, string>;
   selectedOption?: OptionKey | null;
   correctAnswer?: OptionKey;
@@ -888,6 +890,7 @@ export interface AdminQuestionPayload {
   explanation: string;
   is_active: boolean;
   remove_image?: boolean;
+  remove_explanation_image?: boolean;
 }
 
 export interface AdminQuestion extends AdminQuestionPayload {
@@ -897,6 +900,8 @@ export interface AdminQuestion extends AdminQuestionPayload {
   package_question_count: number | null;
   exam_name?: string | null;
   image_url?: string | null;
+  explanation_image_url?: string | null;
+  explanationImageUrl?: string | null;
 }
 
 export interface QuestionReportSummary {
@@ -932,6 +937,8 @@ export interface QuestionReportDetail {
     id?: number | null;
     text?: string | null;
     image_url?: string | null;
+    explanation_image_url?: string | null;
+    explanationImageUrl?: string | null;
     options?: Record<OptionKey, string | null>;
     correct_answer?: OptionKey | null;
     correct_answer_text?: string | null;
@@ -990,6 +997,7 @@ const appendBooleanField = (
 const buildQuestionFormData = (
   payload: Partial<AdminQuestionPayload> & {
     imageFile?: File | null;
+    explanationImageFile?: File | null;
   },
 ) => {
   const formData = new FormData();
@@ -1023,8 +1031,16 @@ const buildQuestionFormData = (
   }
   appendBooleanField(formData, "is_active", payload.is_active);
   appendBooleanField(formData, "remove_image", payload.remove_image);
+  appendBooleanField(
+    formData,
+    "remove_explanation_image",
+    payload.remove_explanation_image,
+  );
   if (payload.imageFile) {
     formData.append("image", payload.imageFile);
+  }
+  if (payload.explanationImageFile) {
+    formData.append("explanation_image", payload.explanationImageFile);
   }
 
   return formData;
@@ -1179,7 +1195,10 @@ export const adminApi = {
 
   createQuestion: async (
     token: string,
-    payload: AdminQuestionPayload & { imageFile?: File | null },
+    payload: AdminQuestionPayload & {
+      imageFile?: File | null;
+      explanationImageFile?: File | null;
+    },
   ): Promise<AdminQuestion> =>
     request("/admin/questions", {
       method: "POST",
@@ -1190,7 +1209,10 @@ export const adminApi = {
   updateQuestion: async (
     token: string,
     id: number,
-    payload: Partial<AdminQuestionPayload> & { imageFile?: File | null },
+    payload: Partial<AdminQuestionPayload> & {
+      imageFile?: File | null;
+      explanationImageFile?: File | null;
+    },
   ): Promise<AdminQuestion> =>
     request(`/admin/questions/${id}`, {
       method: "PUT",

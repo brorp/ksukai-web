@@ -78,7 +78,7 @@ export default function TestQuestion({
   }
 
   return (
-    <div className="space-y-6 py-8 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-4xl mx-auto space-y-6 py-8 select-none animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export default function TestQuestion({
           </Button>
         </div>
 
-        <div className="bg-white p-6 md:p-8 rounded-2xl border-2 border-slate-100 leading-relaxed text-slate-800 text-lg shadow-sm">
+        <div className="whitespace-pre-line rounded-2xl border-2 border-slate-100 bg-white p-6 text-lg leading-relaxed text-slate-800 shadow-sm md:p-8">
           {question.question}
         </div>
 
@@ -151,7 +151,7 @@ export default function TestQuestion({
 
               <span
                 className={cn(
-                  "flex-1 font-medium text-base",
+                  "flex-1 whitespace-pre-line font-medium text-base",
                   isActive ? "text-slate-900" : "text-slate-600",
                 )}
               >

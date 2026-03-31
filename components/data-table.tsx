@@ -19,13 +19,26 @@ export function Table<TData, TValue>({
   data,
   rowSelection = {},
   onRowSelectionChange,
+  showNumberingColumn = true,
+  defaultPageSize = 10,
+  pageSizeOptions = [10, 20, 50],
 }: {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   rowSelection?: Record<string, boolean>;
   onRowSelectionChange?: React.Dispatch<React.SetStateAction<any>>;
+  showNumberingColumn?: boolean;
+  defaultPageSize?: number;
+  pageSizeOptions?: number[];
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const resolvedPageSizeOptions = useMemo(
+    () =>
+      Array.from(new Set([defaultPageSize, ...pageSizeOptions])).sort(
+        (left, right) => left - right,
+      ),
+    [defaultPageSize, pageSizeOptions],
+  );
 
   const finalColumns = useMemo<ColumnDef<TData, TValue>[]>(() => {
     const selectColumn = columns.find((col) => col.id === "checkbox");
@@ -48,10 +61,10 @@ export function Table<TData, TValue>({
 
     return [
       ...(selectColumn ? [selectColumn] : []),
-      numberingColumn,
+      ...(showNumberingColumn ? [numberingColumn] : []),
       ...otherColumns,
     ];
-  }, [columns]);
+  }, [columns, showNumberingColumn]);
 
   const table = useReactTable({
     data,
@@ -64,6 +77,11 @@ export function Table<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getRowId: (row: any, index: number) =>
       row.id ? row.id.toString() : index.toString(),
+    initialState: {
+      pagination: {
+        pageSize: defaultPageSize,
+      },
+    },
   });
 
   const currentPage = table.getState().pagination.pageIndex + 1;
@@ -175,7 +193,7 @@ export function Table<TData, TValue>({
               onChange={(e) => table.setPageSize(Number(e.target.value))}
               className="bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[10px] font-semibold text-primary outline-none"
             >
-              {[10, 20, 50].map((size) => (
+              {resolvedPageSizeOptions.map((size) => (
                 <option key={size} value={size}>
                   {size} Rows
                 </option>

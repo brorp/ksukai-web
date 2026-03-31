@@ -2,16 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   Award,
   BookOpenCheck,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   ClipboardCheck,
   Clock3,
   Menu,
+  MessageCircle,
   MonitorSmartphone,
   Quote,
   ShieldCheck,
@@ -21,7 +23,10 @@ import {
   X,
 } from "lucide-react";
 
+import { useIsMobile } from "@/hooks/use-mobile";
+
 const navItems = [
+  { label: "Tentang Kami", target: "tentang-kami" },
   { label: "Keunggulan", target: "keunggulan" },
   { label: "Fitur Tryout", target: "fitur-tryout" },
   { label: "Testimoni", target: "testimoni" },
@@ -84,7 +89,75 @@ const tryoutFeatures = [
   },
 ];
 
+const aboutPillars = [
+  {
+    icon: Award,
+    eyebrow: "Visi",
+    title:
+      "Membantu calon apoteker mencapai standar kompetensi nasional dan lulus UKMPPAI CBT & OSCE.",
+    description:
+      "KS UKAI dibangun untuk menjembatani proses belajar yang lebih tepat sasaran, selaras dengan standar Kemenkes & IAI.",
+  },
+  {
+    icon: BookOpenCheck,
+    eyebrow: "Misi",
+    title:
+      "Menyediakan solusi belajar terbaik melalui buku dan bimbel yang sistematis, update, dan sesuai blueprint resmi.",
+    description:
+      "Setiap materi, tryout, dan pembahasan dirancang agar peserta bisa belajar lebih efisien tanpa kehilangan kedalaman konsep.",
+  },
+];
+
+const founders = [
+  {
+    name: "Mathias Lourdion Kusnaman",
+    campus: "ITB • Founder KS UKAI",
+    imageUrl:
+      "https://ik.imagekit.io/fjaskqdnu0xp/ksukai/lourdion_-p1RDZG3O",
+    summary:
+      "Alumnus Sains dan Teknologi Farmasi ITB yang melanjutkan Profesi Apoteker di kampus yang sama. Pada UKAI CBT periode X September 2021, ia meraih nilai 85,5 dengan selisih sangat tipis dari nilai tertinggi nasional 86.",
+    highlights: [
+      "Nilai UKAI hampir sempurna dan menjadi yang tertinggi di ITB pada periodenya",
+      "Berpengalaman di industri farmasi sebagai formulation scientist",
+      "Melanjutkan studi Master of Pharmaceutical Science di Monash University, Australia",
+      "Aktif mengajar dan membimbing calon apoteker",
+    ],
+  },
+  {
+    name: "Christopher Wijaya",
+    campus: "ITB • Founder KS UKAI",
+    imageUrl:
+      "https://ik.imagekit.io/fjaskqdnu0xp/ksukai/chris_xSU2HLiBS",
+    summary:
+      "Lulusan Sains dan Teknologi Farmasi ITB yang menuntaskan Profesi Apoteker ITB dengan predikat Cum Laude. Ia aktif mengajar calon apoteker dari berbagai universitas dan mengikuti perkembangan UKMPPAI CBT & OSCE secara langsung.",
+    highlights: [
+      "Mahasiswa Berprestasi ITB 2017 dan Peserta Sidang Terbaik Sekolah Farmasi ITB 2020",
+      "Lulus Apoteker ITB Cum Laude dengan IPK 3,92",
+      "Aktif menyusun materi belajar yang sistematis dan selaras blueprint resmi",
+      "Fokus membimbing calon apoteker menuju kelulusan nasional",
+    ],
+  },
+];
+
 const testimonials = [
+  {
+    quote:
+      "Terima kasih sudah membimbing, saya mendapatkan banyak ilmu yang belum pernah saya dapatkan sehingga saya mudah dalam mengerjakan soal UKMPPAI, semoga kedepannya KS UKAI sukses terus.",
+    name: "Dava Zulfakor",
+    campus: "Universitas Garut",
+  },
+  {
+    quote:
+      "Materi yang diberikan sesuai dengan blueprint, ppt-nya lengkap dan mudah untuk dibaca-baca kembali, latihan soal banyaaakk ada pre test dan post test, sangat membantu untuk latihan.",
+    name: "Binti Sholihatin",
+    campus: "Universitas Mulawarman",
+  },
+  {
+    quote:
+      "Soalnya sangat membantu dan bagus. Sangat membantu dalam saya melewati UKMPPAI CBT dan OSCE.",
+    name: "Kurnia Sandy",
+    campus: "Universitas Pertahanan RI",
+  },
   {
     quote:
       "Latihan soalnya mantap, banyak yang mirip dengan CBT. Great job KS UKAI",
@@ -97,12 +170,56 @@ const testimonials = [
     name: "Diaz Andhini",
     campus: "Universitas Setia Budi",
   },
+  {
+    quote:
+      "Modul dan pembelajaran yang diberikan sangat sesuai dengan blueprint. Pembelajaran juga efektif dan efisien dan mudah dipahami. Buku Kumpulan Soalnya sangat bagus dan sangat sesuai untuk pembelajaran UKMPPAI.",
+    name: "Grisella Crystabel",
+    campus: "Institut Teknologi Bandung",
+  },
 ];
 
 const FREE_TRYOUT_HREF = "/tryout?intent=free";
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeTestimonialIndex, setActiveTestimonialIndex] = useState(0);
+  const isMobile = useIsMobile();
+  const testimonialCardsPerView = isMobile ? 1 : 2;
+  const testimonialMaxIndex = Math.max(
+    0,
+    testimonials.length - testimonialCardsPerView,
+  );
+  const testimonialSlideCount = testimonialMaxIndex + 1;
+
+  useEffect(() => {
+    setActiveTestimonialIndex((current) =>
+      Math.min(current, testimonialMaxIndex),
+    );
+  }, [testimonialMaxIndex]);
+
+  useEffect(() => {
+    if (testimonialSlideCount <= 1) return;
+
+    const intervalId = window.setInterval(() => {
+      setActiveTestimonialIndex((current) =>
+        current >= testimonialMaxIndex ? 0 : current + 1,
+      );
+    }, 5500);
+
+    return () => window.clearInterval(intervalId);
+  }, [testimonialMaxIndex, testimonialSlideCount]);
+
+  const showTestimonialControls = testimonialSlideCount > 1;
+  const handlePreviousTestimonial = () => {
+    setActiveTestimonialIndex((current) =>
+      current === 0 ? testimonialMaxIndex : current - 1,
+    );
+  };
+  const handleNextTestimonial = () => {
+    setActiveTestimonialIndex((current) =>
+      current >= testimonialMaxIndex ? 0 : current + 1,
+    );
+  };
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-white text-slate-800">
@@ -247,14 +364,14 @@ export default function HomePage() {
               href="/tryout"
               className="pointer-events-auto inline-flex items-center justify-center rounded-full border border-[#1A365D]/15 bg-white px-7 py-4 text-base font-semibold text-[#1A365D] transition hover:border-[#1A365D] hover:bg-[#1A365D]/5"
             >
-              Login ke Dashboard
+              Login ke Panel Tryout
             </Link>
           </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm font-medium text-slate-600 mx-auto">
             <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              Simulasi 200 soal bergaya CBT
+              Simulasi soal bergaya CBT
             </div>
             <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -262,7 +379,7 @@ export default function HomePage() {
             </div>
             <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              Gratis untuk mulai latihan pertama
+              Uji Coba Gratis
             </div>
           </div>
         </div>
@@ -399,15 +516,15 @@ export default function HomePage() {
                     <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4">
                       <div className="flex flex-col items-center justify-center rounded-[1.25rem] bg-white/10 p-3 sm:p-4 text-center backdrop-blur-sm">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-200 sm:text-xs">
-                          Paket Gratis
+                          Hasil Ujian
                         </p>
                         <p className="mt-1 text-lg font-black">
-                          Uji Coba
+                          Instan Skoring
                         </p>
                       </div>
                       <div className="flex flex-col items-center justify-center rounded-[1.25rem] bg-white/10 p-3 sm:p-4 text-center backdrop-blur-sm">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-200 sm:text-xs">
-                          Pembahasan
+                          Review Ujian
                         </p>
                         <p className="mt-1 text-lg font-black">
                           Lengkap
@@ -447,6 +564,21 @@ export default function HomePage() {
         </div>
       </section>
 
+      <a
+        href="https://wa.me/6285171241417"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Hubungi KS UKAI via WhatsApp"
+        className="fixed bottom-5 right-5 z-50 inline-flex items-center gap-3 rounded-full bg-[#25D366] px-4 py-3 text-sm font-black text-white shadow-[0_20px_45px_rgba(37,211,102,0.32)] transition hover:-translate-y-1 hover:bg-[#20c25c] focus:outline-none focus:ring-4 focus:ring-[#25D366]/30"
+      >
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/18">
+          <MessageCircle className="h-6 w-6" />
+        </span>
+        <span className="hidden sm:block">
+          Chat WhatsApp
+        </span>
+      </a>
+
       <section className="px-4 pb-10 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-4 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] sm:grid-cols-3 sm:p-7">
@@ -471,6 +603,133 @@ export default function HomePage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="tentang-kami"
+        className="scroll-mt-28 px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
+      >
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
+            <div className="max-w-2xl">
+              <p className="text-sm font-black uppercase tracking-[0.28em] text-[#1A365D]">
+                About Us
+              </p>
+              <h2 className="mt-4 text-3xl font-black leading-tight text-[#1E293B] sm:text-4xl">
+                Dibangun untuk calon apoteker yang ingin belajar lebih terarah,
+                percaya diri, dan siap menghadapi standar nasional.
+              </h2>
+              <p className="mt-4 text-base leading-8 text-slate-600">
+                KS UKAI merupakan one-stop learning solution untuk persiapan
+                UKMPPAI CBT &amp; OSCE. Kami menggabungkan buku, bimbel, dan
+                tryout dalam satu ekosistem belajar yang sistematis, update,
+                dan relevan dengan blueprint resmi.
+              </p>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <div className="inline-flex items-center gap-2 rounded-full bg-[#1A365D] px-4 py-2 text-sm font-semibold text-white">
+                  <Users className="h-4 w-4 text-[#FBBF24]" />
+                  Praktisi & akademisi berprestasi dari ITB
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+                  <Sparkles className="h-4 w-4 text-[#1A365D]" />
+                  Selaras Kemenkes, IAI, dan blueprint UKMPPAI
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              {aboutPillars.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <article
+                    key={item.eyebrow}
+                    className="rounded-[2rem] border border-slate-200 bg-slate-50/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#1A365D] text-[#FBBF24] shadow-sm">
+                        <Icon className="h-7 w-7" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black uppercase tracking-[0.24em] text-[#1A365D]">
+                          {item.eyebrow}
+                        </p>
+                        <h3 className="mt-2 text-xl font-black leading-snug text-[#1E293B]">
+                          {item.title}
+                        </h3>
+                        <p className="mt-3 text-sm leading-7 text-slate-600">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-10 rounded-[2.25rem] border border-slate-200 bg-[linear-gradient(135deg,#0f2744_0%,#1A365D_60%,#264f82_100%)] p-6 text-white shadow-[0_24px_60px_rgba(26,54,93,0.22)] sm:p-8">
+            <div className="max-w-3xl">
+              <p className="text-sm font-black uppercase tracking-[0.28em] text-slate-200">
+                Tentang Founder
+              </p>
+              <h3 className="mt-4 text-2xl font-black leading-tight sm:text-3xl">
+                Dibangun oleh praktisi dan akademisi berprestasi yang memahami
+                medan UKMPPAI dari ruang kelas sampai dunia industri.
+              </h3>
+              <p className="mt-4 text-base leading-8 text-slate-200">
+                KS UKAI lahir dari pengalaman nyata dalam menghadapi ujian,
+                mengajar, dan menyusun materi yang relevan untuk calon apoteker
+                Indonesia.
+              </p>
+            </div>
+
+            <div className="mt-8 grid gap-5 lg:grid-cols-2">
+              {founders.map((founder) => {
+                return (
+                  <article
+                    key={founder.name}
+                    className="rounded-[2rem] border border-white/10 bg-white/10 p-6 backdrop-blur-sm"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-sm">
+                        <img
+                          src={founder.imageUrl}
+                          alt={founder.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-xl font-black text-white">
+                          {founder.name}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold uppercase tracking-[0.2em] text-slate-200">
+                          {founder.campus}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="mt-5 text-sm leading-7 text-slate-100">
+                      {founder.summary}
+                    </p>
+
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {founder.highlights.map((highlight) => (
+                        <div
+                          key={highlight}
+                          className="inline-flex items-start gap-2 rounded-2xl border border-white/12 bg-white/8 px-4 py-2 text-sm text-slate-100"
+                        >
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#FBBF24]" />
+                          <span>{highlight}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
@@ -590,30 +849,122 @@ export default function HomePage() {
             <h2 className="mt-4 text-3xl font-black leading-tight text-[#1E293B] sm:text-4xl">
               Kata Mereka yang Telah Lulus Bersama KS UKAI
             </h2>
+            <p className="mt-4 text-base leading-8 text-slate-600">
+              Testimoni berikut diambil dari e-Catalogue KS UKAI Agustus 2025
+              dan ditampilkan dalam carousel agar tetap ringkas di mobile.
+            </p>
           </div>
 
-          <div className="mt-10 grid gap-5 lg:grid-cols-2">
-            {testimonials.map((item) => (
-              <article
-                key={item.name}
-                className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_20px_48px_rgba(15,23,42,0.07)]"
+          <div className="mt-10 overflow-hidden rounded-[2.25rem] border border-slate-200 bg-white p-4 shadow-[0_20px_48px_rgba(15,23,42,0.07)] sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="inline-flex items-center gap-2 rounded-full bg-[#1A365D] px-4 py-2 text-sm font-semibold text-white">
+                  <Quote className="h-4 w-4 text-[#FBBF24]" />
+                  TESTIMONI
+                </div>
+              </div>
+
+              {showTestimonialControls ? (
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handlePreviousTestimonial}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-[#1A365D] transition hover:border-[#1A365D] hover:bg-[#1A365D]/5"
+                    aria-label="Testimoni sebelumnya"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNextTestimonial}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-[#1A365D] transition hover:border-[#1A365D] hover:bg-[#1A365D]/5"
+                    aria-label="Testimoni berikutnya"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-6 overflow-hidden">
+              <div
+                className="flex transition-transform duration-500 ease-out"
+                style={{
+                  width: `${(testimonials.length / testimonialCardsPerView) * 100}%`,
+                  transform: `translateX(-${(activeTestimonialIndex * 100) / testimonials.length}%)`,
+                }}
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1A365D] text-[#FBBF24]">
-                  <Quote className="h-7 w-7" />
-                </div>
-                <p className="mt-6 text-lg font-semibold leading-8 text-slate-700">
-                  “{item.quote}”
-                </p>
-                <div className="mt-6 border-t border-dashed border-slate-200 pt-5">
-                  <p className="text-base font-black text-[#1A365D]">
-                    {item.name}
-                  </p>
-                  <p className="text-sm font-medium text-slate-500">
-                    {item.campus}
-                  </p>
-                </div>
-              </article>
-            ))}
+                {testimonials.map((item) => {
+                  const initials = item.name
+                    .split(" ")
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0])
+                    .join("")
+                    .toUpperCase();
+
+                  return (
+                    <div
+                      key={item.name}
+                      className="shrink-0 px-2"
+                      style={{ width: `${100 / testimonials.length}%` }}
+                    >
+                      <article className="flex h-full min-h-[22rem] flex-col rounded-[2rem] border border-slate-200 bg-slate-50/70 p-6 sm:p-7">
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#1A365D] text-lg font-black text-[#FBBF24] shadow-sm">
+                            {initials}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1 text-[#FBBF24]">
+                              {Array.from({ length: 5 }).map((_, index) => (
+                                <Star
+                                  key={`${item.name}-star-${index + 1}`}
+                                  className="h-4 w-4 fill-current"
+                                />
+                              ))}
+                            </div>
+                            <p className="mt-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">
+                              Peserta KS UKAI
+                            </p>
+                          </div>
+                        </div>
+
+                        <p className="mt-6 text-base font-semibold leading-8 text-slate-700">
+                          “{item.quote}”
+                        </p>
+
+                        <div className="mt-auto border-t border-dashed border-slate-200 pt-5">
+                          <p className="text-base font-black text-[#1A365D]">
+                            {item.name}
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-slate-500">
+                            {item.campus}
+                          </p>
+                        </div>
+                      </article>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {showTestimonialControls ? (
+              <div className="mt-6 flex items-center justify-center gap-2">
+                {Array.from({ length: testimonialSlideCount }).map((_, index) => (
+                  <button
+                    key={`testimonial-dot-${index + 1}`}
+                    type="button"
+                    onClick={() => setActiveTestimonialIndex(index)}
+                    className={`h-2.5 rounded-full transition-all ${
+                      index === activeTestimonialIndex
+                        ? "w-8 bg-[#1A365D]"
+                        : "w-2.5 bg-slate-300 hover:bg-slate-400"
+                    }`}
+                    aria-label={`Ke testimoni ${index + 1}`}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </section>

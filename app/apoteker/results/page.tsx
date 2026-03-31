@@ -16,6 +16,7 @@ import {
   ChevronRight,
   AlertCircle,
   LayoutGrid,
+  Layers,
   ArrowLeft,
   Trophy,
 } from "lucide-react";
@@ -72,6 +73,7 @@ function ResultsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionIdFromQuery = Number(searchParams.get("sessionId") ?? 0);
+  const examIdFromQuery = Number(searchParams.get("examId") ?? 0);
 
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
@@ -101,6 +103,10 @@ function ResultsContent() {
   const activeSessionId = useMemo(
     () => (sessionIdFromQuery > 0 ? sessionIdFromQuery : 0),
     [sessionIdFromQuery],
+  );
+  const activeExamId = useMemo(
+    () => (examIdFromQuery > 0 ? examIdFromQuery : 0),
+    [examIdFromQuery],
   );
 
   useEffect(() => {
@@ -176,12 +182,19 @@ function ResultsContent() {
     );
   }
 
+  const groupedSessions = groupSessionsByExam(sessions);
+
   return (
     <div className="max-w-6xl mx-auto pb-20 space-y-6 animate-in fade-in duration-500">
       {activeSessionId > 0 && result ? (
         <ResultDetail result={result} onOpenReport={handleOpenReport} />
+      ) : activeExamId > 0 ? (
+        <AttemptList
+          examId={activeExamId}
+          groups={groupedSessions}
+        />
       ) : (
-        <SessionList sessions={sessions} />
+        <ExamGroupList groups={groupedSessions} />
       )}
 
       {/* Report Modal */}
@@ -236,6 +249,100 @@ function ResultsContent() {
   );
 }
 
+interface ExamSessionGroup {
+  key: string;
+  examId: number | null;
+  examName: string;
+  packageName: string;
+  attempts: ExamSessionSummary[];
+  totalAttempts: number;
+  completedAttempts: number;
+  bestScore: number | null;
+  latestActivity?: string;
+}
+
+const formatSessionDate = (value?: string | null, withTime = false) => {
+  if (!value) {
+    return "-";
+  }
+
+  return new Date(value).toLocaleString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    ...(withTime
+      ? {
+          hour: "2-digit",
+          minute: "2-digit",
+        }
+      : {}),
+  });
+};
+
+const groupSessionsByExam = (
+  sessions: ExamSessionSummary[],
+): ExamSessionGroup[] => {
+  const groups = new Map<string, ExamSessionGroup>();
+
+  for (const session of sessions) {
+    const groupKey = session.exam_id
+      ? String(session.exam_id)
+      : `session-${session.session_id}`;
+    const existingGroup = groups.get(groupKey);
+    const latestActivity =
+      session.end_time ?? session.start_time ?? existingGroup?.latestActivity;
+    const isCompleted = session.status?.toLowerCase() === "completed";
+
+    if (!existingGroup) {
+      groups.set(groupKey, {
+        key: groupKey,
+        examId: session.exam_id ?? null,
+        examName: session.exam_name || `Ujian #${session.session_id}`,
+        packageName: session.package_name || "-",
+        attempts: [session],
+        totalAttempts: 1,
+        completedAttempts: isCompleted ? 1 : 0,
+        bestScore: isCompleted ? session.score : null,
+        latestActivity,
+      });
+      continue;
+    }
+
+    existingGroup.attempts.push(session);
+    existingGroup.totalAttempts += 1;
+    existingGroup.completedAttempts += isCompleted ? 1 : 0;
+    existingGroup.bestScore =
+      isCompleted && existingGroup.bestScore !== null
+        ? Math.max(existingGroup.bestScore, session.score)
+        : isCompleted
+          ? session.score
+          : existingGroup.bestScore;
+    existingGroup.latestActivity = latestActivity;
+    if (existingGroup.packageName === "-" && session.package_name) {
+      existingGroup.packageName = session.package_name;
+    }
+  }
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      attempts: [...group.attempts].sort((left, right) => {
+        const leftTime = new Date(
+          left.end_time ?? left.start_time ?? 0,
+        ).getTime();
+        const rightTime = new Date(
+          right.end_time ?? right.start_time ?? 0,
+        ).getTime();
+        return rightTime - leftTime;
+      }),
+    }))
+    .sort((left, right) => {
+      const leftTime = new Date(left.latestActivity ?? 0).getTime();
+      const rightTime = new Date(right.latestActivity ?? 0).getTime();
+      return rightTime - leftTime;
+    });
+};
+
 function ResultDetail({
   result,
   onOpenReport,
@@ -246,12 +353,24 @@ function ResultDetail({
   const [activeIdx, setActiveIdx] = useState(0);
   const passed = result.score >= 60;
   const currentQuestion = result.questions[activeIdx];
+  const backHref = result.exam_id
+    ? `/apoteker/results?examId=${result.exam_id}`
+    : "/apoteker/results";
+  const explanationImageUrl =
+    getServerAssetUrl(
+      currentQuestion.explanationImageUrl ??
+        currentQuestion.explanation_image_url ??
+        null,
+    ) ??
+    currentQuestion.explanationImageUrl ??
+    currentQuestion.explanation_image_url ??
+    null;
 
   return (
     <div className="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
       <div className="flex items-center">
         <Link
-          href="/apoteker/results"
+          href={backHref}
           className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors group"
         >
           <div className="p-2 bg-white border border-slate-200 rounded-lg group-hover:border-slate-300 shadow-sm">
@@ -322,7 +441,7 @@ function ResultDetail({
             </div>
 
             <div className="p-6 md:p-8 space-y-8">
-              <div className="text-slate-800 font-medium leading-relaxed">
+              <div className="whitespace-pre-line text-slate-800 font-medium leading-relaxed">
                 {currentQuestion.questionText}
               </div>
 
@@ -367,7 +486,7 @@ function ResultDetail({
                       </div>
                       <div
                         className={cn(
-                          "pt-1.5 text-sm",
+                          "whitespace-pre-line pt-1.5 text-sm",
                           isCorrect
                             ? "text-emerald-900 font-semibold"
                             : isSelected
@@ -393,6 +512,15 @@ function ResultDetail({
                   {currentQuestion.explanation ||
                     "Pembahasan untuk soal ini sedang dalam proses update oleh tim ahli."}
                 </div>
+                {explanationImageUrl ? (
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <img
+                      src={explanationImageUrl}
+                      alt={`Gambar pembahasan soal ${activeIdx + 1}`}
+                      className="max-h-[420px] w-full rounded-xl object-contain bg-slate-50"
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -482,8 +610,8 @@ function ResultDetail({
   );
 }
 
-function SessionList({ sessions }: { sessions: ExamSessionSummary[] }) {
-  if (sessions.length === 0) {
+function ExamGroupList({ groups }: { groups: ExamSessionGroup[] }) {
+  if (groups.length === 0) {
     return (
       <Card className="rounded-2xl border-2 border-dashed border-slate-200 p-16 text-center bg-slate-50/50">
         <div className="w-20 h-20 bg-white border-2 border-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-300 shadow-sm">
@@ -515,10 +643,10 @@ function SessionList({ sessions }: { sessions: ExamSessionSummary[] }) {
             <Trophy size={14} /> Performance Tracking
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-            Riwayat Test
+            Pilih Ujian
           </h1>
           <p className="text-sm text-slate-500 font-medium leading-relaxed">
-            Review kembali jawaban dan pelajari pembahasan di setiap sesi.
+            Buka dulu ujiannya, lalu pilih attempt yang ingin direview.
           </p>
         </div>
         <Link href="/apoteker/dashboard">
@@ -532,133 +660,215 @@ function SessionList({ sessions }: { sessions: ExamSessionSummary[] }) {
       </div>
 
       <div className="grid gap-4">
-        {sessions.map((session) => {
-          const isPassed = session.score >= 60;
-          const isCompleted = session.status?.toLowerCase() === "completed";
+        {groups.map((group) => {
+          const latestAttempt = group.attempts[0];
+          const href = group.examId
+            ? `/apoteker/results?examId=${group.examId}`
+            : `/apoteker/results?sessionId=${latestAttempt.session_id}`;
 
           return (
-            <div
-              key={session.session_id}
+            <Link
+              key={group.key}
+              href={href}
               className={cn(
-                "group relative bg-white rounded-2xl border p-5 md:p-6 transition-all duration-200",
-                isCompleted
-                  ? "border-slate-200 hover:border-slate-400 hover:shadow-md"
-                  : "border-slate-100 opacity-80",
+                "group relative block rounded-2xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:border-slate-400 hover:shadow-md md:p-6",
               )}
             >
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex gap-6 items-center">
                   <div className="relative shrink-0">
                     <div
-                      className={cn(
-                        "w-16 h-16 rounded-xl flex flex-col items-center justify-center border-2 transition-transform",
-                        !isCompleted
-                          ? "bg-slate-50 border-slate-200 text-slate-400"
-                          : isPassed
-                            ? "bg-emerald-50 border-emerald-500/20 text-emerald-600 group-hover:scale-105"
-                            : "bg-rose-50 border-rose-500/20 text-rose-600 group-hover:scale-105",
-                      )}
+                      className="flex h-16 w-16 flex-col items-center justify-center rounded-xl border-2 border-primary/10 bg-primary/5 text-primary transition-transform group-hover:scale-105"
                     >
                       <span className="text-2xl font-black leading-none">
-                        {isCompleted ? session.score : "—"}
+                        {group.bestScore ?? "—"}
                       </span>
                       <span className="text-[8px] font-bold uppercase tracking-widest mt-1">
-                        {isCompleted ? "Score" : "N/A"}
+                        Best
                       </span>
                     </div>
-
-                    {isCompleted &&
-                      (isPassed ? (
-                        <div className="absolute -top-2 -right-2 bg-emerald-500 text-white rounded-full p-1 border-4 border-white">
-                          <CheckCircle2 size={12} />
-                        </div>
-                      ) : (
-                        <div className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 border-4 border-white">
-                          <AlertCircle size={12} />
-                        </div>
-                      ))}
                   </div>
 
                   <div className="space-y-1.5">
                     <h3 className="text-lg font-bold text-slate-900 group-hover:text-slate-700 transition-colors leading-tight">
-                      {session.exam_name || `Ujian #${session.session_id}`}
+                      {group.examName}
                     </h3>
                     <p className="text-sm text-slate-500">
-                      Paket: {session.package_name || "-"}
+                      Paket: {group.packageName}
                     </p>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-slate-500 font-bold uppercase tracking-wider">
                       <span className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                        <Calendar size={12} className="text-slate-400" />{" "}
-                        {session.start_time
-                          ? new Date(session.start_time).toLocaleDateString(
-                              "id-ID",
-                              { day: "numeric", month: "short" },
-                            )
-                          : "-"}
+                        <Layers size={12} className="text-slate-400" />
+                        {group.totalAttempts} Attempt
                       </span>
 
-                      <span
-                        className={cn(
-                          "flex items-center gap-1.5 px-2 py-1 rounded-md border",
-                          isCompleted
-                            ? "bg-slate-50 border-slate-100 text-slate-500"
-                            : "bg-amber-50 border-amber-100 text-amber-600 animate-pulse",
-                        )}
-                      >
-                        <Clock size={12} /> {session.status?.toUpperCase()}
+                      <span className="flex items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50 px-2 py-1">
+                        <CheckCircle2 size={12} className="text-emerald-500" />
+                        {group.completedAttempts} Selesai
                       </span>
 
-                      <Badge
-                        variant="secondary"
-                        className="bg-slate-900 text-white rounded-md h-5 px-2 text-[9px]"
-                      >
-                        ATTEMPT {session.attempt_number}
-                      </Badge>
-
-                      <Badge
-                        variant="outline"
-                        className="rounded-md h-5 px-2 text-[9px]"
-                      >
-                        {session.duration_minutes ?? session.total_questions} MENIT
-                      </Badge>
+                      <span className="flex items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50 px-2 py-1">
+                        <Calendar size={12} className="text-slate-400" />
+                        {formatSessionDate(group.latestActivity)}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col items-end gap-2 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0">
-                  {isCompleted ? (
-                    <Link
-                      href={`/apoteker/results?sessionId=${session.session_id}`}
-                      className="w-full md:w-auto"
-                    >
-                      <Button
+                <div className="flex w-full flex-col items-end gap-2 border-t pt-4 md:w-auto md:border-t-0 md:pt-0">
+                  <div className="group/btn flex h-11 w-full items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-8 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary hover:bg-primary/5 hover:text-primary md:w-auto">
+                    Lihat Attempt
+                    <ChevronRight
+                      size={14}
+                      className="ml-2 transition-transform group-hover/btn:translate-x-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AttemptList({
+  examId,
+  groups,
+}: {
+  examId: number;
+  groups: ExamSessionGroup[];
+}) {
+  const group = groups.find((item) => item.examId === examId) ?? null;
+
+  if (!group) {
+    return (
+      <Card className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+        <CardTitle className="text-xl text-slate-900">
+          Ujian tidak ditemukan
+        </CardTitle>
+        <CardDescription className="mt-3 text-slate-500">
+          Data attempt untuk ujian ini belum tersedia atau sudah berubah.
+        </CardDescription>
+        <div className="mt-6">
+          <Link href="/apoteker/results">
+            <Button className="rounded-xl bg-slate-900 hover:bg-slate-800">
+              Kembali ke daftar ujian
+            </Button>
+          </Link>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-2">
+          <Link
+            href="/apoteker/results"
+            className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition-colors hover:text-slate-900"
+          >
+            <ArrowLeft size={16} />
+            Kembali ke daftar ujian
+          </Link>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+            {group.examName}
+          </h1>
+          <p className="text-sm font-medium text-slate-500">
+            {group.totalAttempts} attempt tercatat. Pilih sesi yang ingin
+            direview.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+          Paket aktif: <span className="font-bold text-slate-900">{group.packageName}</span>
+        </div>
+      </div>
+
+      <div className="grid gap-4">
+        {group.attempts.map((attempt) => {
+          const isCompleted = attempt.status?.toLowerCase() === "completed";
+          const isPassed = attempt.score >= 60;
+
+          return (
+            <div
+              key={attempt.session_id}
+              className={cn(
+                "rounded-2xl border bg-white p-5 transition-all md:p-6",
+                isCompleted
+                  ? "border-slate-200 hover:border-slate-300 hover:shadow-md"
+                  : "border-slate-100",
+              )}
+            >
+              <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-5">
+                  <div
+                    className={cn(
+                      "flex h-15 w-15 shrink-0 flex-col items-center justify-center rounded-2xl border-2",
+                      !isCompleted
+                        ? "border-slate-200 bg-slate-50 text-slate-400"
+                        : isPassed
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                          : "border-rose-200 bg-rose-50 text-rose-600",
+                    )}
+                  >
+                    <span className="text-2xl font-black leading-none">
+                      {isCompleted ? attempt.score : "—"}
+                    </span>
+                    <span className="mt-1 text-[8px] font-bold uppercase tracking-widest">
+                      {isCompleted ? "Score" : "Draft"}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge className="rounded-full bg-slate-900 px-3 py-1 text-[10px] uppercase tracking-widest text-white">
+                        Attempt {attempt.attempt_number}
+                      </Badge>
+                      <Badge
                         variant="outline"
+                        className="rounded-full px-3 py-1 text-[10px] uppercase tracking-widest"
+                      >
+                        {attempt.duration_minutes ?? attempt.total_questions} menit
+                      </Badge>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <span className="flex items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50 px-2 py-1">
+                        <Calendar size={12} className="text-slate-400" />
+                        {formatSessionDate(attempt.start_time, true)}
+                      </span>
+                      <span
                         className={cn(
-                          "w-full md:w-auto rounded-xl h-11 px-8 font-black text-[10px] uppercase tracking-widest transition-all duration-300",
-                          "bg-white border-2 border-slate-200 text-slate-600 shadow-sm",
-                          "hover:border-primary hover:text-primary hover:bg-primary/5 hover:-translate-y-0.5 active:scale-95",
-                          "group/btn",
+                          "flex items-center gap-1.5 rounded-md border px-2 py-1",
+                          isCompleted
+                            ? "border-slate-100 bg-slate-50 text-slate-500"
+                            : "border-amber-100 bg-amber-50 text-amber-600",
                         )}
                       >
-                        Review Pembahasan
-                        <ChevronRight
-                          size={14}
-                          className="ml-2 group-hover/btn:translate-x-1 transition-transform"
-                        />
+                        <Clock size={12} />
+                        {attempt.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-full border-t pt-4 md:w-auto md:border-t-0 md:pt-0">
+                  {isCompleted ? (
+                    <Link href={`/apoteker/results?sessionId=${attempt.session_id}`}>
+                      <Button className="h-11 w-full rounded-xl bg-slate-900 px-7 text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 md:w-auto">
+                        Review Hasil
+                        <ChevronRight size={14} className="ml-2" />
                       </Button>
                     </Link>
                   ) : (
-                    <div className="space-y-2 w-full md:w-auto text-right">
-                      <Button
-                        disabled
-                        className="w-full md:w-auto rounded-xl h-11 px-8 font-black text-[10px] uppercase tracking-widest bg-slate-100 text-slate-400 border-2 border-slate-200 cursor-not-allowed"
-                      >
-                        Belum Selesai
-                      </Button>
-                      <p className="text-[9px] font-bold text-amber-600 uppercase tracking-tight">
-                        Selesaikan ujian untuk melihat hasil
-                      </p>
-                    </div>
+                    <Button
+                      disabled
+                      className="h-11 w-full cursor-not-allowed rounded-xl bg-slate-100 px-7 text-[10px] font-black uppercase tracking-widest text-slate-400 md:w-auto"
+                    >
+                      Belum Selesai
+                    </Button>
                   )}
                 </div>
               </div>

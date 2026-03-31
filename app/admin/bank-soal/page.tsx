@@ -39,6 +39,7 @@ import {
   type AdminQuestionPayload,
   getServerAssetUrl,
 } from "@/lib/api/client";
+import { handleScientificPaste } from "@/lib/scientific-clipboard";
 import { useAuthStore } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
 import { Table } from "@/components/data-table";
@@ -93,12 +94,32 @@ export default function AdminBankSoalPage() {
   const [questionDraft, setQuestionDraft] = useState<AdminQuestionPayload>(
     createEmptyQuestionDraft(),
   );
+  const [questionImageFile, setQuestionImageFile] = useState<File | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [removeCurrentImage, setRemoveCurrentImage] = useState(false);
+  const [explanationImageFile, setExplanationImageFile] = useState<File | null>(
+    null,
+  );
+  const [currentExplanationImageUrl, setCurrentExplanationImageUrl] = useState<
+    string | null
+  >(null);
+  const [removeCurrentExplanationImage, setRemoveCurrentExplanationImage] =
+    useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminQuestion | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
   const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const questionImagePreviewUrl = useMemo(
+    () => (questionImageFile ? URL.createObjectURL(questionImageFile) : null),
+    [questionImageFile],
+  );
+  const explanationImagePreviewUrl = useMemo(
+    () =>
+      explanationImageFile ? URL.createObjectURL(explanationImageFile) : null,
+    [explanationImageFile],
+  );
 
   const examOptions = useMemo(
     () =>
@@ -143,9 +164,26 @@ export default function AdminBankSoalPage() {
     void loadData();
   }, [token, examFilter, statusFilter]);
 
+  useEffect(() => {
+    return () => {
+      if (questionImagePreviewUrl) {
+        URL.revokeObjectURL(questionImagePreviewUrl);
+      }
+      if (explanationImagePreviewUrl) {
+        URL.revokeObjectURL(explanationImagePreviewUrl);
+      }
+    };
+  }, [questionImagePreviewUrl, explanationImagePreviewUrl]);
+
   const resetForm = () => {
     setEditingQuestionId(null);
     setQuestionDraft(createEmptyQuestionDraft(examOptions[0]?.id ?? 0));
+    setQuestionImageFile(null);
+    setCurrentImageUrl(null);
+    setRemoveCurrentImage(false);
+    setExplanationImageFile(null);
+    setCurrentExplanationImageUrl(null);
+    setRemoveCurrentExplanationImage(false);
   };
 
   const columns = useMemo<ColumnDef<AdminQuestion>[]>(
@@ -275,6 +313,16 @@ export default function AdminBankSoalPage() {
                   explanation: row.original.explanation,
                   is_active: row.original.is_active,
                 });
+                setQuestionImageFile(null);
+                setCurrentImageUrl(row.original.image_url ?? null);
+                setRemoveCurrentImage(false);
+                setExplanationImageFile(null);
+                setCurrentExplanationImageUrl(
+                  row.original.explanation_image_url ??
+                    row.original.explanationImageUrl ??
+                    null,
+                );
+                setRemoveCurrentExplanationImage(false);
                 setFormOpen(true);
               }}
             >
@@ -326,10 +374,20 @@ export default function AdminBankSoalPage() {
     setActionLoading(true);
     try {
       if (editingQuestionId) {
-        await adminApi.updateQuestion(token, editingQuestionId, questionDraft);
+        await adminApi.updateQuestion(token, editingQuestionId, {
+          ...questionDraft,
+          imageFile: questionImageFile,
+          remove_image: removeCurrentImage,
+          explanationImageFile,
+          remove_explanation_image: removeCurrentExplanationImage,
+        });
         toast.success("Berhasil", { description: "Soal berhasil diperbarui." });
       } else {
-        await adminApi.createQuestion(token, questionDraft);
+        await adminApi.createQuestion(token, {
+          ...questionDraft,
+          imageFile: questionImageFile,
+          explanationImageFile,
+        });
         toast.success("Berhasil", {
           description: "Soal baru berhasil ditambahkan.",
         });
@@ -551,12 +609,11 @@ export default function AdminBankSoalPage() {
         </div>
 
         <div className="flex items-center gap-1.5 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-100 pt-2 sm:pt-0 sm:pl-2">
-          <Button
+            <Button
             size="sm"
             className="flex-1 sm:flex-none h-9 rounded-xl font-bold text-xs bg-primary hover:bg-primary/90 shadow-sm shadow-primary/20"
             onClick={() => {
-              setEditingQuestionId(null);
-              setQuestionDraft(createEmptyQuestionDraft(examOptions[0]?.id || 0));
+              resetForm();
               setFormOpen(true);
             }}
           >
@@ -581,6 +638,9 @@ export default function AdminBankSoalPage() {
         data={filteredData}
         rowSelection={rowSelection}
         onRowSelectionChange={setRowSelection}
+        showNumberingColumn={false}
+        defaultPageSize={25}
+        pageSizeOptions={[25, 50, 100]}
       />
 
       <ModalPreview
@@ -685,8 +745,71 @@ export default function AdminBankSoalPage() {
                   question_text: e.target.value,
                 }))
               }
+              onPaste={(event) =>
+                handleScientificPaste(event, (value) =>
+                  setQuestionDraft((p) => ({
+                    ...p,
+                    question_text: value,
+                  })),
+                )
+              }
               className="min-h-30 rounded-2xl border-slate-200 focus:ring-primary-500 text-base leading-relaxed p-4"
             />
+          </div>
+
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                  Gambar Soal
+                </label>
+                <p className="mt-1 text-xs text-slate-500">
+                  Upload ilustrasi atau tabel pendukung untuk pertanyaan.
+                </p>
+              </div>
+              {(currentImageUrl || questionImageFile) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setQuestionImageFile(null);
+                    setCurrentImageUrl(null);
+                    setRemoveCurrentImage(true);
+                  }}
+                >
+                  Hapus Gambar
+                </Button>
+              )}
+            </div>
+
+            <Input
+              type="file"
+              accept="image/*"
+              className="rounded-xl h-auto bg-white py-2"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                setQuestionImageFile(file);
+                if (file) {
+                  setRemoveCurrentImage(false);
+                }
+              }}
+            />
+
+            {(questionImageFile || currentImageUrl) && (
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3">
+                <img
+                  src={
+                    questionImagePreviewUrl ??
+                    getServerAssetUrl(currentImageUrl) ??
+                    currentImageUrl ??
+                    ""
+                  }
+                  alt="Preview gambar soal"
+                  className="max-h-[320px] w-full rounded-xl object-contain bg-slate-50"
+                />
+              </div>
+            )}
           </div>
 
           {/* Section: Opsi Jawaban Grid */}
@@ -723,6 +846,14 @@ export default function AdminBankSoalPage() {
                           [`option_${key}`]: e.target.value,
                         }))
                       }
+                      onPaste={(event) =>
+                        handleScientificPaste(event, (value) =>
+                          setQuestionDraft((p) => ({
+                            ...p,
+                            [`option_${key}`]: value,
+                          })),
+                        )
+                      }
                     />
                   </div>
                 );
@@ -744,8 +875,68 @@ export default function AdminBankSoalPage() {
               onChange={(e) =>
                 setQuestionDraft((p) => ({ ...p, explanation: e.target.value }))
               }
+              onPaste={(event) =>
+                handleScientificPaste(event, (value) =>
+                  setQuestionDraft((p) => ({ ...p, explanation: value }))
+                )
+              }
               className="min-h-25 bg-amber-50/30 border-amber-100 rounded-2xl focus:ring-amber-500 text-sm leading-relaxed p-4 italic"
             />
+
+            <div className="space-y-3 rounded-2xl border border-amber-100 bg-white/80 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                    Gambar Pembahasan
+                  </label>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Upload grafik, tabel, atau screenshot referensi pembahasan.
+                  </p>
+                </div>
+                {(currentExplanationImageUrl || explanationImageFile) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setExplanationImageFile(null);
+                      setCurrentExplanationImageUrl(null);
+                      setRemoveCurrentExplanationImage(true);
+                    }}
+                  >
+                    Hapus Gambar
+                  </Button>
+                )}
+              </div>
+
+              <Input
+                type="file"
+                accept="image/*"
+                className="rounded-xl h-auto bg-white py-2"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  setExplanationImageFile(file);
+                  if (file) {
+                    setRemoveCurrentExplanationImage(false);
+                  }
+                }}
+              />
+
+              {(explanationImageFile || currentExplanationImageUrl) && (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3">
+                  <img
+                    src={
+                      explanationImagePreviewUrl ??
+                      getServerAssetUrl(currentExplanationImageUrl) ??
+                      currentExplanationImageUrl ??
+                      ""
+                    }
+                    alt="Preview gambar pembahasan"
+                    className="max-h-[320px] w-full rounded-xl object-contain bg-slate-50"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </ModalPreview>
@@ -781,7 +972,9 @@ export default function AdminBankSoalPage() {
                 Pertanyaan
               </h4>
               <div className="text-xs font-medium text-slate-800 leading-snug border-l-2 border-primary-400 pl-3">
+                <div className="whitespace-pre-line">
                 {previewQuestion.question_text}
+                </div>
               </div>
               {previewQuestion.image_url && (
                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
@@ -827,7 +1020,7 @@ export default function AdminBankSoalPage() {
                       </div>
                       <p
                         className={cn(
-                          "text-xs leading-tight flex-1",
+                          "flex-1 whitespace-pre-line text-xs leading-tight",
                           isCorrect
                             ? "font-semibold text-emerald-900"
                             : "text-slate-600",
@@ -853,9 +1046,33 @@ export default function AdminBankSoalPage() {
                       Pembahasan
                     </h4>
                   </div>
-                  <div className="p-3 text-xs text-slate-600 leading-relaxed italic">
+                  <div className="whitespace-pre-line p-3 text-xs leading-relaxed italic text-slate-600">
                     {previewQuestion.explanation}
                   </div>
+                </div>
+              </section>
+            )}
+            {(previewQuestion.explanation_image_url ||
+              previewQuestion.explanationImageUrl) && (
+              <section className="space-y-2">
+                <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                  Gambar Pembahasan
+                </h4>
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
+                  <img
+                    src={
+                      getServerAssetUrl(
+                        previewQuestion.explanation_image_url ??
+                          previewQuestion.explanationImageUrl ??
+                          null,
+                      ) ??
+                      previewQuestion.explanation_image_url ??
+                      previewQuestion.explanationImageUrl ??
+                      ""
+                    }
+                    alt={`Gambar pembahasan soal ${previewQuestion.id}`}
+                    className="max-h-[360px] w-full rounded-lg object-contain bg-slate-50"
+                  />
                 </div>
               </section>
             )}

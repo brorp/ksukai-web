@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ClipboardEventHandler,
+} from "react";
 import {
   FileUp,
   ShieldCheck,
@@ -33,6 +38,7 @@ import {
   type AdminQuestionPayload,
   getServerAssetUrl,
 } from "@/lib/api/client";
+import { handleScientificPaste } from "@/lib/scientific-clipboard";
 import { useAuthStore } from "@/lib/store/auth";
 import type { OptionKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -70,6 +76,14 @@ export default function AdminKelolaSoalPage() {
   const [questionImageFile, setQuestionImageFile] = useState<File | null>(null);
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [removeCurrentImage, setRemoveCurrentImage] = useState(false);
+  const [explanationImageFile, setExplanationImageFile] = useState<File | null>(
+    null,
+  );
+  const [currentExplanationImageUrl, setCurrentExplanationImageUrl] = useState<
+    string | null
+  >(null);
+  const [removeCurrentExplanationImage, setRemoveCurrentExplanationImage] =
+    useState(false);
 
   const examOptions = useMemo(
     () =>
@@ -87,14 +101,22 @@ export default function AdminKelolaSoalPage() {
     () => (questionImageFile ? URL.createObjectURL(questionImageFile) : null),
     [questionImageFile],
   );
+  const explanationImagePreviewUrl = useMemo(
+    () =>
+      explanationImageFile ? URL.createObjectURL(explanationImageFile) : null,
+    [explanationImageFile],
+  );
 
   useEffect(() => {
     return () => {
       if (questionImagePreviewUrl) {
         URL.revokeObjectURL(questionImagePreviewUrl);
       }
+      if (explanationImagePreviewUrl) {
+        URL.revokeObjectURL(explanationImagePreviewUrl);
+      }
     };
-  }, [questionImagePreviewUrl]);
+  }, [questionImagePreviewUrl, explanationImagePreviewUrl]);
 
   const loadData = async () => {
     if (!token) return;
@@ -134,6 +156,9 @@ export default function AdminKelolaSoalPage() {
     setQuestionImageFile(null);
     setCurrentImageUrl(null);
     setRemoveCurrentImage(false);
+    setExplanationImageFile(null);
+    setCurrentExplanationImageUrl(null);
+    setRemoveCurrentExplanationImage(false);
   };
 
   const handleEditQuestion = (questionId: number) => {
@@ -156,6 +181,11 @@ export default function AdminKelolaSoalPage() {
     setQuestionImageFile(null);
     setCurrentImageUrl(selected.image_url ?? null);
     setRemoveCurrentImage(false);
+    setExplanationImageFile(null);
+    setCurrentExplanationImageUrl(
+      selected.explanation_image_url ?? selected.explanationImageUrl ?? null,
+    );
+    setRemoveCurrentExplanationImage(false);
     toast.info("Mode Edit Aktif", {
       description: `Mengedit soal #${selected.id}`,
     });
@@ -179,12 +209,15 @@ export default function AdminKelolaSoalPage() {
           ...questionDraft,
           imageFile: questionImageFile,
           remove_image: removeCurrentImage,
+          explanationImageFile,
+          remove_explanation_image: removeCurrentExplanationImage,
         });
         toast.success("Berhasil", { description: "Soal berhasil diperbarui." });
       } else {
         await adminApi.createQuestion(token, {
           ...questionDraft,
           imageFile: questionImageFile,
+          explanationImageFile,
         });
         toast.success("Berhasil", {
           description: "Soal baru telah ditambahkan.",
@@ -395,6 +428,14 @@ export default function AdminKelolaSoalPage() {
                 <TextareaCustom
                   placeholder="Tuliskan teks pertanyaan di sini..."
                   value={questionDraft.question_text}
+                  onPaste={(event) =>
+                    handleScientificPaste(event, (value) =>
+                      setQuestionDraft((prev) => ({
+                        ...prev,
+                        question_text: value,
+                      })),
+                    )
+                  }
                   onChange={(val) =>
                     setQuestionDraft((prev) => ({
                       ...prev,
@@ -489,6 +530,14 @@ export default function AdminKelolaSoalPage() {
                           [`option_${key}`]: e.target.value,
                         }))
                       }
+                      onPaste={(event) =>
+                        handleScientificPaste(event, (value) =>
+                          setQuestionDraft((prev) => ({
+                            ...prev,
+                            [`option_${key}`]: value,
+                          })),
+                        )
+                      }
                     />
                   </div>
                 ))}
@@ -496,7 +545,7 @@ export default function AdminKelolaSoalPage() {
 
               <hr className="border-slate-100" />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+              <div className="grid grid-cols-1 gap-6">
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 ml-1">
                     Kunci Jawaban & Status
@@ -534,21 +583,85 @@ export default function AdminKelolaSoalPage() {
                     </div>
                   </div>
                 </div>
+
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 ml-1">
                     Pembahasan (Eksplanasi)
                   </label>
-                  <Input
-                    className="h-11 rounded-xl border-slate-200"
+                  <TextareaCustom
                     placeholder="Kenapa jawaban tersebut benar?"
                     value={questionDraft.explanation}
-                    onChange={(e) =>
+                    className="min-h-[110px]"
+                    onPaste={(event) =>
+                      handleScientificPaste(event, (value) =>
+                        setQuestionDraft((prev) => ({
+                          ...prev,
+                          explanation: value,
+                        })),
+                      )
+                    }
+                    onChange={(value) =>
                       setQuestionDraft((prev) => ({
                         ...prev,
-                        explanation: e.target.value,
+                        explanation: value,
                       }))
                     }
                   />
+                </div>
+
+                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Gambar Pembahasan
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Tambahkan ilustrasi pembahasan, rumus, atau tabel acuan.
+                      </p>
+                    </div>
+                    {(currentExplanationImageUrl || explanationImageFile) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setExplanationImageFile(null);
+                          setCurrentExplanationImageUrl(null);
+                          setRemoveCurrentExplanationImage(true);
+                        }}
+                      >
+                        Hapus Gambar
+                      </Button>
+                    )}
+                  </div>
+
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    className="rounded-xl h-auto py-2 bg-white"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      setExplanationImageFile(file);
+                      if (file) {
+                        setRemoveCurrentExplanationImage(false);
+                      }
+                    }}
+                  />
+
+                  {(explanationImageFile || currentExplanationImageUrl) && (
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3">
+                      <img
+                        src={
+                          explanationImagePreviewUrl ??
+                          getServerAssetUrl(currentExplanationImageUrl) ??
+                          currentExplanationImageUrl ??
+                          ""
+                        }
+                        alt="Preview gambar pembahasan"
+                        className="max-h-[320px] w-full rounded-xl object-contain bg-slate-50"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -707,17 +820,25 @@ function TextareaCustom({
   placeholder,
   value,
   onChange,
+  onPaste,
+  className,
 }: {
   placeholder: string;
   value: string;
   onChange: (v: string) => void;
+  onPaste?: ClipboardEventHandler<HTMLTextAreaElement>;
+  className?: string;
 }) {
   return (
     <textarea
-      className="w-full min-h-[120px] rounded-xl border border-slate-200 bg-white p-4 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition-all resize-y"
+      className={cn(
+        "w-full min-h-[120px] rounded-xl border border-slate-200 bg-white p-4 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition-all resize-y",
+        className,
+      )}
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onPaste={onPaste}
     />
   );
 }

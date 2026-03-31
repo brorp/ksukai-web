@@ -1,7 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpenCheck, Pencil, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import {
+  BookOpenCheck,
+  Eye,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import AdminPageHeader from "@/components/admin/admin-page-header";
@@ -233,6 +242,12 @@ export default function AdminExamsPage() {
                   </div>
 
                   <div className="mt-4 flex gap-2">
+                    <Link href={`/admin/exams/preview?examId=${item.id}`}>
+                      <Button type="button" size="sm" variant="secondary">
+                        <Eye className="mr-2 h-4 w-4" />
+                        Preview
+                      </Button>
+                    </Link>
                     <Button type="button" size="sm" variant="outline" onClick={() => handleEdit(item)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Edit
