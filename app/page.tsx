@@ -142,39 +142,45 @@ const founders = [
 const testimonials = [
   {
     quote:
-      "Terima kasih sudah membimbing, saya mendapatkan banyak ilmu yang belum pernah saya dapatkan sehingga saya mudah dalam mengerjakan soal UKMPPAI, semoga kedepannya KS UKAI sukses terus.",
-    name: "Dava Zulfakor",
-    campus: "Universitas Garut",
-  },
-  {
-    quote:
       "Materi yang diberikan sesuai dengan blueprint, ppt-nya lengkap dan mudah untuk dibaca-baca kembali, latihan soal banyaaakk ada pre test dan post test, sangat membantu untuk latihan.",
     name: "Binti Sholihatin",
     campus: "Universitas Mulawarman",
+    imageUrl: "https://ik.imagekit.io/fjaskqdnu0xp/ksukai/binti_9UWEMfPGi.png",
+  },
+  {
+    quote:
+      "Cakupan materi pada buku sesuai blueprint UKMPPAI. Buku ini cocok banget buat recall materi dan memperkuat ingatan pasca belajar. Soal-soalnya cenderung sederhana, jadi bisa dipakai untuk memperkuat pemahaman dasar. Aku rekomendasiin buku soal KS untuk kalian yang mau ngulang materi yang menyenangkan dan ga bikin tertekan.",
+    name: "Celine Aurellia",
+    campus: "Universitas Gadjah Mada",
+    imageUrl: "https://ik.imagekit.io/fjaskqdnu0xp/ksukai/celine_7iAu8zmUq.png",
   },
   {
     quote:
       "Soalnya sangat membantu dan bagus. Sangat membantu dalam saya melewati UKMPPAI CBT dan OSCE.",
     name: "Kurnia Sandy",
     campus: "Universitas Pertahanan RI",
+    imageUrl: "https://ik.imagekit.io/fjaskqdnu0xp/ksukai/kurnia_PtmrEkI72.png",
   },
   {
     quote:
       "Latihan soalnya mantap, banyak yang mirip dengan CBT. Great job KS UKAI",
     name: "Ahmad Prakoso",
     campus: "Institut Teknologi Bandung",
+    imageUrl: "https://ik.imagekit.io/fjaskqdnu0xp/ksukai/ahmad%20prakoso_q4gzsW5Nt.png",
   },
   {
     quote:
       "Soalnya bervariasi dan penjelasannya mudah dipahami. Semuanya sesuai Blueprint dan keluar di hari H ujian!",
     name: "Diaz Andhini",
     campus: "Universitas Setia Budi",
+    imageUrl: "https://ik.imagekit.io/fjaskqdnu0xp/ksukai/diaz_UmNsDvFye.png",
   },
   {
     quote:
-      "Modul dan pembelajaran yang diberikan sangat sesuai dengan blueprint. Pembelajaran juga efektif dan efisien dan mudah dipahami. Buku Kumpulan Soalnya sangat bagus dan sangat sesuai untuk pembelajaran UKMPPAI.",
-    name: "Grisella Crystabel",
-    campus: "Institut Teknologi Bandung",
+      "Buku KS UKAI ini sangat membantu aku dalam belajar dan mempersiapkan UKAI. Kumpulan soalnya sesuai dengan blueprint UKAI dan juga dilengkapi dengan kunci jawaban dengan pembahasan soal yang mudah dipahami. Tentunya itu sangat membantu aku untuk memahami soal-soal yang masih belum bisa aku jawab. Terima kasih Kak Chris dan Kak Dion juga team yang menyusun buku ini dengan begitu rapi dan sistematis.",
+    name: "Silva Izza",
+    campus: "Universitas Bhakti Kencana",
+    imageUrl: "https://ik.imagekit.io/fjaskqdnu0xp/ksukai/silva_zdYOkBnze.png",
   },
 ];
 
@@ -911,9 +917,19 @@ export default function HomePage() {
                     >
                       <article className="flex h-full min-h-[22rem] flex-col rounded-[2rem] border border-slate-200 bg-slate-50/70 p-6 sm:p-7">
                         <div className="flex items-center gap-4">
-                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#1A365D] text-lg font-black text-[#FBBF24] shadow-sm">
-                            {initials}
-                          </div>
+                          {item.imageUrl ? (
+                            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl shadow-sm">
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#1A365D] text-lg font-black text-[#FBBF24] shadow-sm">
+                              {initials}
+                            </div>
+                          )}
                           <div>
                             <div className="flex items-center gap-1 text-[#FBBF24]">
                               {Array.from({ length: 5 }).map((_, index) => (
