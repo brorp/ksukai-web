@@ -12,6 +12,7 @@ interface AdminPageHeaderProps {
   actionLabel?: string;
   onAction?: () => void;
   actionDisabled?: boolean;
+  extraActions?: ReactNode;
 }
 
 export default function AdminPageHeader({
@@ -21,6 +22,7 @@ export default function AdminPageHeader({
   actionLabel,
   onAction,
   actionDisabled,
+  extraActions,
 }: AdminPageHeaderProps) {
   return (
     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-50">
@@ -42,28 +44,31 @@ export default function AdminPageHeader({
         </div>
       </div>
 
-      {actionLabel && onAction && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onAction}
-          disabled={actionDisabled}
-          className={cn(
-            "rounded-xl font-bold h-9 px-4 border-slate-200 transition-all active:scale-95 shrink-0",
-            "hover:bg-primary-50 hover:text-primary-600 hover:border-primary-200",
-            "disabled:opacity-70 disabled:cursor-not-allowed",
-          )}
-        >
-          <RotateCcw
-            size={14}
+      <div className="flex flex-wrap items-center gap-2">
+        {extraActions}
+        {actionLabel && onAction && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAction}
+            disabled={actionDisabled}
             className={cn(
-              "mr-2 transition-transform duration-500",
-              actionDisabled ? "animate-spin" : "group-hover:rotate-180",
+              "rounded-xl font-bold h-9 px-4 border-slate-200 transition-all active:scale-95 shrink-0",
+              "hover:bg-primary-50 hover:text-primary-600 hover:border-primary-200",
+              "disabled:opacity-70 disabled:cursor-not-allowed",
             )}
-          />
-          <span>{actionDisabled ? "Memuat..." : actionLabel}</span>
-        </Button>
-      )}
+          >
+            <RotateCcw
+              size={14}
+              className={cn(
+                "mr-2 transition-transform duration-500",
+                actionDisabled ? "animate-spin" : "group-hover:rotate-180",
+              )}
+            />
+            <span>{actionDisabled ? "Memuat..." : actionLabel}</span>
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

@@ -20,6 +20,19 @@ interface AuthStore extends AuthState {
   setSession: (token: string, user: User) => void;
 }
 
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+const createSessionWindow = () => {
+  const sessionStartedAt = Date.now();
+  return {
+    sessionStartedAt,
+    sessionExpiresAt: sessionStartedAt + SESSION_TTL_MS,
+  };
+};
+
+const isSessionExpired = (sessionExpiresAt: number | null) =>
+  typeof sessionExpiresAt === "number" && sessionExpiresAt <= Date.now();
+
 const toErrorMessage = (error: unknown): string => {
   if (error instanceof ApiError) {
     return error.message;
@@ -38,6 +51,8 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       token: null,
       isAuthenticated: false,
+      sessionStartedAt: null,
+      sessionExpiresAt: null,
       isLoading: false,
       authNotice: null,
 
@@ -46,11 +61,13 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const { token, user } = await authApi.login({ email, password });
           const profile = user ?? (await authApi.profile(token));
+          const sessionWindow = createSessionWindow();
 
           set({
             token,
             user: profile,
             isAuthenticated: true,
+            ...sessionWindow,
             isLoading: false,
             authNotice: null,
           });
@@ -70,11 +87,13 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const { token, user } = await authApi.register(payload);
           const profile = user ?? (await authApi.profile(token));
+          const sessionWindow = createSessionWindow();
 
           set({
             token,
             user: profile,
             isAuthenticated: true,
+            ...sessionWindow,
             isLoading: false,
             authNotice: null,
           });
@@ -91,8 +110,8 @@ export const useAuthStore = create<AuthStore>()(
 
       fetchProfile: async () => {
         const token = get().token;
-        if (!token) {
-          set({ user: null, isAuthenticated: false });
+        if (!token || isSessionExpired(get().sessionExpiresAt)) {
+          get().logout();
           return;
         }
 
@@ -104,6 +123,8 @@ export const useAuthStore = create<AuthStore>()(
             token: null,
             user: null,
             isAuthenticated: false,
+            sessionStartedAt: null,
+            sessionExpiresAt: null,
             authNotice:
               error instanceof ApiError && error.status === 403
                 ? toErrorMessage(error)
@@ -117,6 +138,8 @@ export const useAuthStore = create<AuthStore>()(
           token: null,
           user: null,
           isAuthenticated: false,
+          sessionStartedAt: null,
+          sessionExpiresAt: null,
           isLoading: false,
           authNotice: null,
         });
@@ -131,10 +154,12 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       setSession: (token, user) => {
+        const sessionWindow = createSessionWindow();
         set({
           token,
           user,
           isAuthenticated: true,
+          ...sessionWindow,
           isLoading: false,
           authNotice: null,
         });
@@ -146,7 +171,18 @@ export const useAuthStore = create<AuthStore>()(
         token: state.token,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
+        sessionStartedAt: state.sessionStartedAt,
+        sessionExpiresAt: state.sessionExpiresAt,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) {
+          return;
+        }
+
+        if (isSessionExpired(state.sessionExpiresAt)) {
+          state.logout();
+        }
+      },
     },
   ),
 );

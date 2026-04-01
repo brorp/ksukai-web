@@ -1,15 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart3, ShieldCheck, Users, WalletCards } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  BarChart3,
+  LogOut,
+  ShieldCheck,
+  Users,
+  WalletCards,
+} from "lucide-react";
 
 import AdminPageHeader from "@/components/admin/admin-page-header";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminApi, type DashboardStats } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const token = useAuthStore((state) => state.token);
+  const logout = useAuthStore((state) => state.logout);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [stats, setStats] = useState<DashboardStats>({
@@ -49,6 +59,20 @@ export default function AdminDashboardPage() {
         actionLabel="Refresh Data"
         onAction={() => void loadData()}
         actionDisabled={loading}
+        extraActions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              logout();
+              router.push("/login");
+            }}
+            className="rounded-xl border-rose-200 text-rose-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
+          >
+            <LogOut size={14} className="mr-2" />
+            Logout
+          </Button>
+        }
       />
 
       {error && (

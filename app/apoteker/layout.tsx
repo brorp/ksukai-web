@@ -14,6 +14,8 @@ export default function ApotekerLayout({
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const sessionExpiresAt = useAuthStore((state) => state.sessionExpiresAt);
+  const logout = useAuthStore((state) => state.logout);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -25,6 +27,26 @@ export default function ApotekerLayout({
       router.push("/login");
     }
   }, [mounted, isAuthenticated, user, router]);
+
+  useEffect(() => {
+    if (!mounted || !sessionExpiresAt) {
+      return;
+    }
+
+    const remainingMs = sessionExpiresAt - Date.now();
+    if (remainingMs <= 0) {
+      logout();
+      router.push("/login");
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      logout();
+      router.push("/login");
+    }, remainingMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [logout, mounted, router, sessionExpiresAt]);
 
   if (!mounted || !isAuthenticated || user?.role !== "user") {
     return null;

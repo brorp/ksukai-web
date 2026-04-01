@@ -6,6 +6,7 @@ import {
   Clock,
   Crown,
   Layers,
+  LogOut,
   Play,
   Timer,
   WalletCards,
@@ -56,6 +57,7 @@ export default function ApotekerDashboard() {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
+  const logout = useAuthStore((state) => state.logout);
   const [packages, setPackages] = useState<ExamPackage[]>([]);
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,25 +136,38 @@ export default function ApotekerDashboard() {
             <span className="text-sky-600">{user?.name ?? "-"}</span>
           </p>
         </div>
-        <div
-          className={cn(
-            "flex items-center gap-2 rounded-full border px-4 py-2 shadow-sm w-fit",
-            activePackageIds.size > 0
-              ? "border-emerald-200 bg-emerald-50"
-              : "border-amber-200 bg-amber-50",
-          )}
-        >
+        <div className="flex flex-wrap items-center gap-2">
           <div
             className={cn(
-              "h-2 w-2 rounded-full",
-              activePackageIds.size > 0 ? "bg-emerald-500" : "bg-amber-500",
+              "flex items-center gap-2 rounded-full border px-4 py-2 shadow-sm w-fit",
+              activePackageIds.size > 0
+                ? "border-emerald-200 bg-emerald-50"
+                : "border-amber-200 bg-amber-50",
             )}
-          />
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-            {activePackageIds.size > 0
-              ? `${activePackageIds.size} Paket Aktif`
-              : "Belum Ada Paket Aktif"}
-          </span>
+          >
+            <div
+              className={cn(
+                "h-2 w-2 rounded-full",
+                activePackageIds.size > 0 ? "bg-emerald-500" : "bg-amber-500",
+              )}
+            />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              {activePackageIds.size > 0
+                ? `${activePackageIds.size} Paket Aktif`
+                : "Belum Ada Paket Aktif"}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            className="rounded-full border-rose-200 text-rose-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
+            onClick={() => {
+              logout();
+              router.push("/login");
+            }}
+          >
+            <LogOut size={16} className="mr-2" />
+            Logout
+          </Button>
         </div>
       </div>
 

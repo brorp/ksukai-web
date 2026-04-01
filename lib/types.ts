@@ -54,4 +54,6 @@ export interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  sessionStartedAt: number | null;
+  sessionExpiresAt: number | null;
 }
