@@ -258,6 +258,7 @@ interface ExamSessionGroup {
   totalAttempts: number;
   completedAttempts: number;
   bestScore: number | null;
+  bestAttempt: ExamSessionSummary | null;
   latestActivity?: string;
 }
 
@@ -278,6 +279,68 @@ const formatSessionDate = (value?: string | null, withTime = false) => {
       : {}),
   });
 };
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
+const getCorrectAnswerCountFromSummary = (session: ExamSessionSummary) => {
+  if (session.total_questions <= 0) {
+    return 0;
+  }
+
+  return clamp(
+    Math.round((session.score / 100) * session.total_questions),
+    0,
+    session.total_questions,
+  );
+};
+
+const formatSessionScore = (session: ExamSessionSummary | null) => {
+  if (!session || session.status?.toLowerCase() !== "completed") {
+    return "—";
+  }
+
+  const correctAnswers = getCorrectAnswerCountFromSummary(session);
+  return `${correctAnswers}/${session.total_questions}`;
+};
+
+const getElapsedMinutes = (
+  startedAt?: string | null,
+  finishedAt?: string | null,
+) => {
+  if (!startedAt || !finishedAt) {
+    return null;
+  }
+
+  const start = new Date(startedAt).getTime();
+  const end = new Date(finishedAt).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return null;
+  }
+
+  return Math.max(1, Math.round((end - start) / 60000));
+};
+
+const formatElapsedMinutes = (minutes: number | null) =>
+  typeof minutes === "number" && Number.isFinite(minutes)
+    ? `${minutes} menit`
+    : "-";
+
+const getSessionDurationLabel = (session: ExamSessionSummary) =>
+  formatElapsedMinutes(
+    getElapsedMinutes(session.start_time, session.end_time) ??
+      (typeof session.duration_minutes === "number"
+        ? session.duration_minutes
+        : null),
+  );
+
+const getResultDurationLabel = (result: ExamResultResponse) =>
+  formatElapsedMinutes(
+    getElapsedMinutes(result.startedAt, result.submittedAt) ??
+      (typeof result.durationMinutes === "number"
+        ? result.durationMinutes
+        : null),
+  );
 
 const groupSessionsByExam = (
   sessions: ExamSessionSummary[],
@@ -303,6 +366,7 @@ const groupSessionsByExam = (
         totalAttempts: 1,
         completedAttempts: isCompleted ? 1 : 0,
         bestScore: isCompleted ? session.score : null,
+        bestAttempt: isCompleted ? session : null,
         latestActivity,
       });
       continue;
@@ -317,6 +381,13 @@ const groupSessionsByExam = (
         : isCompleted
           ? session.score
           : existingGroup.bestScore;
+    if (
+      isCompleted &&
+      (!existingGroup.bestAttempt ||
+        session.score > existingGroup.bestAttempt.score)
+    ) {
+      existingGroup.bestAttempt = session;
+    }
     existingGroup.latestActivity = latestActivity;
     if (existingGroup.packageName === "-" && session.package_name) {
       existingGroup.packageName = session.package_name;
@@ -389,34 +460,34 @@ function ResultDetail({
           <p className="text-sm font-medium text-slate-500">
             Paket: {result.package_name || "-"}
           </p>
-          <div className="flex items-center gap-4 text-sm text-slate-500">
-            <span className="flex items-center gap-1">
-              <Calendar size={14} />{" "}
-              {new Date(result.startedAt ?? "").toLocaleDateString("id-ID")}
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock size={14} /> {result.totalQuestions} Soal
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock size={14} /> {result.durationMinutes ?? result.totalQuestions} Menit
-            </span>
-          </div>
+        <div className="flex items-center gap-4 text-sm text-slate-500">
+          <span className="flex items-center gap-1">
+            <Calendar size={14} />{" "}
+            {new Date(result.startedAt ?? "").toLocaleDateString("id-ID")}
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock size={14} /> {result.totalQuestions} Soal
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock size={14} /> {getResultDurationLabel(result)}
+          </span>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="text-center">
-            <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">
-              Skor Akhir
-            </p>
-            <p
-              className={cn(
-                "text-3xl font-semibold",
-                passed ? "text-emerald-600" : "text-rose-600",
-              )}
-            >
-              {result.score}
-            </p>
-          </div>
+      </div>
+      <div className="flex items-center gap-6">
+        <div className="text-center">
+          <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">
+            Skor Akhir
+          </p>
+          <p
+            className={cn(
+              "text-3xl font-semibold",
+              passed ? "text-emerald-600" : "text-rose-600",
+            )}
+          >
+            {result.correctAnswers}/{result.totalQuestions}
+          </p>
         </div>
+      </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -559,7 +630,7 @@ function ResultDetail({
             </div>
 
             <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-5 gap-2 max-h-50 overflow-y-auto pr-2 pt-2 no-scrollbar">
-              {result.questions.slice(0, 100).map((q, idx) => (
+              {result.questions.map((q, idx) => (
                 <button
                   key={idx}
                   onClick={() => {
@@ -680,8 +751,8 @@ function ExamGroupList({ groups }: { groups: ExamSessionGroup[] }) {
                     <div
                       className="flex h-16 w-16 flex-col items-center justify-center rounded-xl border-2 border-primary/10 bg-primary/5 text-primary transition-transform group-hover:scale-105"
                     >
-                      <span className="text-2xl font-black leading-none">
-                        {group.bestScore ?? "—"}
+                      <span className="text-sm font-black leading-none">
+                        {formatSessionScore(group.bestAttempt)}
                       </span>
                       <span className="text-[8px] font-bold uppercase tracking-widest mt-1">
                         Best
@@ -803,21 +874,21 @@ function AttemptList({
             >
               <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-5">
-                  <div
-                    className={cn(
-                      "flex h-15 w-15 shrink-0 flex-col items-center justify-center rounded-2xl border-2",
+                <div
+                  className={cn(
+                    "flex h-15 w-15 shrink-0 flex-col items-center justify-center rounded-2xl border-2",
                       !isCompleted
                         ? "border-slate-200 bg-slate-50 text-slate-400"
                         : isPassed
                           ? "border-emerald-200 bg-emerald-50 text-emerald-600"
                           : "border-rose-200 bg-rose-50 text-rose-600",
-                    )}
-                  >
-                    <span className="text-2xl font-black leading-none">
-                      {isCompleted ? attempt.score : "—"}
-                    </span>
-                    <span className="mt-1 text-[8px] font-bold uppercase tracking-widest">
-                      {isCompleted ? "Score" : "Draft"}
+                  )}
+                >
+                  <span className="text-sm font-black leading-none">
+                    {isCompleted ? formatSessionScore(attempt) : "—"}
+                  </span>
+                  <span className="mt-1 text-[8px] font-bold uppercase tracking-widest">
+                    {isCompleted ? "Score" : "Draft"}
                     </span>
                   </div>
 
@@ -830,7 +901,7 @@ function AttemptList({
                         variant="outline"
                         className="rounded-full px-3 py-1 text-[10px] uppercase tracking-widest"
                       >
-                        {attempt.duration_minutes ?? attempt.total_questions} menit
+                        {getSessionDurationLabel(attempt)}
                       </Badge>
                     </div>
 

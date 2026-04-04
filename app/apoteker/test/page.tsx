@@ -412,7 +412,7 @@ function TestContent() {
                     </span>
                   </div>
                   
-                  <div className="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="max-h-[420px] overflow-y-auto pr-2">
                     <QuestionNumberGrid
                       totalQuestions={shuffledQuestions.length}
                       currentQuestionIndex={currentQuestionIndex}
