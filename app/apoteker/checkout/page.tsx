@@ -616,11 +616,11 @@ function CheckoutContent() {
                     {currentTransaction.status === "paid" &&
                     currentTransaction.access_status === "active" ? (
                       <Link
-                        href={`/apoteker/dashboard`}
+                        href={`/apoteker/my-exams`}
                       >
                         <Button className="bg-emerald-600 hover:bg-emerald-700">
                           <BadgeCheck className="mr-2 h-4 w-4" />
-                          Kembali ke Dashboard
+                          Mulai Ujian
                         </Button>
                       </Link>
                     ) : null}

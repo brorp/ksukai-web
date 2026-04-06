@@ -224,7 +224,7 @@ export default function PurchasesPage() {
 
                   <div className="flex flex-wrap gap-3">
                     {item.access_status === "active" ? (
-                      <Link href="/apoteker/dashboard">
+                      <Link href="/apoteker/my-exams">
                         <Button className="bg-emerald-600 hover:bg-emerald-700">
                           Pilih Ujian
                         </Button>
