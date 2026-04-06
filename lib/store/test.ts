@@ -133,8 +133,10 @@ export const useTestStore = create<TestStore>()(
         const start = get().startTime;
         if (!start) return 0;
 
-        const allowedSeconds =
-          (get().durationMinutes + get().gracePeriodMinutes) * 60;
+        // The UI timer should show only the official exam duration.
+        // `gracePeriodMinutes` is kept in state for server-side tolerance,
+        // but it should not grant visible extra time to the participant.
+        const allowedSeconds = get().durationMinutes * 60;
         const elapsed = Math.floor((Date.now() - start) / 1000);
         return Math.max(0, allowedSeconds - elapsed);
       },

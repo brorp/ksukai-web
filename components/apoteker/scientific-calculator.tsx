@@ -153,10 +153,21 @@ export default function KSUKAICalculator({
         {/* Header ala macOS */}
         <div className="bg-slate-50/80 backdrop-blur-md px-5 py-3 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCalculator(false)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 shadow-sm transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+              aria-label="Close calculator"
+              title="Close calculator"
+            >
+              <X size={12} />
+              Close
+            </button>
             <div className="flex gap-1.5">
               <button
                 onClick={() => setShowCalculator(false)}
                 className="h-3 w-3 rounded-full bg-rose-500 hover:bg-rose-600 transition-colors"
+                aria-label="Close calculator"
+                title="Close calculator"
               />
               <div className="h-3 w-3 rounded-full bg-amber-400/80" />
               <div className="h-3 w-3 rounded-full bg-emerald-400/80" />
