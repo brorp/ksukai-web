@@ -23,14 +23,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   transactionApi,
   type ExamPackage,
   type ExamPackageExam,
   type PurchaseRecord,
 } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/store/auth";
-import { cn } from "@/lib/utils";
 import { ModalPreview } from "@/components/preview-modal";
+import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -224,7 +230,7 @@ export default function ApotekerDashboard() {
           {loading ? (
             <p className="text-sm text-slate-500">Memuat daftar paket...</p>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4">
               {packages.map((pkg) => {
                 const canStartPackage =
                   pkg.price === 0 || activePackageIds.has(pkg.id);
@@ -258,16 +264,6 @@ export default function ApotekerDashboard() {
                             {pkg.description || "Paket tryout terstruktur untuk latihan UKAI."}
                           </CardDescription>
                         </div>
-                        <div className="rounded-2xl bg-slate-900 px-4 py-3 text-right text-white shadow-sm">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
-                            Harga
-                          </p>
-                          <p className="mt-1 text-lg font-black">
-                            {pkg.price === 0
-                              ? "Gratis"
-                              : `Rp ${Number(pkg.price).toLocaleString("id-ID")}`}
-                          </p>
-                        </div>
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide">
@@ -296,84 +292,88 @@ export default function ApotekerDashboard() {
                         </div>
                       ) : null}
 
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                            Daftar Ujian di Paket
-                          </p>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 shadow-sm">
-                            {(pkg.exams ?? []).length} item
-                          </span>
-                        </div>
-
-                        <div className="mt-3 space-y-2">
-                          {(pkg.exams ?? []).length > 0 ? (
-                            (pkg.exams ?? []).map((exam) => (
-                              <div
-                                key={exam.id}
-                                className="rounded-xl border border-white bg-white p-3 shadow-sm"
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="space-y-2">
-                                    <p className="text-sm font-semibold text-slate-900">
-                                      {exam.name}
-                                    </p>
-                                    <div className="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                                      <span className="rounded-full bg-slate-50 px-2.5 py-1 text-slate-500">
-                                        {exam.question_count} soal
-                                      </span>
-                                      <span className="rounded-full bg-slate-50 px-2.5 py-1 text-slate-500">
-                                        {getSessionLimitLabel(exam.session_limit)}
-                                      </span>
-                                    </div>
-                                    {exam.description ? (
-                                      <p className="text-xs leading-relaxed text-slate-500">
-                                        {exam.description}
-                                      </p>
-                                    ) : null}
-                                  </div>
-
-                                  {canStartPackage ? (
-                                    <Button
-                                      onClick={() => {
-                                        setConfirmStart(true);
-                                        setSelectedExamState({
-                                          packageItem: pkg,
-                                          examItem: exam,
-                                        });
-                                      }}
-                                      className="h-10 rounded-xl bg-emerald-600 px-4 text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-700"
-                                    >
-                                      <Play size={14} className="mr-1.5 fill-current" />
-                                      Kerjakan
-                                    </Button>
-                                  ) : (
-                                    <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
-                                      Aktivasi dulu
-                                    </span>
-                                  )}
-                                </div>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-1">
+                        <Accordion type="single" collapsible className="w-full">
+                          <AccordionItem value="exams" className="border-b-0">
+                            <AccordionTrigger className="hover:no-underline py-3">
+                              <div className="flex items-center justify-between gap-3 w-full pr-2">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                                  Lihat Daftar Ujian
+                                </p>
+                                <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 shadow-sm border border-slate-100">
+                                  {(pkg.exams ?? []).length} item
+                                </span>
                               </div>
-                            ))
-                          ) : (
-                            <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-400">
-                              Belum ada ujian yang ditautkan ke paket ini.
-                            </div>
-                          )}
-                        </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="pb-3">
+                              <div className="space-y-2 mt-1">
+                                {(pkg.exams ?? []).length > 0 ? (
+                                  (pkg.exams ?? []).map((exam) => (
+                                    <div
+                                      key={exam.id}
+                                      className="rounded-xl border border-white bg-white p-3 shadow-sm"
+                                    >
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                        <div className="space-y-2">
+                                          <p className="text-sm font-semibold text-slate-900">
+                                            {exam.name}
+                                          </p>
+                                          <div className="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                                            <span className="rounded-full bg-slate-50 px-2.5 py-1 text-slate-500 border border-slate-100">
+                                              {exam.question_count} soal
+                                            </span>
+                                            <span className="rounded-full bg-slate-50 px-2.5 py-1 text-slate-500 border border-slate-100">
+                                              {getSessionLimitLabel(exam.session_limit)}
+                                            </span>
+                                          </div>
+                                          {exam.description ? (
+                                            <p className="text-xs leading-relaxed text-slate-500">
+                                              {exam.description}
+                                            </p>
+                                          ) : null}
+                                        </div>
+                                        {pkg.price === 0 && (
+                                          <Button
+                                            onClick={() => {
+                                              setConfirmStart(true);
+                                              setSelectedExamState({
+                                                packageItem: pkg,
+                                                examItem: exam,
+                                              });
+                                            }}
+                                            className="h-10 rounded-xl bg-emerald-600 px-4 text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-700 w-full sm:w-auto mt-2 sm:mt-0"
+                                          >
+                                            <Play size={14} className="mr-1.5 fill-current" />
+                                            Mulai Ujian
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-400">
+                                    Belum ada ujian yang ditautkan ke paket ini.
+                                  </div>
+                                )}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
                       </div>
 
-                      {canStartPackage ? (
-                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm font-medium text-emerald-700">
-                          Paket aktif. Pilih salah satu ujian di atas untuk mulai tryout.
-                        </div>
+                      {pkg.price === 0 ? null : activePackageIds.has(pkg.id) ? (
+                        <Link href="/apoteker/my-exams" className="block">
+                          <Button className="w-full bg-emerald-600 hover:bg-emerald-700 font-bold uppercase tracking-widest text-xs">
+                            Buka Ujian Saya
+                          </Button>
+                        </Link>
                       ) : pendingOrder ? (
                         <Link
                           href={`/apoteker/checkout?transactionId=${pendingOrder.id}`}
                           className="block"
                         >
-                          <Button className="w-full bg-amber-600 hover:bg-amber-700">
-                            Lanjutkan Pembayaran
+                          <Button className="w-full bg-amber-600 hover:bg-amber-700 font-bold uppercase tracking-widest text-xs h-11">
+                            Lanjutkan Pembayaran - Rp {Number(pkg.price).toLocaleString("id-ID")}
                           </Button>
                         </Link>
                       ) : (
@@ -381,8 +381,8 @@ export default function ApotekerDashboard() {
                           href={`/apoteker/checkout?packageId=${pkg.id}`}
                           className="block"
                         >
-                          <Button className="w-full bg-primary-600 hover:bg-primary-700">
-                            Checkout Paket
+                          <Button className="w-full bg-primary-600 hover:bg-primary-700 font-bold uppercase tracking-widest text-xs h-11">
+                            Checkout Paket - Rp {Number(pkg.price).toLocaleString("id-ID")}
                           </Button>
                         </Link>
                       )}
@@ -416,7 +416,7 @@ export default function ApotekerDashboard() {
                   `/apoteker/test?packageId=${selectedExamState?.packageItem.id}&examId=${selectedExamState?.examItem.id}`,
                 )
               }
-              className="flex-2 bg-linear-to-r from-primary-600 to-primary-600 hover:from-sky-700 hover:to-primary-700 text-white rounded-2xl font-semibold text-xs uppercase tracking-widest shadow-xl shadow-blue-100 transition-all active:scale-95"
+              className="flex-2 bg-gradient-to-r from-emerald-600 to-emerald-600 hover:from-emerald-700 hover:to-emerald-700 text-white rounded-2xl font-semibold text-xs uppercase tracking-widest shadow-xl shadow-emerald-100 transition-all active:scale-95"
             >
               Mulai Sekarang
             </Button>
@@ -424,13 +424,11 @@ export default function ApotekerDashboard() {
         }
       >
         <div className="space-y-8 px-1 py-2">
-          {/* Header Info: Lebih Fluid */}
           <div className="relative flex justify-around items-center py-6 bg-slate-50/50 rounded-4xl overflow-hidden">
-            {/* Decorative Blur */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-blue-400/10 blur-3xl" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-emerald-400/10 blur-3xl" />
 
             <div className="relative text-center space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-500/60">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-500/60">
                 Durasi
               </p>
               <div className="flex items-center justify-center gap-1.5">
@@ -446,7 +444,7 @@ export default function ApotekerDashboard() {
             <div className="w-px h-10 bg-slate-200" />
 
             <div className="relative text-center space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-500/60">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-500/60">
                 Kapasitas
               </p>
               <div className="flex items-center justify-center gap-1.5">
@@ -459,7 +457,6 @@ export default function ApotekerDashboard() {
             </div>
           </div>
 
-          {/* List Persiapan: Borderless & Airy */}
           <div className="space-y-6">
             <div className="flex items-center gap-3 px-2">
               <div className="h-px flex-1 bg-slate-100" />
@@ -516,10 +513,9 @@ export default function ApotekerDashboard() {
             </div>
           </div>
 
-          {/* Footer Note */}
           <div className="pt-2">
             <div className="bg-slate-50 p-3 rounded-2xl flex items-center gap-3 border border-slate-100/50">
-              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <p className="text-[10px] text-slate-500 font-bold tracking-tight">
                 {selectedExamState?.packageItem.name ?? "Paket"} •{" "}
                 {selectedExamState?.examItem.name ?? "Ujian"}

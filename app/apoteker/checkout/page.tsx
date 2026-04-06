@@ -598,27 +598,29 @@ function CheckoutContent() {
                         Lanjutkan Pembayaran
                       </Button>
                     ) : null}
-                    <Button
-                      variant="outline"
-                      disabled={syncing}
-                      onClick={handleSyncStatus}
-                    >
-                      <RefreshCw
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          syncing && "animate-spin",
-                        )}
-                      />
-                      Sinkronkan Status
-                    </Button>
+                    {!(currentTransaction.status === "paid" && currentTransaction.access_status === "active") ? (
+                      <Button
+                        variant="outline"
+                        disabled={syncing}
+                        onClick={handleSyncStatus}
+                      >
+                        <RefreshCw
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            syncing && "animate-spin",
+                          )}
+                        />
+                        Sinkronkan Status
+                      </Button>
+                    ) : null}
                     {currentTransaction.status === "paid" &&
                     currentTransaction.access_status === "active" ? (
                       <Link
-                        href={`/apoteker/test?packageId=${currentTransaction.package_id}`}
+                        href={`/apoteker/dashboard`}
                       >
                         <Button className="bg-emerald-600 hover:bg-emerald-700">
                           <BadgeCheck className="mr-2 h-4 w-4" />
-                          Mulai Ujian
+                          Kembali ke Dashboard
                         </Button>
                       </Link>
                     ) : null}
